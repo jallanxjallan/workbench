@@ -1,0 +1,94 @@
+<style> 
+
+.running_text {
+  display: block; /* Ensures consistent container behavior */
+  margin-bottom: 20px;
+}
+
+.running_text p {
+  display: flex; /* Aligns image and text in a single line */
+  margin: 0; /* Removes unwanted space around paragraphs */
+  line-height: 1.5; /* Ensures good text spacing */
+}
+
+.running_text p img {
+  max-width: 200px; /* Restricts image width */
+  height: auto; /* Maintains proportional height */
+  margin-right: 10px; /* Adds spacing between the image and text */
+  float: left; /* Floats the image to the left of the text */
+  display: block; /* Prevents inline-block behavior of images */
+}
+
+.boxout {
+  /* Inherits from .image-text-container */
+  display: block;
+  margin-left: 50px;
+  margin-right: 70px:
+  margin-top: 25px;
+  margin-bottom: 20px;
+  border: 2px solid #333; 
+  padding: 10px;
+  background-color: #f9f9f9;
+  overflow: hidden; /* Contain floats */
+}
+
+.boxout p {
+  display: flex;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.boxout p img {
+  max-width: 200px; /* Larger max-width for boxout images */
+  height: auto;
+  margin-right: 10px;
+  float: left;
+  display: block;
+}
+
+.feature {
+  /* Inherits from .image-text-container */
+  display: block;
+  margin-top: 30px;
+  margin-bottom: 30px;
+  border-top: 6px double black; /* Thick double border */
+  border-bottom: 6px double black;
+  padding: 10px;
+}
+
+.feature p {
+  display: flex;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.feature p img {
+  max-width: 200px; /* Same max-width as .image-text-container */
+  height: auto;
+  margin-right: 10px;
+  float: left;
+  display: block;
+}
+
+.boilerplate-text {
+  font-size: 70%; /* Smaller text */
+  font-weight: bold;
+  font-variant: small-caps;
+}
+
+.image-row {
+  display: flex;        /* Enables flexbox */
+  gap: 10px;            /* Adds space between images */
+  flex-wrap: nowrap;    /* Prevents wrapping to a new line */
+  justify-content: start; /* Aligns images to the left */
+  align-items: center;  /* Centers images vertically */
+}
+
+.image-row img {
+  max-width: 100%;      /* Ensures images don't overflow */
+  height: auto;         /* Maintains aspect ratio */
+}
+
+
+</style>
+

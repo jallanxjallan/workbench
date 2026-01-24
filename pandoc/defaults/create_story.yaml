@@ -1,0 +1,11 @@
+---
+input-file: /dev/null
+writer: markdown
+reader: markdown
+standalone: True
+template: story
+filters:
+ - check_if_exists.lua
+ - create_document.lua
+ - print_output_filelink.lua
+

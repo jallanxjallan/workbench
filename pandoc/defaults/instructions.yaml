@@ -1,0 +1,6 @@
+---
+writer: markdown
+reader: markdown
+standalone: True
+filters:
+ - make_instructions.lua

@@ -1,0 +1,6 @@
+---
+writer: markdown
+standalone: False
+filters:
+ - print_output_filepath.lua
+

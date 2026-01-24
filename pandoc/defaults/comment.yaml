@@ -1,0 +1,9 @@
+---
+writer: markdown
+reader: markdown
+standalone: True
+template: comment
+filters:
+  - output_comments.lua
+  - print_output_filepath.lua
+

@@ -1,0 +1,4 @@
+---
+to: markdown
+filters:
+  - autoscribe_ndjson.lua
