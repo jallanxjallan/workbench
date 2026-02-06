@@ -1,6 +1,29 @@
-# AutoScribe / workflow environment
+# ------------------------------------------------------------
+# AutoScribe environment
+# Explicit. No defaults. No magic.
+# ------------------------------------------------------------
 
+# Application home (logs, caches, misc state)
 export AUTOSCRIBE_HOME="$HOME/.local/share/autoscribe"
-export AUTOSCRIBE_REDIS_URL=${AUTOSCRIBE_REDIS_URL:-"redis://localhost:6379/0"}
-export AUTOSCRIBE_DB_PATH=${WORKFLOW_DB_PATH:-"$HOME/.local/share/workflow/v2.db"}
-export AUTOSCRIBE_INSTRUCTIONS_VAULT="$AUTOSCRIBE_HOME/instructions-vault"
+
+# Redis (runtime coordination)
+export AUTOSCRIBE_REDIS_URL="redis://localhost:6379/0"
+
+# SQLite (durable ledger / flight recorder)
+export AUTOSCRIBE_DB_PATH="$HOME/.local/share/autoscribe/db/autoscribe.sqlite"
+
+# ------------------------------------------------------------
+# Sanity checks
+# ------------------------------------------------------------
+
+: "${AUTOSCRIBE_HOME:?AUTOSCRIBE_HOME is not set}"
+: "${AUTOSCRIBE_REDIS_URL:?AUTOSCRIBE_REDIS_URL is not set}"
+: "${AUTOSCRIBE_DB_PATH:?AUTOSCRIBE_DB_PATH is not set}"
+
+# ------------------------------------------------------------
+# Non-destructive setup
+# ------------------------------------------------------------
+
+mkdir -p "$AUTOSCRIBE_HOME"
+mkdir -p "$(dirname "$AUTOSCRIBE_DB_PATH")"
+
