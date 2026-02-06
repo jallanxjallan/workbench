@@ -16,7 +16,6 @@ import yaml
 
 from asc.core.timestamp import timestamp
 from asc.store.sql.connect import connect
-from asc.core.rg_mapper import SLUG_REGEX
 from asc.instructions.slug_registry import resolve_instruction_ulid
 
 from asc.core.contracts import ensure_contracts_shapes

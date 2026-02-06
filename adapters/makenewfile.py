@@ -12,20 +12,24 @@ from urllib.parse import urlparse
 import attr
 import fire
 
+from asc.core.contracts import ensure_contracts_shapes
 
-_ALNUM_RE = re.compile(r"[A-Za-z0-9]+")
-_CANDIDATE_FIELDS = [
-    "url",
-    "uri",
-    "source",
-    "source_url",
-    "source_uri",
-    "origin",
-    "filepath",
-    "file_path",
-    "path",
-    "original_path",
-]
+ensure_contracts_shapes()
+from autoscribe_shapes.regex import ALNUM_TOKEN_RE
+from autoscribe_shapes.ndjson import (
+    FIELD_BATCH_ID,
+    FIELD_CALL_ID,
+    FIELD_CALL_ULID,
+    FIELD_CONTENT,
+    FIELD_META,
+    FIELD_METADATA,
+    FIELD_ORIGIN,
+    FIELD_SOURCE_BLOB,
+    SOURCE_LABEL_CANDIDATE_FIELDS,
+)
+
+_ALNUM_RE = ALNUM_TOKEN_RE
+_CANDIDATE_FIELDS = list(SOURCE_LABEL_CANDIDATE_FIELDS)
 
 
 def _strip_extensions(name: str) -> str:
@@ -111,7 +115,7 @@ class MakefileAdapter:
     def _process(self, stream: TextIO) -> None:
         for item in self.parse_ndjson(stream):
             record = item.record
-            content = record.get("content")
+            content = record.get(FIELD_CONTENT)
 
             if not isinstance(content, str):
                 _log_item_error(
@@ -122,7 +126,7 @@ class MakefileAdapter:
                 )
                 continue
 
-            source_blob = record.get("source_blob")
+            source_blob = record.get(FIELD_SOURCE_BLOB)
             source_label = self.infer_source_label(source_blob, record)
             source_type = self._infer_source_type(source_label)
 
@@ -139,7 +143,7 @@ class MakefileAdapter:
                 source_label=source_label,
                 emitted_at=emitted_at,
                 call_id=_get_call_ulid(record),
-                batch_id=record.get("batch_id"),
+                batch_id=record.get(FIELD_BATCH_ID),
                 source_type=source_type,
             )
 
@@ -218,14 +222,14 @@ class MakefileAdapter:
                     if isinstance(value.get("path"), str):
                         candidates.append(value["path"].strip())
 
-            metadata = mapping.get("metadata")
+            metadata = mapping.get(FIELD_METADATA) or mapping.get(FIELD_META)
             if isinstance(metadata, dict):
                 for field in ("source", "url"):
                     value = metadata.get(field)
                     if isinstance(value, str) and value.strip():
                         candidates.append(value.strip())
 
-            origin = mapping.get("origin")
+            origin = mapping.get(FIELD_ORIGIN)
             if isinstance(origin, dict):
                 for field in ("url", "uri", "path"):
                     value = origin.get(field)
@@ -377,7 +381,7 @@ class MakefileAdapter:
 
 
 def _get_call_ulid(record: dict) -> str:
-    value = record.get("call_ulid") or record.get("call_id")
+    value = record.get(FIELD_CALL_ULID) or record.get(FIELD_CALL_ID)
     return value if isinstance(value, str) and value else "unknown"
 
 
