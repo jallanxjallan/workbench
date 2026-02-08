@@ -35,3 +35,4 @@ if (fm?.image && fm.image_show === true) {
     dv.container.appendChild(cap);
   }
 }
+```

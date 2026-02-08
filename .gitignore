@@ -1,2 +1,31 @@
+# Python cache
 __pycache__/
 *.pyc
+
+# Default policy: ignore new files unless they match allow-rules below.
+*
+
+# Keep this file tracked.
+!.gitignore
+
+# Top-level command entrypoints.
+!/bin/
+!/bin/*
+
+# Keep command helper libraries tracked.
+!/bin/_env/
+!/bin/_env/**
+!/bin/_lib/
+!/bin/_lib/**
+
+# Allow standalone automation scripts.
+!/scripts/
+!/scripts/*.py
+!/scripts/*.sh
+!/scripts/*.zsh
+
+# Optional script adapters.
+!/adapters/
+!/adapters/*.py
+!/adapters/*.sh
+!/adapters/*.zsh

@@ -30,10 +30,8 @@ module.exports = async (params) => {
   if (!tplFolder || tplFolder.type !== "folder") {
     new Notice(`Template folder not found or not a folder: ${templateFolderPath}`, 7000);
     if (DEBUG) {
-      const folderList = all.filter(f => f.type === "folder").slice(0, 15).map(f => f.path).join("
-");
-      new Notice(`Some existing folders:
-${folderList}`, 9000);
+      const folderList = all.filter(f => f.type === "folder").slice(0, 15).map(f => f.path).join("\n");
+      new Notice(`Some existing folders:\n${folderList}`, 9000);
     }
     return;
   }
@@ -45,10 +43,8 @@ ${folderList}`, 9000);
 
   if (!templates.length) {
     if (DEBUG) {
-      const filesInTpl = all.filter(f => f.type === "file" && f.path.startsWith(templateFolderPath + "/")).map(f => f.path).join("
-");
-      new Notice(`No .md files found under ${templateFolderPath}. Seen files:
-${filesInTpl || "<none>"}`, 9000);
+      const filesInTpl = all.filter(f => f.type === "file" && f.path.startsWith(templateFolderPath + "/")).map(f => f.path).join("\n");
+      new Notice(`No .md files found under ${templateFolderPath}. Seen files:\n${filesInTpl || "<none>"}`, 9000);
     }
     new Notice(`No templates found under: ${templateFolderPath}`, 6000);
     return;

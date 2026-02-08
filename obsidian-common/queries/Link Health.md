@@ -1,7 +1,7 @@
 
 ```dataviewjs
-const SCENES_ROOT = "scenes";            // folder containing your scene notes
-const ENTRY_INDEX = "content_index.md";  // the single index to inspect
+const SCENES_ROOT = "_project";            // folder containing your scene notes
+const ENTRY_INDEX = "_project/content_index.md";  // the single index to inspect
 
 // ---------- helpers ----------
 async function loadText(path) { return await dv.io.load(path); }

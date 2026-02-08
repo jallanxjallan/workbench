@@ -2,7 +2,7 @@
 
 // Image Passages Browser — thumbnails + filesize
 // Folder + filters
-const FOLDER = "passages";           // your flat folder
+const FOLDER = "_project";           // your flat folder
 const ONLY_TOGGLED = false;          // true => require image_show: true
 const THUMB_MAX_W = 160;             // px
 

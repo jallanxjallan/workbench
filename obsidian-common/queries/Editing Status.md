@@ -1,14 +1,14 @@
 # Draft
 ```dataview
 TABLE WITHOUT ID file.link AS Scene, status AS Status
-FROM "scenes"
+FROM "_project"
 WHERE status = "🔳" OR status = "✍️" or status = "📝" or status = "💡"
 SORT file.name ASC
 ```
 # In Process
 ```dataview
 TABLE WITHOUT ID file.link AS Scene, status AS Status
-FROM "scenes"
+FROM "_project"
 WHERE status = "🤖" OR status = "💬" or status = "🧐"
 SORT file.name ASC
 ```
@@ -19,7 +19,7 @@ const statuses = ["🛑", "🔍", "🔧"];
 
 dv.table(
   ["Scene", "Status"],
-  dv.pages('"scenes"')
+  dv.pages('"_project"')
     .where(p => statuses.includes(p.status))
     .sort(p => p.file.name, 'asc')
     .map(p => [p.file.link, p.status])
@@ -33,7 +33,7 @@ const statuses = ["✨", "✅"];
 
 dv.table(
   ["Scene", "Status"],
-  dv.pages('"scenes"')
+  dv.pages('"_project"')
     .where(p => statuses.includes(p.status))
     .sort(p => p.file.name, 'asc')
     .map(p => [p.file.link, p.status])

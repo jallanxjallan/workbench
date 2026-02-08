@@ -30,7 +30,7 @@ module.exports = async (params) => {
   // --- Helpers -----------------------------------------------------------
   const normalizePath = (p) => {
     const adapter = app.vault?.adapter;
-    return adapter && adapter.normalizePath ? adapter.normalizePath(p) : String(p).replace(/\/g, '/');
+    return adapter && adapter.normalizePath ? adapter.normalizePath(p) : String(p).replace(/\\/g, '/');
   };
 
   const ensureFolder = async (filePath) => {
@@ -120,7 +120,7 @@ module.exports = async (params) => {
         const child = cur.children[i];
         if (isFolder(child)) {
           const pathLower = String(child.path || '').toLowerCase();
-          if (!/templates/.test(pathLower)) stack.push(child);
+          if (!/\btemplates\b/.test(pathLower)) stack.push(child);
         } else if (isFile(child) && child.extension === 'md') {
           const pathLower = String(child.path || '').toLowerCase();
           if (!pathLower.includes('/templates/')) files.push(child);
@@ -263,10 +263,7 @@ module.exports = async (params) => {
   if (problems.length) {
     // Non‑fatal: include in footer instead of throwing, so overrides can apply.
     // If you want to enforce hard failures, switch back to throw.
-    // throw new Error(["Validation errors detected:", problems.join("
-")].join("
-
-"));
+    // throw new Error(["Validation errors detected:", problems.join("\\n")].join("\\n\\n"));
   }
 
   // --- Output JSON -------------------------------------------------------
@@ -312,10 +309,7 @@ module.exports = async (params) => {
     }
   }
 
-  const noteContent = lines.join('
-').replace(/
-+$/, '') + '
-';
+  const noteContent = lines.join('\n').replace(/\n+$/, '') + '\n';
   await ensureFolder(INDEX_NOTE);
   await app.vault.adapter.write(normalizePath(INDEX_NOTE), noteContent);
 

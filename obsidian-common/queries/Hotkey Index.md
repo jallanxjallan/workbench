@@ -1,6 +1,8 @@
+# Hotkey Index
+
+```dataviewjs
 // Custom Hotkeys (grouped by modifiers)
 // Reads .obsidian/hotkeys.json (custom overrides only)
-```dataviewjs
 const { adapter } = this.app.vault;
 const app = this.app;
 const hotkeysPath = ".obsidian/hotkeys.json";

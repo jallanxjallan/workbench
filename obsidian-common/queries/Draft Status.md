@@ -3,7 +3,7 @@
 (() => {
   // DataviewJS: filter pages by status; render link + status in a table
 
-  const TARGET_FOLDER = "passages"; // ← change this as needed
+  const TARGET_FOLDER = "_project"; // ← change this as needed
 
   const container = this.container;
   container.empty();

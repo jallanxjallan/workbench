@@ -14,32 +14,32 @@ This note assumes:
 ## 1) Orphan Scenes (not used in any layout)
 ```dataview
 TABLE file.link AS "Unassigned Scenes"
-FROM "scenes"
-WHERE length(filter(file.inlinks, (l) => contains(l.path, "layouts/"))) = 0
+FROM "_project"
+WHERE length(filter(file.inlinks, (l) => contains(l.path, "_project/"))) = 0
 SORT file.name ASC
 ```
 
 ## 2) Layouts not yet in the Master Layout Index
 ```dataview
 TABLE file.link AS "Unindexed Layouts"
-FROM "layouts"
+FROM "_project"
 WHERE length(filter(file.inlinks, (l) => l.path = "Layout Index.md")) = 0
 SORT file.name ASC
 ```
 
 ## 3) Scenes used in multiple layouts (possible duplication)
 ```dataview
-TABLE file.link AS Scene, length(filter(file.inlinks, (l) => contains(l.path, "layouts/"))) AS LayoutCount,
-filter(file.inlinks, (l) => contains(l.path, "layouts/")) AS Layouts
-FROM "scenes"
-WHERE length(filter(file.inlinks, (l) => contains(l.path, "layouts/"))) > 1
+TABLE file.link AS Scene, length(filter(file.inlinks, (l) => contains(l.path, "_project/"))) AS LayoutCount,
+filter(file.inlinks, (l) => contains(l.path, "_project/")) AS Layouts
+FROM "_project"
+WHERE length(filter(file.inlinks, (l) => contains(l.path, "_project/"))) > 1
 SORT LayoutCount DESC, file.name ASC
 ```
 
 ## 4) Layouts missing required metadata
 ```dataview
 TABLE file.link AS Layout, type, pages
-FROM "layouts"
+FROM "_project"
 WHERE !type OR !pages
 SORT file.name ASC
 ```
@@ -48,23 +48,23 @@ SORT file.name ASC
 Shows each layout with the scenes it embeds.
 ```dataview
 TABLE file.link AS Layout, type, pages,
-filter(file.outlinks, (o) => contains(o.path, "scenes/")) AS Scenes
-FROM "layouts"
+filter(file.outlinks, (o) => contains(o.path, "_project/")) AS Scenes
+FROM "_project"
 SORT pages ASC, file.name ASC
 ```
 
 ## 6) Scene coverage (which layouts include each scene)
 ```dataview
 TABLE file.link AS Scene,
-filter(file.inlinks, (l) => contains(l.path, "layouts/")) AS Layouts
-FROM "scenes"
+filter(file.inlinks, (l) => contains(l.path, "_project/")) AS Layouts
+FROM "_project"
 SORT file.name ASC
 ```
 
 ## 7) Compile helper: layouts in book order (if you store `order` on layout notes)
 ```dataview
 TABLE file.link AS Layout, type, pages, order
-FROM "layouts"
+FROM "_project"
 WHERE order
 SORT number(order) ASC
 ```
@@ -78,7 +78,7 @@ SORT number(order) ASC
 ## 🤖 Scenes (e.g., machine‑edited or AI‑ready)
 ```dataview
 TABLE WITHOUT ID file.link AS Scene, status
-FROM "scenes"
+FROM "_project"
 WHERE status = "🤖" OR contains(string(status), "🤖")
 SORT file.name ASC
 ```
@@ -86,7 +86,7 @@ SORT file.name ASC
 ## 💬 Prompt Scenes (awaiting / contains prompt work)
 ```dataview
 TABLE WITHOUT ID file.link AS Scene, status, file.tags AS Tags
-FROM "scenes"
+FROM "_project"
 WHERE status = "💬" OR contains(string(status), "💬")
 SORT file.tags ASC
 ```
@@ -94,7 +94,7 @@ SORT file.tags ASC
 ## 🔳 Placeholder Scenes (stub content)
 ```dataview
 TABLE file.link AS Scene, status
-FROM "scenes"
+FROM "_project"
 WHERE status = "🔳" OR contains(string(status), "🔳")
 SORT file.name ASC
 ```
@@ -106,41 +106,41 @@ SORT file.name ASC
 ## A) Orphan scenes (no layout links)
 ```dataview
 TABLE file.link
-FROM "scenes"
-WHERE length(filter(file.inlinks, (l) => contains(l.path, "layouts/"))) = 0
+FROM "_project"
+WHERE length(filter(file.inlinks, (l) => contains(l.path, "_project/"))) = 0
 ```
 
 ## B) Layouts not in master index
 ```dataview
 TABLE file.link
-FROM "layouts"
+FROM "_project"
 WHERE length(filter(file.inlinks, (l) => l.path = "Layout Index.md")) = 0
 ```
 
 ## C) Scene duplication across layouts
 ```dataview
-TABLE file.link, length(filter(file.inlinks, (l) => contains(l.path, "layouts/"))) AS count
-FROM "scenes"
+TABLE file.link, length(filter(file.inlinks, (l) => contains(l.path, "_project/"))) AS count
+FROM "_project"
 WHERE count > 1
 ```
 
 ## D) Layouts missing metadata
 ```dataview
 TABLE file.link, type, pages
-FROM "layouts"
+FROM "_project"
 WHERE !type OR !pages
 ```
 
 ## E) Layout → Scenes mapping
 ```dataview
-TABLE file.link, filter(file.outlinks, (o) => contains(o.path, "scenes/")) AS scenes
-FROM "layouts"
+TABLE file.link, filter(file.outlinks, (o) => contains(o.path, "_project/")) AS scenes
+FROM "_project"
 ```
 
 ## F) Scenes by status (parameterize the emoji)
 ```dataview
 TABLE file.link, status
-FROM "scenes"
+FROM "_project"
 WHERE status = THIS.status OR contains(string(status), THIS.status)
 ```
 
@@ -152,15 +152,15 @@ WHERE status = THIS.status OR contains(string(status), THIS.status)
 
 **Layouts that embed non‑scene links**
 ```dataview
-TABLE file.link AS Layout, filter(file.outlinks, (o) => !contains(o.path, "scenes/")) AS NonSceneLinks
-FROM "layouts"
+TABLE file.link AS Layout, filter(file.outlinks, (o) => !contains(o.path, "_project/")) AS NonSceneLinks
+FROM "_project"
 WHERE length(NonSceneLinks) > 0
 ```
 
 **Scenes that link out (usually they shouldn’t need to)**
 ```dataview
 TABLE file.link, file.outlinks
-FROM "scenes"
+FROM "_project"
 WHERE length(file.outlinks) > 0
 ```
 
@@ -170,4 +170,3 @@ WHERE length(file.outlinks) > 0
 - Create/maintain `layouts/` notes that only embed scenes using `![[...]]`.
 - Keep a single **`Layout Index`** note that links only to layout notes.
 - Store scene `status` in YAML as emoji values you standardize (🤖, 💬, 🔳).
-

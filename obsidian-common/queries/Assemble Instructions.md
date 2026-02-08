@@ -1,7 +1,7 @@
 ```dataviewjs
 // === CONFIG ===
-const ROOT = "instructions";      // path inside THIS vault (e.g., "External/Instructions")
-const COMMON_PREFIX = "common";   // where common is mounted inside THIS vault (optional)
+const ROOT = "_project";      // path inside THIS vault (e.g., "External/Instructions")
+const COMMON_PREFIX = "_common";   // where common is mounted inside THIS vault (optional)
 const USE_TOP   = true;
 const SEPARATOR = "\n\n---\n\n";
 
