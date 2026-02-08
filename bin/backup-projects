@@ -1,0 +1,2 @@
+#!/usr/bin/env zsh
+python3 "$HOME/Workbench/backups/project_backup.py" "$@"

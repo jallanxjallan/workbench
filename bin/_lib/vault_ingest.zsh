@@ -1,41 +1,36 @@
-#!/usr/bin/env zsh
-# create_vault.zsh — standalone script (not just a function)
-# Purpose: From INSIDE a project folder, create a self-contained Obsidian vault
-#          in /home/jeremy/Dropbox/<project_snake>_content by copying the
-#          template at /home/jeremy/Dropbox/obsidian/VaultTemplate and
-#          scaffolding ingest config + pandoc defaults.
+workbench_vault_ingest() {
+  emulate -L zsh
+  set -euo pipefail
 
-set -euo pipefail
-
-SRC="/home/jeremy/Dropbox/obsidian/VaultTemplate"
-DEST_ROOT="/home/jeremy/Dropbox"
-
-# ---- helpers ----
-to_snake() {
-  print -r -- "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+|_+$//g'
-}
-
-aebort() { print -u2 -- "Error: $*"; exit 1 }
-
-# ---- main ----
-main() {
-  [[ -d "$SRC" ]] || aebort "source vault '$SRC' not found"
-
+  local src="/home/jeremy/Dropbox/obsidian/VaultTemplate"
   local project_name snake dest
-  project_name="$(basename "$PWD")"
-  [[ -n "$project_name" && "$project_name" != "/" ]] || aebort "could not determine project name from \$PWD"
 
-  snake="$(to_snake "$project_name")"
-  dest="$DEST_ROOT/${snake}_content"
-
-  if [[ -e "$dest" ]]; then
-    aebort "destination '$dest' already exists"
+  if [[ $# -ne 0 ]]; then
+    echo "Usage: vault-ingest" >&2
+    return 1
   fi
 
-  print -- "Creating vault: $dest ..."
-  mkdir -p "$dest"
+  project_name="$(basename "$PWD")"
+  # to_snake: lowercase, collapse non-alnum to underscore, trim underscores
+  snake="$(echo "$project_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+|_+$//g')"
+  dest="/home/jeremy/Dropbox/${snake}_content"
 
-  rsync -avh --progress "$SRC"/ "$dest"/ \
+  if [[ ! -d "$src" ]]; then
+    echo "Error: source vault '$src' not found." >&2
+    return 1
+  fi
+  if [[ -z "$project_name" || "$project_name" == "/" ]]; then
+    echo "Error: could not determine project name from \$PWD." >&2
+    return 1
+  fi
+  if [[ -e "$dest" ]]; then
+    echo "Error: destination '$dest' already exists." >&2
+    return 1
+  fi
+
+  echo "Creating vault: $dest ..."
+  mkdir -p "$dest"
+  rsync -avh --progress "$src"/ "$dest"/ \
     --exclude='.DS_Store' \
     --exclude='Thumbs.db' \
     --exclude='.Trash*'
@@ -52,6 +47,7 @@ meta:
   project: "${project_name}"
 EOF
   else
+    # idempotently ensure meta.project is set (simple append if missing)
     grep -qE '^meta:' "$ingest_yml" || printf '\nmeta:\n' >> "$ingest_yml"
     grep -qE '^\s*project:' "$ingest_yml" || printf '  project: "%s"\n' "$project_name" >> "$ingest_yml"
   fi
@@ -82,8 +78,6 @@ filters: []
 EOF
   fi
 
-  print -- "✅ Vault created at: $dest"
-  print -- "   Project Pandoc defaults at: $(realpath ./pandoc)"
+  echo "✅ Vault created at: $dest"
+  echo "   Project Pandoc defaults at: $(realpath ./pandoc)"
 }
-
-main "$@"

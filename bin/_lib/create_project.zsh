@@ -1,5 +1,3 @@
-#!/usr/bin/env zsh
-
 # create_project.zsh
 #
 # Upgrade an existing Obsidian vault into an AutoScribe project.
@@ -19,7 +17,15 @@
 #   - It never overwrites existing project state
 #
 
-create_project() {
+workbench_create_project() {
+  emulate -L zsh
+  set -euo pipefail
+
+  if [[ $# -ne 0 ]]; then
+    echo "Usage: create-project" >&2
+    return 1
+  fi
+
   local project_root="$PWD"
   local project_name
   project_name="$(basename "$project_root")"
