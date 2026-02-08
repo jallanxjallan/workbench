@@ -1,3 +1,2 @@
 #!/usr/bin/env zsh
-source "$HOME/Workbench/bin/_lib/create_project.zsh"
-workbench_create_project "$@"
+exec "$HOME/Workbench/bin/create_project" "$@"

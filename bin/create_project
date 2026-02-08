@@ -1,0 +1,29 @@
+#!/usr/bin/env zsh
+emulate -L zsh
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: create_project <project-mnemonic>" >&2
+  exit 1
+fi
+
+if [[ -n "${PROJECT_NAME:-}" || -n "${PROJECT_ROOT:-}" || -n "${PROJECT_VAULT:-}" ]]; then
+  echo "Error: project env vars detected in current shell. Run from a non-project folder." >&2
+  exit 1
+fi
+
+if [[ -f ".env.local" || -f ".envrc" || -e "vault" ]]; then
+  echo "Error: current directory already looks like a project." >&2
+  exit 1
+fi
+
+projects_root="${HOME}/Projects"
+cwd_abs="${PWD:A}"
+projects_root_abs="${projects_root:A}"
+
+if [[ "${cwd_abs:h}" != "${projects_root_abs}" ]]; then
+  echo "Error: run create_project from a direct child of ${projects_root_abs}" >&2
+  exit 1
+fi
+
+exec python3 "$HOME/Workbench/scripts/create_project.py" "$1"
