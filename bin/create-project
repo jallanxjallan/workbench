@@ -1,7 +1,2 @@
 #!/usr/bin/env zsh
-emulate -L zsh
-set -euo pipefail
-
-# create-project attaches a vault surface to an existing Studio project.
-# It does not infer project identity from cwd and forwards all explicit args.
 exec python3 "$HOME/Workbench/lib/py/create_project.py" "$@"

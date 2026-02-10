@@ -15,21 +15,21 @@ __pycache__/
 # Keep command helper libraries tracked.
 !/bin/_env/
 !/bin/_env/**
-!/bin/_lib/
-!/bin/_lib/**
 
 # Keep Python implementation modules tracked.
 !/lib/
 !/lib/**
 
-# Optional script adapters.
-!/adapters/
-!/adapters/*.py
-!/adapters/*.sh
-!/adapters/*.zsh
+# Pipeline ingress adapters.
+!/ingest-adapters/
+!/ingest-adapters/*.py
+!/ingest-adapters/*.sh
+!/ingest-adapters/*.zsh
 
-# Local-only secrets tooling and docs.
-bin/backup-secrets
-backups/secrets_backup.py
+# Document format-level utilities.
+!/format-tools/
+!/format-tools/**
+
+# Local-only secrets data and docs.
 backups/secrets_include.txt
 docs/SECRETS_BACKUP.md
