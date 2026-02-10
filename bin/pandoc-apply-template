@@ -1,3 +1,3 @@
 #!/usr/bin/env zsh
-source "$HOME/Workbench/bin/_lib/pandoc_apply_template.zsh"
+source "$HOME/Workbench/lib/sh/lib/pandoc_apply_template.zsh"
 workbench_pandoc_apply_template "$@"

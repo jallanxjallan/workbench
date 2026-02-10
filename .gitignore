@@ -18,14 +18,18 @@ __pycache__/
 !/bin/_lib/
 !/bin/_lib/**
 
-# Allow standalone automation scripts.
-!/scripts/
-!/scripts/*.py
-!/scripts/*.sh
-!/scripts/*.zsh
+# Keep Python implementation modules tracked.
+!/lib/
+!/lib/**
 
 # Optional script adapters.
 !/adapters/
 !/adapters/*.py
 !/adapters/*.sh
 !/adapters/*.zsh
+
+# Local-only secrets tooling and docs.
+bin/backup-secrets
+backups/secrets_backup.py
+backups/secrets_include.txt
+docs/SECRETS_BACKUP.md

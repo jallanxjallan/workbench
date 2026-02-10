@@ -1,3 +1,1 @@
-workbench_create_project() {
-  "$HOME/Workbench/bin/create_project" "$@"
-}
+source "$HOME/Workbench/lib/sh/lib/create_project.zsh"

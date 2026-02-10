@@ -36,7 +36,7 @@ fi
 # ==============================
 # Functions
 # ==============================
-# WorkBench PATH is configured in the canonical loader below.
+# Workbench PATH is configured in the canonical loader below.
 
 
 # ==============================
@@ -105,7 +105,7 @@ zle -N redraw-and-clear
 bindkey '^L' redraw-and-clear
 
 # ------------------------------------------------------------
-# WorkBench loader (canonical)
+# Workbench loader (canonical)
 # ------------------------------------------------------------
 
 # Blessed commands
@@ -114,7 +114,7 @@ export PATH="$HOME/Workbench/bin:$PATH"
 # Shell configuration (explicitly sourced)
 for config_file in \
   $HOME/Workbench/bin/aliases.zsh \
-  $HOME/Workbench/bin/_env/*.zsh(N) \
-  $HOME/Workbench/bin/_lib/*.zsh(N); do
+  $HOME/Workbench/lib/sh/env/*.zsh(N) \
+  $HOME/Workbench/lib/sh/lib/*.zsh(N); do
   source "$config_file"
 done

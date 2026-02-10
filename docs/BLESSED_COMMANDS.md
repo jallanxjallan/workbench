@@ -1,12 +1,12 @@
 # Blessed Commands
 
-A blessed command is a top-level executable in `WorkBench/bin/` that represents a complete user operation.
+A blessed command is a top-level executable in `Workbench/bin/` that represents a complete user operation.
 
 Current blessed commands:
 - `backup-projects`
 - `backup-secrets`
 - `vault-ingest`
-- `create_project`
+- `create-project`
 - `batch-commit`
 - `pandoc-apply-template`
 
