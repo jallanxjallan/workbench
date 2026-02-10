@@ -1,6 +1,6 @@
 # Core environment variables (generic)
 
-export EDITOR=${EDITOR:-nvim}
+export EDITOR=${EDITOR:-micro}
 export PAGER=${PAGER:-less}
 export LESS='-R'
 
