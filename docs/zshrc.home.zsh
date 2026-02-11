@@ -1,4 +1,5 @@
-# ==============================# Environment Variables
+# ==============================
+# Environment Variables
 # ==============================
 env_path="/home/jeremy/Python3.13Env"
 source "$env_path/bin/activate"
@@ -23,9 +24,9 @@ eval "$(zoxide init zsh)"
 # SECRETS
 # =============================
 SECRETS_FILE="$HOME/.zshenv_secrets"
-if [[ -f "$SECRETS_FILE" ]]; 
-then 
-    source "$SECRETS_FILE" 
+if [[ -f "$SECRETS_FILE" ]];
+then
+    source "$SECRETS_FILE"
 fi
 
 # ==============================
@@ -36,21 +37,20 @@ fi
 # ==============================
 # Functions
 # ==============================
-# Workbench PATH is configured in the canonical loader below.
 
 
 # ==============================
 # History Settings
 # ==============================
-HISTFILE=~/.zsh_history 
-HISTSIZE=100000 
-SAVEHIST=100000 
+HISTFILE=~/.zsh_history
+HISTSIZE=100000
+SAVEHIST=100000
 
-setopt SHARE_HISTORY 
-setopt APPEND_HISTORY 
-setopt EXTENDED_HISTORY 
-setopt HIST_IGNORE_SPACE 
-setopt HIST_IGNORE_DUPS 
+setopt SHARE_HISTORY
+setopt APPEND_HISTORY
+setopt EXTENDED_HISTORY
+setopt HIST_IGNORE_SPACE
+setopt HIST_IGNORE_DUPS
 
 
 
@@ -69,28 +69,11 @@ PROMPT='%n@%m %F{green}%c%f %# '
 # Scripting Safety
 # ==============================
 # Fail-fast defaults for safe scripting
-#set -euo pipefail 
+#set -euo pipefail
 
 
 # direnv integration
 eval "$(direnv hook zsh)"
-
-# Source per-project aliases when you cd into a direnv-managed folder
-autoload -Uz add-zsh-hook
-
-load_project_aliases() {
-  local global_aliases="/home/jeremy/Workbench/bin/aliases.zsh"
-  [[ -f "$global_aliases" ]] && source "$global_aliases"
-
-  if [[ -n "$DIRENV_DIR" ]]; then
-    local f="${PROJECT_ALIASES:-$DIRENV_DIR/.aliases.zsh}"
-    [[ -f "$f" ]] && source "$f"
-  fi
-}
-
-# Run on every dir change and once for the current dir
-add-zsh-hook chpwd load_project_aliases
-load_project_aliases
 
 export CHROME_PATH=/usr/bin/google-chrome-stable
 # Force clear to use the ANSI sequence that works for this NUC
@@ -107,14 +90,4 @@ bindkey '^L' redraw-and-clear
 # ------------------------------------------------------------
 # Workbench loader (canonical)
 # ------------------------------------------------------------
-
-# Blessed commands
-export PATH="$HOME/Workbench/bin:$PATH"
-
-# Shell configuration (explicitly sourced)
-for config_file in \
-  $HOME/Workbench/bin/aliases.zsh \
-  $HOME/Workbench/lib/sh/env/*.zsh(N) \
-  $HOME/Workbench/lib/sh/lib/*.zsh(N); do
-  source "$config_file"
-done
+source "$HOME/Workbench/lib/sh/core.zsh"
