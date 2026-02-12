@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -98,6 +99,27 @@ QUICKADD_DATA_JSON = {
     "enableTemplatePropertyTypes": False,
 }
 
+GITIGNORE_TEXT = """# Obsidian system
+.obsidian/
+
+# Local env
+.env*
+.direnv/
+
+# Databases / logs
+*.sqlite
+*.db
+*.log
+*.cache
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Backup bundles
+*.bundle
+"""
+
 
 def die(message: str) -> None:
     print(f"Error: {message}", file=sys.stderr)
@@ -153,6 +175,19 @@ def seed_plugins(plugins_root: Path, source_plugins_root: Path) -> int:
         )
 
     return ensured
+
+
+def run_git(project_vault: Path, args: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=project_vault,
+            check=check,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        die(f"git is not installed or not available in PATH: {exc}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -239,10 +274,8 @@ def main() -> int:
 
     (project_vault / ".obsidian").mkdir(parents=True, exist_ok=True)
     common_rel = os.path.relpath(workbench_common, project_vault)
-    project_rel = os.path.relpath(autoscribe_studio_project, project_root)
 
     # Symlinks are for editor convenience only. They are not semantic inputs.
-    ensure_symlink(project_root / "_project", project_rel)
     ensure_symlink(project_vault / "_common", common_rel)
 
     write_text(
@@ -284,6 +317,31 @@ def main() -> int:
     write_json(plugins_root / "quickadd/data.json", QUICKADD_DATA_JSON)
     write_json(plugins_root / "templater-obsidian/data.json", TEMPLATER_DATA_JSON)
 
+    write_text(project_vault / ".gitignore", GITIGNORE_TEXT)
+    try:
+        run_git(project_vault, ["init"], check=True)
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr.strip() if exc.stderr else str(exc)
+        die(f"git init failed: {stderr}")
+
+    add_result = run_git(project_vault, ["add", "*.md"], check=False)
+    add_stderr = (add_result.stderr or "").strip()
+    if add_result.returncode != 0 and "did not match any files" not in add_stderr:
+        die(f"git add *.md failed: {add_stderr or f'exit code {add_result.returncode}'}")
+
+    staged_check = run_git(project_vault, ["diff", "--cached", "--quiet"], check=False)
+    if staged_check.returncode not in (0, 1):
+        die(
+            "git diff --cached --quiet failed: "
+            f"{(staged_check.stderr or '').strip() or f'exit code {staged_check.returncode}'}"
+        )
+    if staged_check.returncode == 1:
+        try:
+            run_git(project_vault, ["commit", "-m", "INIT: project scaffold"], check=True)
+        except subprocess.CalledProcessError as exc:
+            stderr = exc.stderr.strip() if exc.stderr else str(exc)
+            die(f"git commit failed: {stderr}")
+
     if copied_plugins < len(REQUIRED_PLUGINS):
         print(
             f"WARNING: Plugin binaries not fully seeded ({copied_plugins}/{len(REQUIRED_PLUGINS)}).",
@@ -301,9 +359,11 @@ def main() -> int:
     print(f"   Vault surface:                 {project_vault}")
     print(f"   Env authority:                 {project_root / '.env.local'}")
     print("   Symlinks (editor convenience only):")
-    print(f"     {project_root / '_project'} -> {project_rel}")
     print(f"     {project_vault / '_common'} -> {common_rel}")
     print("   Plugins:                       dataview, quickadd, templater-obsidian")
+    print("   Git:                           initialized (local only)")
+    print("   Tracking:                      Markdown files only")
+    print("   Remote:                        none configured")
     return 0
 
 
