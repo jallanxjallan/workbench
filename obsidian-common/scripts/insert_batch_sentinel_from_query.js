@@ -1,9 +1,10 @@
-// Obsidian macro: Insert batch sentinel into files provided by an active query.
+// Obsidian macro: Insert batch sentinel into selected files from an active query/view.
 // Compatible entrypoint shape for QuickAdd and reusable from Templater/plugin code.
 //
-// Expected query inputs can be passed via:
-// - params.fileRefs / params.queryResults / params.files
-// - params.variables.fileRefs / params.variables.queryResults / params.variables.files
+// Expected selection inputs can be passed via:
+// - params.selectedFiles / params.selected / params.selection / params.selectedRows / params.selectedRefs
+// - params.variables.selectedFiles / params.variables.selected / params.variables.selection
+//   / params.variables.selectedRows / params.variables.selectedRefs
 // Values may be arrays, newline-delimited strings, paths, wikilinks, or objects with `.path` / `.file.path`.
 
 const LEGACY_SENTINEL_PREFIX = "<!-- asc:batch=";
@@ -24,7 +25,7 @@ module.exports = async function insertBatchSentinelFromQuery(params = {}) {
   try {
     const rawRefs = collectRawRefs(params, app);
     if (rawRefs.length === 0) {
-      notify("No files found from query input, active query render, or selection. Aborting.");
+      fail("No files were selected.");
       return;
     }
 
@@ -35,7 +36,7 @@ module.exports = async function insertBatchSentinelFromQuery(params = {}) {
 
     const { files, unresolved } = resolveFilesFromRefs(app, rawRefs, sourcePath);
     if (files.length === 0) {
-      notify("No query references could be resolved to markdown files. Aborting.");
+      fail("No files were selected.");
       return;
     }
 
@@ -45,13 +46,13 @@ module.exports = async function insertBatchSentinelFromQuery(params = {}) {
       return;
     }
 
-    const sentinel = String(sentinelInput).trim();
+    const sentinel = normalizeBatchSentinelLine(sentinelInput);
     if (!sentinel) {
-      notify("Empty batch sentinel line. Aborting without changes.");
+      notify("Invalid batch slug. Expected it to start with 'batch-'. Aborting without changes.");
       return;
     }
 
-    const confirmed = await confirmRun(params, sentinel, files.length);
+    const confirmed = await confirmRun(params, sentinel, files);
     if (!confirmed) {
       notify("Cancelled. No changes made.");
       return;
@@ -91,34 +92,32 @@ module.exports = async function insertBatchSentinelFromQuery(params = {}) {
 
 function collectRawRefs(params, app) {
   const vars = params.variables || {};
-  const out = [];
+  const selectedRefs = [];
 
-  const candidates = [
-    params.fileRefs,
-    params.queryResults,
-    params.files,
-    params.references,
-    vars.fileRefs,
-    vars.queryResults,
-    vars.files,
-    vars.references,
+  // Prefer explicit "selected" payloads if present.
+  const selectedCandidates = [
+    params.selectedFiles,
+    params.selected,
+    params.selection,
+    params.selections,
+    params.selectedItems,
+    params.selectedRows,
+    params.selectedRefs,
+    params.selectedFile,
     vars.selectedFiles,
     vars.selected,
-    vars.queryOutput,
+    vars.selection,
+    vars.selections,
+    vars.selectedItems,
+    vars.selectedRows,
+    vars.selectedRefs,
+    vars.selectedFile,
   ];
+  for (const candidate of selectedCandidates) flattenCandidate(candidate, selectedRefs);
+  if (selectedRefs.length > 0) return selectedRefs;
 
-  for (const candidate of candidates) {
-    flattenCandidate(candidate, out);
-  }
-
-  // Fallback: if no explicit query payload was passed, inspect the active query view
-  // and selected text to support hotkey-triggered execution.
-  if (out.length === 0) {
-    const fallbackRefs = collectRefsFromActiveContext(app);
-    for (const ref of fallbackRefs) out.push(ref);
-  }
-
-  return out;
+  // Selection-only fallback: inspect the active view for highlighted/selected refs.
+  return collectRefsFromActiveContext(app);
 }
 
 function collectRefsFromActiveContext(app) {
@@ -131,7 +130,7 @@ function collectRefsFromActiveContext(app) {
     refs.push(v);
   };
 
-  // Selection fallback: lets users run macro on a highlighted list of links/paths.
+  // Selection fallback in editor: lets users run macro on a highlighted list of links/paths.
   const markdownViewClass = globalThis.MarkdownView;
   let activeView = app.workspace?.activeLeaf?.view;
   if (markdownViewClass && typeof app.workspace?.getActiveViewOfType === "function") {
@@ -143,12 +142,147 @@ function collectRefsFromActiveContext(app) {
     for (const line of lines) push(line);
   }
 
-  // Active query fallback: collect links from rendered query containers only.
+  const cursorRef = collectRefFromEditorCursor(activeView?.editor);
+  if (cursorRef) push(cursorRef);
+
   const activeLeaf = app.workspace?.activeLeaf;
-  const viewRoot = activeLeaf?.view?.containerEl || activeLeaf?.view?.contentEl;
+  const viewRoot =
+    activeView?.containerEl ||
+    activeView?.contentEl ||
+    activeLeaf?.view?.containerEl ||
+    activeLeaf?.view?.contentEl;
   if (!viewRoot || typeof viewRoot.querySelectorAll !== "function") return refs;
 
-  const queryContainerSelectors = [
+  // Selection fallback in rendered view (Dataview/search/etc).
+  const domSelectionRefs = collectRefsFromDomSelection(viewRoot);
+  for (const ref of domSelectionRefs) push(ref);
+
+  // Primary for query UIs with tick-box selection (e.g., Draft Status results).
+  const checkedBoxRefs = collectRefsFromCheckedBoxes(viewRoot);
+  for (const ref of checkedBoxRefs) push(ref);
+
+  const domCaretRef = collectRefFromDomCaret(viewRoot);
+  if (domCaretRef) push(domCaretRef);
+
+  // Focused/selected element handling: supports single-row keyboard/click selection.
+  const focusedRef = collectFocusedInternalLinkRef(viewRoot);
+  if (focusedRef) push(focusedRef);
+
+  const selectedElementRefs = collectRefsFromSelectedElements(viewRoot);
+  for (const ref of selectedElementRefs) push(ref);
+
+  return refs;
+}
+
+function collectRefFromEditorCursor(editor) {
+  if (!editor || typeof editor.getCursor !== "function" || typeof editor.getLine !== "function") return "";
+
+  const cursor = editor.getCursor();
+  if (!cursor || typeof cursor.line !== "number" || typeof cursor.ch !== "number") return "";
+
+  const line = String(editor.getLine(cursor.line) || "");
+  if (!line.trim()) return "";
+
+  const tokens = extractLinkTokensFromText(line);
+  if (tokens.length === 0) return "";
+
+  const onCursor = tokens.find((token) => cursor.ch >= token.start && cursor.ch <= token.end);
+  if (onCursor) return onCursor.raw;
+  if (tokens.length === 1) return tokens[0].raw;
+
+  return "";
+}
+
+function extractLinkTokensFromText(text) {
+  const out = [];
+  const addMatches = (regex) => {
+    regex.lastIndex = 0;
+    let match = regex.exec(text);
+    while (match) {
+      out.push({
+        raw: match[0],
+        start: match.index,
+        end: match.index + match[0].length,
+      });
+      match = regex.exec(text);
+    }
+  };
+
+  addMatches(/!?\[\[[^[\]]+\]\]/g);
+  addMatches(/\[[^\]]*]\(([^)]+)\)/g);
+
+  out.sort((a, b) => a.start - b.start);
+  return out;
+}
+
+function collectRefsFromDomSelection(viewRoot) {
+  if (
+    !viewRoot ||
+    typeof window === "undefined" ||
+    typeof window.getSelection !== "function"
+  ) {
+    return [];
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return [];
+
+  const refs = [];
+  const seen = new Set();
+  const push = (value) => {
+    const v = String(value || "").trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    refs.push(v);
+  };
+
+  for (let i = 0; i < selection.rangeCount; i += 1) {
+    const range = selection.getRangeAt(i);
+    const container =
+      range.commonAncestorContainer?.nodeType === 1
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer?.parentElement;
+    if (!container || !viewRoot.contains(container)) continue;
+
+    const fragment = range.cloneContents?.();
+    if (fragment && typeof fragment.querySelectorAll === "function") {
+      const links = fragment.querySelectorAll("a.internal-link");
+      for (const link of links) {
+        const href =
+          link?.dataset?.href ||
+          link?.getAttribute?.("data-href") ||
+          link?.getAttribute?.("href");
+        if (!href) continue;
+        push(decodeAndStripHash(href));
+      }
+    }
+
+    const text = String(range.toString() || "").trim();
+    if (!text) continue;
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    for (const line of lines) push(line);
+  }
+
+  return refs;
+}
+
+function collectRefsFromCheckedBoxes(viewRoot) {
+  if (!viewRoot || typeof viewRoot.querySelectorAll !== "function") return [];
+
+  const refs = [];
+  const seen = new Set();
+  const push = (value) => {
+    const v = String(value || "").trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    refs.push(v);
+  };
+
+  // Restrict scanning to common rendered-query containers plus known result wrapper.
+  const containers = [];
+  const seenContainers = new Set();
+  const containerSelectors = [
+    ".status-results",
     ".dataview",
     ".block-language-dataview",
     ".block-language-dataviewjs",
@@ -156,22 +290,208 @@ function collectRefsFromActiveContext(app) {
     ".search-result-container",
   ];
 
-  const anchors = new Set();
-  for (const selector of queryContainerSelectors) {
-    const containers = viewRoot.querySelectorAll(selector);
-    for (const container of containers) {
-      const links = container.querySelectorAll("a.internal-link");
-      for (const link of links) anchors.add(link);
+  for (const selector of containerSelectors) {
+    const nodes = viewRoot.querySelectorAll(selector);
+    for (const node of nodes) {
+      if (seenContainers.has(node)) continue;
+      seenContainers.add(node);
+      containers.push(node);
+    }
+  }
+  if (containers.length === 0) containers.push(viewRoot);
+
+  for (const container of containers) {
+    const checked = container.querySelectorAll("input[type='checkbox']:checked");
+    for (const box of checked) {
+      const ref = resolveRefFromCheckedBox(box, viewRoot);
+      if (ref) push(ref);
     }
   }
 
-  for (const anchor of anchors) {
-    const href = anchor?.dataset?.href || anchor?.getAttribute?.("data-href") || anchor?.getAttribute?.("href");
-    if (!href) continue;
-    push(decodeAndStripHash(href));
+  return refs;
+}
+
+function resolveRefFromCheckedBox(box, viewRoot) {
+  if (!box || !viewRoot || !viewRoot.contains(box)) return "";
+
+  // Fast path: link adjacent to checkbox in same row.
+  const siblingLink =
+    box.nextElementSibling?.matches?.("a.internal-link")
+      ? box.nextElementSibling
+      : null;
+  if (siblingLink) {
+    const href = getInternalLinkHref(siblingLink);
+    if (href) return decodeAndStripHash(href);
+  }
+
+  const scopes = [
+    box.closest?.("li"),
+    box.closest?.("tr"),
+    box.closest?.(".dataview-result-list-li"),
+    box.closest?.(".dataview-result-list-item"),
+    box.closest?.(".search-result-file-match"),
+    box.closest?.(".search-result"),
+    box.parentElement,
+  ].filter(Boolean);
+
+  for (const scope of scopes) {
+    if (!viewRoot.contains(scope) || typeof scope.querySelectorAll !== "function") continue;
+    const links = scope.querySelectorAll("a.internal-link");
+    const best = pickBestInternalLink(links);
+    if (!best) continue;
+    const href = getInternalLinkHref(best);
+    if (href) return decodeAndStripHash(href);
+  }
+
+  return "";
+}
+
+function collectRefFromDomCaret(viewRoot) {
+  if (
+    !viewRoot ||
+    typeof window === "undefined" ||
+    typeof window.getSelection !== "function"
+  ) {
+    return "";
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return "";
+
+  const range = selection.getRangeAt(0);
+  const node =
+    range.startContainer?.nodeType === 1
+      ? range.startContainer
+      : range.startContainer?.parentElement;
+  if (!node || !viewRoot.contains(node)) return "";
+
+  const nearNodeRef = resolveInternalLinkNearNode(node, viewRoot);
+  if (nearNodeRef) return nearNodeRef;
+
+  // Some views place the collapsed range on a wrapper node; probe the caret point.
+  if (typeof document === "undefined" || typeof document.elementFromPoint !== "function") return "";
+  const rect = range.getBoundingClientRect?.();
+  if (!rect) return "";
+
+  const x = Math.floor(rect.left + rect.width / 2);
+  const y = Math.floor(rect.top + rect.height / 2);
+  const pointNode = document.elementFromPoint(x, y);
+  if (!pointNode || !viewRoot.contains(pointNode)) return "";
+
+  const nearPointRef = resolveInternalLinkNearNode(pointNode, viewRoot);
+  if (nearPointRef) return nearPointRef;
+
+  return "";
+}
+
+function collectFocusedInternalLinkRef(viewRoot) {
+  if (!viewRoot || typeof document === "undefined") return "";
+  const active = document.activeElement;
+  if (!active || !viewRoot.contains(active)) return "";
+
+  const nearActiveRef = resolveInternalLinkNearNode(active, viewRoot);
+  if (nearActiveRef) return nearActiveRef;
+
+  // Support composite widgets that track active descendants by id.
+  const activeDescendantId = active.getAttribute?.("aria-activedescendant");
+  if (activeDescendantId && typeof document.getElementById === "function") {
+    const desc = document.getElementById(activeDescendantId);
+    if (desc && viewRoot.contains(desc)) {
+      const nearDescRef = resolveInternalLinkNearNode(desc, viewRoot);
+      if (nearDescRef) return nearDescRef;
+    }
+  }
+
+  return "";
+}
+
+function resolveInternalLinkNearNode(node, viewRoot) {
+  if (!node || !viewRoot || !viewRoot.contains(node)) return "";
+
+  const link =
+    node.matches?.("a.internal-link")
+      ? node
+      : node.closest?.("a.internal-link");
+  if (link) {
+    const href = getInternalLinkHref(link);
+    return href ? decodeAndStripHash(href) : "";
+  }
+
+  // Try row-like scopes first (query list row, table row, search row).
+  const scopes = [
+    node.closest?.(".dataview-result-list-li"),
+    node.closest?.(".dataview-result-list-item"),
+    node.closest?.("tr"),
+    node.closest?.("li"),
+    node.closest?.(".search-result"),
+    node.closest?.(".search-result-file-match"),
+    node.closest?.("p"),
+  ].filter(Boolean);
+
+  for (const scope of scopes) {
+    if (!viewRoot.contains(scope) || typeof scope.querySelectorAll !== "function") continue;
+    const links = scope.querySelectorAll("a.internal-link");
+    const best = pickBestInternalLink(links);
+    if (!best) continue;
+    const href = getInternalLinkHref(best);
+    if (href) return decodeAndStripHash(href);
+  }
+
+  return "";
+}
+
+function pickBestInternalLink(links) {
+  if (!links || links.length === 0) return null;
+  if (links.length === 1) return links[0];
+
+  // Prefer file links over heading/block links when multiple links are present.
+  for (const link of links) {
+    const href = getInternalLinkHref(link);
+    if (href && !href.includes("#")) return link;
+  }
+
+  return links[0];
+}
+
+function collectRefsFromSelectedElements(viewRoot) {
+  if (!viewRoot || typeof viewRoot.querySelectorAll !== "function") return [];
+
+  const selectors = [
+    "a.internal-link.is-selected",
+    ".is-selected a.internal-link",
+    ".selected a.internal-link",
+    "tr[aria-selected='true'] a.internal-link",
+    "a.internal-link[aria-selected='true']",
+  ];
+
+  const refs = [];
+  const seen = new Set();
+  const push = (value) => {
+    const v = String(value || "").trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    refs.push(v);
+  };
+
+  for (const selector of selectors) {
+    const links = viewRoot.querySelectorAll(selector);
+    for (const link of links) {
+      const href = getInternalLinkHref(link);
+      if (!href) continue;
+      push(decodeAndStripHash(href));
+    }
   }
 
   return refs;
+}
+
+function getInternalLinkHref(link) {
+  return (
+    link?.dataset?.href ||
+    link?.getAttribute?.("data-href") ||
+    link?.getAttribute?.("href") ||
+    ""
+  );
 }
 
 function decodeAndStripHash(href) {
@@ -363,23 +683,60 @@ function getFirstLine(text) {
 async function promptForBatchLine(params, app) {
   const qa = params.quickAddApi || params.quickAddAPI || params.api;
   if (qa && typeof qa.inputPrompt === "function") {
-    return qa.inputPrompt("Batch sentinel line");
+    return qa.inputPrompt("Batch slug");
   }
 
   if (app?.plugins?.plugins?.quickadd?.api?.inputPrompt) {
-    return app.plugins.plugins.quickadd.api.inputPrompt("Batch sentinel line");
+    return app.plugins.plugins.quickadd.api.inputPrompt("Batch slug");
   }
 
   if (typeof window !== "undefined" && typeof window.prompt === "function") {
-    return window.prompt("Enter full batch sentinel line");
+    return window.prompt("Enter batch slug (without wrappers)");
   }
 
   throw new Error("No prompt API available to request batch slug.");
 }
 
-async function confirmRun(params, sentinel, count) {
+function normalizeBatchSentinelLine(input) {
+  const raw = String(input || "").trim();
+  if (!raw) return "";
+
+  const wrapped = raw.match(/^---\s*ASC\s+BATCH:\s*(.*?)\s*---$/i);
+  if (wrapped) {
+    const slug = wrapped[1].trim();
+    if (!slug || !isValidBatchSlug(slug)) return "";
+    return `--- ASC BATCH: ${slug} ---`;
+  }
+
+  const prefixed = raw.match(/^---\s*ASC\s+BATCH:\s*(.*)$/i);
+  if (prefixed) {
+    const slug = prefixed[1].replace(/\s*---\s*$/, "").trim();
+    if (!slug || !isValidBatchSlug(slug)) return "";
+    return `--- ASC BATCH: ${slug} ---`;
+  }
+
+  const legacy = raw.match(/^<!--\s*asc:batch=(.*?)\s*-->$/i);
+  if (legacy) {
+    const slug = legacy[1].trim();
+    if (!slug || !isValidBatchSlug(slug)) return "";
+    return `--- ASC BATCH: ${slug} ---`;
+  }
+
+  if (!isValidBatchSlug(raw)) return "";
+  return `--- ASC BATCH: ${raw} ---`;
+}
+
+function isValidBatchSlug(slug) {
+  const value = String(slug || "").trim();
+  // Accept base slug and optional suffix segments, e.g.:
+  // batch-11feb-1219
+  // batch-11feb-1219-foo-bar
+  return value.startsWith("batch-") && value.length > "batch-".length;
+}
+
+async function confirmRun(params, sentinel, files) {
   const qa = params.quickAddApi || params.quickAddAPI || params.api;
-  const message = `Insert sentinel into ${count} file(s)?\n\n${sentinel}`;
+  const message = buildConfirmationMessage(sentinel, files);
 
   if (qa && typeof qa.yesNoPrompt === "function") {
     return qa.yesNoPrompt("Confirm Batch Sentinel", message);
@@ -390,6 +747,36 @@ async function confirmRun(params, sentinel, count) {
   }
 
   throw new Error("No confirmation API available.");
+}
+
+function buildConfirmationMessage(sentinel, files) {
+  const list = Array.isArray(files) ? files : [];
+  if (list.length === 0) return "No files were selected.";
+
+  const previewCount = 5;
+  const previewLines = list
+    .slice(0, previewCount)
+    .map((file) => `- ${getFileTitle(file)}`)
+    .join("\n");
+
+  let message = `Inject this batch sentinel?\n\n${sentinel}\n\nSelected files (${list.length}):\n${previewLines}`;
+  if (list.length > previewCount) {
+    message += `\n...and ${list.length - previewCount} more file(s).`;
+  }
+
+  return message;
+}
+
+function getFileTitle(file) {
+  if (file && typeof file.basename === "string" && file.basename.trim()) {
+    return file.basename.trim();
+  }
+
+  const path = String(file?.path || "").trim();
+  if (!path) return "(untitled)";
+
+  const leaf = path.split("/").pop() || path;
+  return leaf.replace(/\.md$/i, "");
 }
 
 async function writeWithRollback(app, plan) {
