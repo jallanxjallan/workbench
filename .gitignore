@@ -30,6 +30,23 @@ __pycache__/
 !/format-tools/
 !/format-tools/**
 
+# Naming policy and enforcement artifacts.
+!/.github/
+!/.github/**
+!/.pre-commit-config.yaml
+!/NAMING_CONVENTIONS.md
+!/identifier_inventory.json
+!/rename_plan.json
+!/naming_refactor_report.md
+!/scripts/
+!/scripts/**
+!/tools/
+!/tools/**
+
+# Keep Python cache artifacts ignored everywhere.
+**/__pycache__/
+**/*.pyc
+
 # Local-only secrets data and docs.
 backups/secrets_include.txt
 docs/SECRETS_BACKUP.md

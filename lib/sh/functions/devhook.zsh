@@ -14,9 +14,14 @@ typeset -g WORKBENCH_DEVHOOK_LAST_PROJECT_ALIASES="${WORKBENCH_DEVHOOK_LAST_PROJ
 workbench_devhook_unset_autoscribe_env() {
   emulate -L zsh
   local name
+  local -a global_autoscribe_vars
+
+  global_autoscribe_vars=()
 
   for name in ${(k)parameters}; do
-    [[ "$name" == AUTOSCRIBE_* ]] && unset "$name"
+    if [[ "$name" == AUTOSCRIBE_* ]] && (( ${global_autoscribe_vars[(Ie)$name]} == 0 )); then
+      unset "$name"
+    fi
   done
 }
 

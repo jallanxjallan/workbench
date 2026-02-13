@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: naming-conventions
+        name: naming conventions
+        entry: python3 scripts/check_naming_conventions.py
+        language: system
+        pass_filenames: false
