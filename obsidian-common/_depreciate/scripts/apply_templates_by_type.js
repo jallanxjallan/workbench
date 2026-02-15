@@ -1,7 +1,7 @@
 // apply_templates_by_type.js — Batch-apply template metadata by `type`
-// • Scans the vault for Markdown files, skipping "_system/".
+// • Scans the vault for Markdown files, skipping "_common/".
 // • Only processes files with status === "🔳".
-// • Loads `_system/templates/<type>.md` and merges missing metadata keys.
+// • Loads `_common/templates/<type>.md` and merges missing metadata keys.
 // • slug: kebab(parentFolder-basename)
 // • uid: timestamp + random 3 digits
 // • No UI prompts; concise notice at end.
@@ -9,10 +9,13 @@
 module.exports = async (tp) => {
   const { app, TFile } = window;
   const INBOX = "🔳";
+  const COMMON_ROOT = "_common/";
 
   // Helpers -------------------------------------------------------------
   const isMd = (f) => f && f.extension === "md";
-  const isSystem = (f) => f.path.startsWith("_system/");
+  const isManagedAsset = (f) =>
+    f.path.startsWith(COMMON_ROOT) ||
+    f.path.startsWith("_depreciate/");
 
   const toKebab = (s) => String(s || "")
     .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
@@ -34,10 +37,36 @@ module.exports = async (tp) => {
     return `${YYYY}${MM}${DD}${hh}${mm}${ss}${rand}`;
   };
 
+  const cloneValue = (value) => JSON.parse(JSON.stringify(value));
+  const isPlainObject = (value) =>
+    Object.prototype.toString.call(value) === "[object Object]";
+  const isEmptyValue = (value) =>
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    (Array.isArray(value) && value.length === 0);
+
   const readTemplateMeta = async (tfile) => {
+    const cached = app.metadataCache.getFileCache(tfile)?.frontmatter;
+    if (cached && typeof cached === "object") {
+      const meta = cloneValue(cached);
+      delete meta.position;
+      return meta;
+    }
+
     const text = await app.vault.read(tfile);
+    const parseYaml = globalThis?.obsidian?.parseYaml;
     const m = /^---\n([\s\S]*?)\n---/m.exec(text);
     if (!m) return {};
+    if (typeof parseYaml === "function") {
+      try {
+        const parsed = parseYaml(m[1]);
+        if (parsed && typeof parsed === "object") return parsed;
+      } catch (_) {
+        // Fall through to minimal parser.
+      }
+    }
+
     const yml = m[1];
     const lines = yml.split(/\r?\n/);
     const meta = {};
@@ -70,18 +99,32 @@ module.exports = async (tp) => {
 
   const getFrontmatter = (file) => app.metadataCache.getFileCache(file)?.frontmatter || {};
 
-  const writeFrontmatter = async (file, patch) => {
-    await app.fileManager.processFrontMatter(file, (fm) => {
-      for (const [k, v] of Object.entries(patch)) {
-        fm[k] = v;
+  const mergeMissing = (target, source) => {
+    let changed = false;
+    for (const [key, sourceValue] of Object.entries(source || {})) {
+      const targetValue = target[key];
+      if (isPlainObject(sourceValue)) {
+        if (isEmptyValue(targetValue) || !isPlainObject(targetValue)) {
+          target[key] = cloneValue(sourceValue);
+          changed = true;
+        } else if (mergeMissing(targetValue, sourceValue)) {
+          changed = true;
+        }
+        continue;
       }
-    });
+
+      if (isEmptyValue(targetValue)) {
+        target[key] = cloneValue(sourceValue);
+        changed = true;
+      }
+    }
+    return changed;
   };
 
   // Main ---------------------------------------------------------------
-  const files = app.vault.getMarkdownFiles().filter((f) => isMd(f) && !isSystem(f));
+  const files = app.vault.getMarkdownFiles().filter((f) => isMd(f) && !isManagedAsset(f));
   if (!files.length) {
-    new Notice("No markdown files found outside _system/.");
+    new Notice("No markdown files found outside _common/.");
     return;
   }
 
@@ -94,34 +137,30 @@ module.exports = async (tp) => {
     const noteType = (fm && typeof fm.type === "string") ? fm.type.trim() : "";
     if (!noteType) { skippedNoType++; continue; }
 
-    const templatePath = `_system/templates/${noteType}.md`;
+    const templatePath = `${COMMON_ROOT}templates/${noteType}.md`;
     const t = app.vault.getAbstractFileByPath(templatePath);
     if (!t || !(t instanceof TFile)) { skippedNoTemplate++; continue; }
 
     const tmeta = await readTemplateMeta(t);
+    const templateMeta = cloneValue(tmeta || {});
+    delete templateMeta.position;
+    delete templateMeta.slug;
 
-    const patch = {};
-    for (const [k, v] of Object.entries(tmeta)) {
-      if (k === "slug") continue;
-      if (fm[k] === undefined || fm[k] === null || (Array.isArray(fm[k]) && fm[k].length === 0) || fm[k] === "") {
-        patch[k] = v;
+    let changed = false;
+    await app.fileManager.processFrontMatter(f, (liveFm) => {
+      if (mergeMissing(liveFm, templateMeta)) changed = true;
+      if (isEmptyValue(liveFm.slug)) {
+        liveFm.slug = computeSlugFor(f);
+        changed = true;
       }
-    }
+      if (isEmptyValue(liveFm.uid)) {
+        liveFm.uid = ts();
+        changed = true;
+      }
+    });
 
-    if (fm.slug === undefined || fm.slug === null || fm.slug === "") {
-      patch.slug = computeSlugFor(f);
-    }
-
-    if (fm.uid === undefined || fm.uid === null || fm.uid === "") {
-      patch.uid = ts();
-    }
-
-    if (Object.keys(patch).length) {
-      await writeFrontmatter(f, patch);
-      updated++;
-    }
+    if (changed) updated++;
   }
 
   new Notice(`Templates applied: ${updated} updated; skipped — ${skippedStatus} status≠${INBOX}, ${skippedNoType} no type, ${skippedNoTemplate} missing template.`);
 };
-

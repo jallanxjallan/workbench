@@ -3,10 +3,10 @@
 ## Folder Structure
 | Path | Purpose |
 |------|----------|
-| `_system/` | Holds all operational assets (hidden from content workflows) |
-| `_system/templates/` | Templater templates for new notes (**Ctrl+Alt+M/P/I/T**) |
-| `_system/queries/` | DataviewJS and dashboard queries (**Mod+Shift+D/L**) |
-| `_system/scripts/` | QuickAdd and helper scripts, run manually via **Ctrl+P** |
+| `_common/` | Holds all shared operational assets (symlinked into each vault) |
+| `_common/templates/` | Templater templates for new notes (**Ctrl+Alt+M/P/I/T**) |
+| `_common/queries/` | DataviewJS and dashboard queries (**Mod+Shift+D/L**) |
+| `_common/scripts/` | QuickAdd and helper scripts, run manually via **Ctrl+P** |
 | *(content folders)* | All other folders contain authored material only |
 
 ---
@@ -26,10 +26,10 @@
 ### 🧩 Templates
 | Hotkey            | Template                                            |
 | ----------------- | --------------------------------------------------- |
-| **Mod + Alt + M** | New *message* note (`_system/templates/message.md`) |
-| **Mod + Alt + P** | New *passage* note (`_system/templates/passage.md`) |
-| **Mod + Alt + I** | New *image* note (`_system/templates/image.md`)     |
-| **Mod + Alt + T** | New *topic* note (`_system/templates/topic.md`)     |
+| **Mod + Alt + M** | New *message* note (`_common/templates/message.md`) |
+| **Mod + Alt + P** | New *passage* note (`_common/templates/passage.md`) |
+| **Mod + Alt + I** | New *image* note (`_common/templates/image.md`)     |
+| **Mod + Alt + T** | New *topic* note (`_common/templates/topic.md`)     |
 
 ### 📊 Queries
 | Hotkey | Dashboard |
@@ -48,6 +48,6 @@
 ---
 
 ## 📘 Philosophy
-Maintain a single `_system/` folder for all internal logic.  
+Maintain a single `_common/` folder for all shared internal logic.  
 Keep every other folder focused on content, ensuring clean API input and minimal accidental inclusion of non-text assets.  
 Scripts are discoverable but not hotkey-bound—invoke them via **Ctrl + P** as needed.
