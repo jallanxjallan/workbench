@@ -1,7 +1,7 @@
 // apply_template.js — Apply a selected template to the active note.
 // Rules:
 // - Template sources: _common/template, _common/templates, and vault-root templates/.
-// - Fails if active file has existing frontmatter properties.
+// - Fails only if active file already has a slug property.
 // - Fails if active file is not markdown or contains Dataview code blocks.
 // - Sets slug (kebab-case parent + filename) and project.
 
@@ -28,8 +28,8 @@ module.exports = async (params = {}) => {
   }
 
   const currentFm = normalizeFrontmatter(app.metadataCache.getFileCache(activeFile)?.frontmatter);
-  if (Object.keys(currentFm).length > 0) {
-    return fail("Active note already has properties/frontmatter; aborting.");
+  if (Object.prototype.hasOwnProperty.call(currentFm, "slug")) {
+    return fail("Active note already has a slug property; aborting.");
   }
 
   const templates = collectTemplates(app);
@@ -52,8 +52,8 @@ module.exports = async (params = {}) => {
   const slug = buildSlug(activeFile.path);
   const project = await resolveProjectName(app);
 
-  // Load all template properties, then set only the requested fields explicitly.
-  const finalFm = Object.assign({}, templateFm || {});
+  // Merge template properties with existing frontmatter, preserving existing values.
+  const finalFm = Object.assign({}, templateFm || {}, currentFm || {});
   finalFm.slug = slug;
   finalFm.project = project;
 
