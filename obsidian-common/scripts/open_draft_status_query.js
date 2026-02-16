@@ -40,8 +40,22 @@ module.exports = async function openDraftStatusQuery(params = {}) {
   }
 
   await leaf.openFile(targetFile);
+  await forceLeafPreview(leaf, app);
   notify(`Opened: ${targetFile.path}`, 4000);
 };
+
+async function forceLeafPreview(leaf, app) {
+  const view = leaf?.view;
+  if (view && typeof view.setMode === "function") {
+    await Promise.resolve(view.setMode("preview"));
+    return;
+  }
+  const stateMode = leaf?.getViewState?.()?.state?.mode;
+  const mode = typeof view?.getMode === "function" ? view.getMode() : stateMode;
+  if (mode !== "preview" && app?.commands?.commands?.["markdown:toggle-preview"]) {
+    await Promise.resolve(app.commands.executeCommandById("markdown:toggle-preview"));
+  }
+}
 
 function fail(message) {
   const text = `Open Draft Status failed: ${message}`;

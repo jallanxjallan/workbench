@@ -1,29 +1,29 @@
 {
-  "quickadd:choice:ac2ee89d-38f0-44c3-84e4-2a1d6d0ea380": [
+  "quickadd:choice:5c4b5b1a-89cb-47f2-83da-c78d3f9f5370": [
     {
       "modifiers": [
-        "Ctrl",
-        "Alt"
+        "Mod",
+        "Meta"
       ],
-      "key": "d"
+      "key": "Q"
     }
   ],
-  "quickadd:choice:5c9b6ba0-cefc-4acf-9e9d-8cd2e59a0c3c": [
+  "quickadd:choice:ef1a248d-6d77-4b72-88c2-f7cc5198bb36": [
     {
       "modifiers": [
-        "Ctrl",
-        "Alt"
+        "Mod",
+        "Meta"
       ],
-      "key": "s"
+      "key": "S"
     }
   ],
-  "quickadd:choice:9d2861a5-4f6c-4d8f-a444-7ea8f6d67d80": [
+  "quickadd:choice:b3e9de39-5258-46fc-bf40-ac2fa35f7fd5": [
     {
       "modifiers": [
-        "Ctrl",
-        "Alt"
+        "Mod",
+        "Meta"
       ],
-      "key": "q"
+      "key": "T"
     }
   ]
 }

@@ -5,7 +5,7 @@
 |------|----------|
 | `_common/` | Holds all shared operational assets (symlinked into each vault) |
 | `_common/templates/` | Templater templates for new notes (**Ctrl+Alt+M/P/I/T**) |
-| `_common/queries/` | DataviewJS and dashboard queries (**Mod+Shift+D/L**) |
+| `_common/queries/` | DataviewJS query notes (open via QuickAdd picker) |
 | `_common/scripts/` | QuickAdd and helper scripts, run manually via **Ctrl+P** |
 | *(content folders)* | All other folders contain authored material only |
 
@@ -32,10 +32,10 @@
 | **Mod + Alt + T** | New *topic* note (`_common/templates/topic.md`)     |
 
 ### 📊 Queries
-| Hotkey | Dashboard |
-|---------|------------|
-| **Mod + Shift + D** | Open *Draft Status* dashboard |
-| **Mod + Shift + L** | Open *Link Health* dashboard |
+| Hotkey | Action |
+|---------|--------|
+| **Ctrl + Meta + Q** | Open Common Query picker |
+| **Ctrl + Meta + S** | Open *Draft Status* query |
 
 ### ⚙️ QuickAdd Macros
 | Hotkey | Function |
@@ -50,4 +50,4 @@
 ## 📘 Philosophy
 Maintain a single `_common/` folder for all shared internal logic.  
 Keep every other folder focused on content, ensuring clean API input and minimal accidental inclusion of non-text assets.  
-Scripts are discoverable but not hotkey-bound—invoke them via **Ctrl + P** as needed.
+Scripts can be invoked via QuickAdd hotkeys or via **Ctrl + P** as needed.

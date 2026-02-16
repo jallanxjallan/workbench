@@ -12,6 +12,22 @@ from pathlib import Path
 
 REQUIRED_PLUGINS = ("dataview", "quickadd", "templater-obsidian")
 
+QUICKADD_OPEN_COMMON_QUERY_PICKER_CHOICE_ID = "5c4b5b1a-89cb-47f2-83da-c78d3f9f5370"
+QUICKADD_OPEN_COMMON_QUERY_PICKER_MACRO_ID = "3d05f542-4cb0-44ac-b875-b07d2bf23603"
+QUICKADD_OPEN_COMMON_QUERY_PICKER_COMMAND_ID = "e9f89df7-e004-4b5a-b2f8-c14553b7f073"
+
+QUICKADD_OPEN_DRAFT_STATUS_CHOICE_ID = "ef1a248d-6d77-4b72-88c2-f7cc5198bb36"
+QUICKADD_OPEN_DRAFT_STATUS_MACRO_ID = "e761d96e-4827-4a72-a3b4-6f8762905414"
+QUICKADD_OPEN_DRAFT_STATUS_COMMAND_ID = "1d67ee59-0d52-4f5f-b810-1a8f7f478072"
+
+QUICKADD_INSERT_BATCH_SENTINEL_CHOICE_ID = "1f4d1d9e-75a1-4f57-8c4e-1ccfbd88c941"
+QUICKADD_INSERT_BATCH_SENTINEL_MACRO_ID = "7720fb2f-dcb3-4f64-a902-8b7a1b862669"
+QUICKADD_INSERT_BATCH_SENTINEL_COMMAND_ID = "3f927f4c-d6db-47da-a89d-5f81f6776a1d"
+
+QUICKADD_APPLY_TEMPLATE_CHOICE_ID = "b3e9de39-5258-46fc-bf40-ac2fa35f7fd5"
+QUICKADD_APPLY_TEMPLATE_MACRO_ID = "ec443448-2039-4235-853f-e2f2adf59f68"
+QUICKADD_APPLY_TEMPLATE_COMMAND_ID = "7653328b-c3bb-4658-8e01-818325f59568"
+
 APP_JSON = {"promptDelete": False}
 CORE_PLUGINS_JSON = {
     "file-explorer": True,
@@ -86,7 +102,88 @@ TEMPLATER_DATA_JSON = {
 }
 
 QUICKADD_DATA_JSON = {
-    "choices": [],
+    "choices": [
+        {
+            "id": QUICKADD_OPEN_COMMON_QUERY_PICKER_CHOICE_ID,
+            "name": "Open Common Query",
+            "type": "Macro",
+            "command": True,
+            "runOnStartup": False,
+            "macro": {
+                "name": "Open Common Query",
+                "id": QUICKADD_OPEN_COMMON_QUERY_PICKER_MACRO_ID,
+                "commands": [
+                    {
+                        "name": "open_common_query_picker",
+                        "type": "UserScript",
+                        "id": QUICKADD_OPEN_COMMON_QUERY_PICKER_COMMAND_ID,
+                        "path": "_common/scripts/open_common_query_picker.js",
+                        "settings": {},
+                    }
+                ],
+            },
+        },
+        {
+            "id": QUICKADD_OPEN_DRAFT_STATUS_CHOICE_ID,
+            "name": "Open Draft Status Query",
+            "type": "Macro",
+            "command": True,
+            "runOnStartup": False,
+            "macro": {
+                "name": "Open Draft Status Query",
+                "id": QUICKADD_OPEN_DRAFT_STATUS_MACRO_ID,
+                "commands": [
+                    {
+                        "name": "open_draft_status_query",
+                        "type": "UserScript",
+                        "id": QUICKADD_OPEN_DRAFT_STATUS_COMMAND_ID,
+                        "path": "_common/scripts/open_draft_status_query.js",
+                        "settings": {},
+                    }
+                ],
+            },
+        },
+        {
+            "id": QUICKADD_INSERT_BATCH_SENTINEL_CHOICE_ID,
+            "name": "Insert Batch Sentinel From Query",
+            "type": "Macro",
+            "command": True,
+            "runOnStartup": False,
+            "macro": {
+                "name": "Insert Batch Sentinel From Query",
+                "id": QUICKADD_INSERT_BATCH_SENTINEL_MACRO_ID,
+                "commands": [
+                    {
+                        "name": "insert_batch_sentinel_from_query",
+                        "type": "UserScript",
+                        "id": QUICKADD_INSERT_BATCH_SENTINEL_COMMAND_ID,
+                        "path": "_common/scripts/insert_batch_sentinel_from_query.js",
+                        "settings": {},
+                    }
+                ],
+            },
+        },
+        {
+            "id": QUICKADD_APPLY_TEMPLATE_CHOICE_ID,
+            "name": "Apply Template",
+            "type": "Macro",
+            "command": True,
+            "runOnStartup": False,
+            "macro": {
+                "name": "Apply Template",
+                "id": QUICKADD_APPLY_TEMPLATE_MACRO_ID,
+                "commands": [
+                    {
+                        "name": "apply_template",
+                        "type": "UserScript",
+                        "id": QUICKADD_APPLY_TEMPLATE_COMMAND_ID,
+                        "path": "_common/scripts/apply_template.js",
+                        "settings": {},
+                    }
+                ],
+            },
+        },
+    ],
     "inputPrompt": "single-line",
     "devMode": False,
     "templateFolderPath": "_common/templates",
@@ -97,6 +194,27 @@ QUICKADD_DATA_JSON = {
     "enableRibbonIcon": False,
     "showCaptureNotification": True,
     "enableTemplatePropertyTypes": False,
+}
+
+HOTKEYS_JSON = {
+    f"quickadd:choice:{QUICKADD_OPEN_COMMON_QUERY_PICKER_CHOICE_ID}": [
+        {
+            "modifiers": ["Mod", "Meta"],
+            "key": "Q",
+        }
+    ],
+    f"quickadd:choice:{QUICKADD_OPEN_DRAFT_STATUS_CHOICE_ID}": [
+        {
+            "modifiers": ["Mod", "Meta"],
+            "key": "S",
+        }
+    ],
+    f"quickadd:choice:{QUICKADD_APPLY_TEMPLATE_CHOICE_ID}": [
+        {
+            "modifiers": ["Mod", "Meta"],
+            "key": "T",
+        }
+    ],
 }
 
 GITIGNORE_TEXT = """# ----------------------------
@@ -275,6 +393,25 @@ def run_git(repo_root: Path, args: list[str], *, check: bool = True) -> subproce
         die(f"git is not installed or not available in PATH: {exc}")
 
 
+def try_direnv_allow(project_root: Path) -> tuple[bool, str]:
+    try:
+        subprocess.run(
+            ["direnv", "allow", "."],
+            cwd=project_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return True, "allowed .envrc for this project"
+    except FileNotFoundError:
+        return False, "direnv not found in PATH; run `direnv allow .` manually"
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or str(exc)).strip()
+        if detail:
+            return False, f"direnv allow failed ({detail}); run `direnv allow .` manually"
+        return False, "direnv allow failed; run `direnv allow .` manually"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="create-project",
@@ -335,8 +472,10 @@ def main() -> int:
     (project_vault / ".obsidian").mkdir(parents=True, exist_ok=True)
     (project_root / "bin").mkdir(parents=True, exist_ok=True)
     common_rel = os.path.relpath(workbench_common, project_vault)
+    project_rel = os.path.relpath(project_root, project_vault)
 
     # Symlinks are for editor convenience only. They are not semantic inputs.
+    ensure_symlink(project_vault / "_project", project_rel)
     ensure_symlink(project_vault / "_common", common_rel)
 
     instructions_project_dir, workspace_path = ensure_studio_workspace(
@@ -365,11 +504,13 @@ def main() -> int:
             'echo "[direnv] $(basename "$PWD") project scope loaded"\n'
         ),
     )
+    direnv_allowed, direnv_status = try_direnv_allow(project_root)
 
     write_json(project_vault / ".obsidian/app.json", APP_JSON)
     write_json(project_vault / ".obsidian/core-plugins.json", CORE_PLUGINS_JSON)
     write_json(project_vault / ".obsidian/community-plugins.json", COMMUNITY_PLUGINS_JSON)
     write_json(project_vault / ".obsidian/templates.json", TEMPLATES_JSON)
+    write_json(project_vault / ".obsidian/hotkeys.json", HOTKEYS_JSON)
 
     copied_plugins = seed_plugins(plugins_root, workbench_plugins)
 
@@ -423,6 +564,7 @@ def main() -> int:
     print(f"   Vault surface:                 {project_vault}")
     print(f"   Env authority:                 {project_root / '.env.local'}")
     print("   Symlinks (editor convenience only):")
+    print(f"     {project_vault / '_project'} -> {project_rel}")
     print(f"     {project_vault / '_common'} -> {common_rel}")
     print("   Plugins:                       dataview, quickadd, templater-obsidian")
     print("   Git:                           initialized at project root")
@@ -431,6 +573,11 @@ def main() -> int:
     print("   Remote:                        none configured")
     print(f"   Studio instructions:           {instructions_project_dir}")
     print(f"   VSCode workspace:              {workspace_path}")
+    if direnv_allowed:
+        print("   Direnv:                        .envrc allowed")
+    else:
+        print("   Direnv:                        .envrc not auto-allowed")
+        print(f"   Direnv next step:              {direnv_status}")
     return 0
 
 
