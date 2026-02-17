@@ -5,10 +5,12 @@ A blessed command is a top-level executable in `Workbench/bin/` that represents 
 Current blessed commands:
 - `backup-projects`
 - `backup-secrets`
-- `vault-ingest`
 - `create-project`
-- `batch-commit`
-- `pandoc-apply-template`
+- `ingest_vault_content`
+
+Deprecated command bundles moved to:
+- `Workbench/_depreciated/bin/`
+- `Workbench/_depreciated/lib/sh/modules/`
 
 Rules:
 - If a blessed command exists, you must use it.

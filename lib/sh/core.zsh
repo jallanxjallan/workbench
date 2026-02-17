@@ -18,8 +18,8 @@ if [[ -f "$WORKBENCH_ROOT/lib/sh/env/core.zsh" ]]; then
   source "$WORKBENCH_ROOT/lib/sh/env/core.zsh"
 fi
 
-# Function libraries
-for config_file in "$WORKBENCH_ROOT"/lib/sh/lib/*.zsh(N); do
+# Shell modules
+for config_file in "$WORKBENCH_ROOT"/lib/sh/modules/*.zsh(N); do
   source "$config_file"
 done
 

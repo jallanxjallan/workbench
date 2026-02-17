@@ -16,6 +16,10 @@ __pycache__/
 !/bin/_env/
 !/bin/_env/**
 
+# Keep deprecated command bundles tracked.
+!/_depreciated/
+!/_depreciated/**
+
 # Keep Python implementation modules tracked.
 !/lib/
 !/lib/**
