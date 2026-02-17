@@ -160,27 +160,15 @@ workbench_ingest_vault_content() {
   local ingest_output=""
   ingest_output="$(printf "%s\n" "$records_output" | "${ingest_calls_cmd[@]}" 2>"$ingest_calls_err")"
   stage_status=$?
-  stage_kind="$(workbench_ingest_classify_stdout "$ingest_output")"
   workbench_ingest_print_stage_stderr "ingest calls" "$ingest_calls_err"
 
   if (( stage_status == 0 )); then
-    case "$stage_kind" in
-      ndjson|message)
-        printf "%s\n" "$ingest_output"
-        ;;
-      empty) ;;
-    esac
+    [[ -n "$ingest_output" ]] && printf "%s\n" "$ingest_output"
     return "$partial_seen"
   fi
 
   if (( stage_status == 1 )); then
-    if [[ "$stage_kind" == "ndjson" ]]; then
-      printf "%s\n" "$ingest_output"
-      return 1
-    fi
-
-    [[ -n "$ingest_output" ]] && printf "%s\n" "$ingest_output" >&2
-    echo "ingest_vault_content: ingest calls aborted" >&2
+    [[ -n "$ingest_output" ]] && printf "%s\n" "$ingest_output"
     return 1
   fi
 
