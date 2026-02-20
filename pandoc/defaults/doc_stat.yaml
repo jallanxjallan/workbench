@@ -1,4 +1,0 @@
----
-writer: markdown
-filters:
-  - doc_stat.lua

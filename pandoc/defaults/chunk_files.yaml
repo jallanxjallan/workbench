@@ -1,5 +1,0 @@
----
-filters:
-  - filepaths_to_meta.lua
-  - output_file_chunks.py
-  - stop_convert.lua

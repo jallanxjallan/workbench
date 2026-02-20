@@ -1,20 +1,46 @@
 local changed_files = nil
 
--- Get the list of changed files since the last SUBMIT commit
-function get_changed_files()
-  local handle = io.popen("git log --grep='^SUBMIT:' --pretty=format:'%H' -n 1")
-  local last_submit = handle:read("*a"):match("%S+")
+local function capture(cmd)
+  local handle = io.popen(cmd, "r")
+  if not handle then
+    return ""
+  end
+  local output = handle:read("*a")
   handle:close()
+  return output or ""
+end
 
-  if not last_submit then
-    io.stderr:write("⚠️  No SUBMIT commit found. Treating all files as changed.\n")
+local function resolve_submission_commit(meta)
+  if meta and meta["submission-commit"] then
+    local requested = pandoc.utils.stringify(meta["submission-commit"]):gsub("%s+", "")
+    if requested ~= "" then
+      local verify = capture("git cat-file -t " .. requested)
+      if verify:match("^commit") then
+        io.stderr:write("Using submission commit: " .. requested .. "\n")
+        return requested
+      end
+      io.stderr:write("submission-commit not found: " .. requested .. "\n")
+    end
+  end
+
+  local auto = capture("git log --grep='Submission\\|^SUBMIT:' --pretty=format:'%H' -n 1")
+  auto = auto:match("%S+")
+  if auto then
+    io.stderr:write("Auto-detected submission commit: " .. auto .. "\n")
+    return auto
+  end
+
+  io.stderr:write("No submission commit found. Treating all files as changed.\n")
+  return nil
+end
+
+local function get_changed_files(commit_hash)
+  if not commit_hash then
     return nil
   end
 
-  local diff_cmd = "git diff --name-only " .. last_submit .. " HEAD"
-  local handle = io.popen(diff_cmd)
-  local output = handle:read("*a")
-  handle:close()
+  local diff_cmd = "git diff --name-only " .. commit_hash .. " HEAD"
+  local output = capture(diff_cmd)
 
   local files = {}
   for line in output:gmatch("[^\r\n]+") do
@@ -23,14 +49,22 @@ function get_changed_files()
   return files
 end
 
-function is_local_file(path)
-  return not path:match("^https?://") and not path:match("^mailto:")
+function Meta(meta)
+  local commit_hash = resolve_submission_commit(meta)
+  changed_files = get_changed_files(commit_hash)
+  return meta
 end
 
-function is_file_modified(path)
-  if not changed_files then
-    changed_files = get_changed_files()
-    if not changed_files then return true end  -- default to true if no submit
+local function is_local_file(path)
+  return path
+    and path ~= ""
+    and not path:match("^https?://")
+    and not path:match("^mailto:")
+end
+
+local function is_file_modified(path)
+  if changed_files == nil then
+    return true
   end
   return changed_files[path] == true
 end
@@ -43,7 +77,7 @@ function Para(el)
   for _, inline in ipairs(el.content) do
     if inline.t == "Link" then
       has_links = true
-      local target = inline.target[1]
+      local target = inline.target
       if is_local_file(target) and not is_file_modified(target) then
         -- Skip unchanged local file link
       else
@@ -55,11 +89,8 @@ function Para(el)
     end
   end
 
-  -- Only remove the Para if it had links, but none were to modified files
   if has_links and not has_modified_link then
     return nil
-  else
-    return pandoc.Para(new_inlines)
   end
+  return pandoc.Para(new_inlines)
 end
-

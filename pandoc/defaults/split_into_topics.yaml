@@ -1,7 +1,0 @@
----
-from: markdown
-to: markdown
-filters:
-  - filepaths_to_meta.lua
-  - split_into_topics.py
-  - stop_convert.lua

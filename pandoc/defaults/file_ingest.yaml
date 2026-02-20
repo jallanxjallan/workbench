@@ -1,4 +1,0 @@
----
-to: markdown
-filters:
-  - autoscribe/emit_ndjson.lua

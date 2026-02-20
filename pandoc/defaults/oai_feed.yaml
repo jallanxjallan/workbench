@@ -1,7 +1,0 @@
----
-writer: markdown
-standalone: True
-filters:
- - filepaths_to_meta.lua
- - output_filepath_only.lua
-
