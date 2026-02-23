@@ -1,56 +1,21 @@
-# Python cache
+# Python cache and bytecode
 __pycache__/
 *.pyc
+*.pyo
 
-# Default policy: ignore new files unless they match allow-rules below.
-*
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
 
-# Keep this file tracked.
-!.gitignore
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
 
-# Top-level command entrypoints.
-!/bin/
-!/bin/*
+# Local development scratch space
+dev/experimental/root_pytest_cache/
+dev/experimental/tmp_artifacts/
 
-# Keep command helper libraries tracked.
-!/bin/_env/
-!/bin/_env/**
-
-# Keep deprecated command bundles tracked.
-!/_depreciated/
-!/_depreciated/**
-
-# Keep Python implementation modules tracked.
-!/lib/
-!/lib/**
-
-# Pipeline ingress adapters.
-!/ingest-adapters/
-!/ingest-adapters/*.py
-!/ingest-adapters/*.sh
-!/ingest-adapters/*.zsh
-
-# Document format-level utilities.
-!/format-tools/
-!/format-tools/**
-
-# Naming policy and enforcement artifacts.
-!/.github/
-!/.github/**
-!/.pre-commit-config.yaml
-!/NAMING_CONVENTIONS.md
-!/identifier_inventory.json
-!/rename_plan.json
-!/naming_refactor_report.md
-!/scripts/
-!/scripts/**
-!/tools/
-!/tools/**
-
-# Keep Python cache artifacts ignored everywhere.
-**/__pycache__/
-**/*.pyc
-
-# Local-only secrets data and docs.
+# Local-only secrets data and docs
 backups/secrets_include.txt
 docs/SECRETS_BACKUP.md

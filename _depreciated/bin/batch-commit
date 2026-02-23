@@ -1,3 +1,0 @@
-#!/usr/bin/env zsh
-source "$HOME/Workbench/_depreciated/lib/sh/modules/commit_batch.zsh"
-workbench_batch_commit "$@"

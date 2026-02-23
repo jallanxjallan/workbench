@@ -1,3 +1,0 @@
-#!/usr/bin/env zsh
-source "$HOME/Workbench/_depreciated/lib/sh/modules/pandoc_apply_template.zsh"
-workbench_pandoc_apply_template "$@"
