@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SPLIT_BIN="$ROOT/commands/split-files"
-WRITE_BIN="$ROOT/commands/write-vault-files"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+PYTHON="${PYTHON:-/home/jeremy/Python3.13Env/bin/python}"
+ADAPTERS="$ROOT/adapters/python"
 
 VAULT_DIR="$(mktemp -d)"
 OUTPUT_LOG="$(mktemp)"
 trap 'rm -rf "$VAULT_DIR" "$OUTPUT_LOG"' EXIT
 
 printf '%s\n' '{"content":"Alpha\n<!-- AS:SECTION -->\nBeta\n","stem":"Smoke Test","source_file":"tests/smoke.md"}' \
-  | "$SPLIT_BIN" --out-dir _new --digits 3 \
-  | "$WRITE_BIN" --base-dir "$VAULT_DIR" --mode writenew >"$OUTPUT_LOG"
+  | PYTHONPATH="$ADAPTERS" "$PYTHON" -m workbench.adapters.split_files --out-dir _new --digits 3 \
+  | PYTHONPATH="$ADAPTERS" "$PYTHON" -m workbench.adapters.write_vault_files --base-dir "$VAULT_DIR" --mode writenew >"$OUTPUT_LOG"
 
 FILE_ONE="$VAULT_DIR/_new/smoke_test/smoke_test--001.md"
 FILE_TWO="$VAULT_DIR/_new/smoke_test/smoke_test--002.md"

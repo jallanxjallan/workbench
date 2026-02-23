@@ -1,3 +1,0 @@
-#!/usr/bin/env zsh
-source "$HOME/Workbench/shell/modules/ingest_vault_content.zsh"
-ingest_vault_content "$@"

@@ -8,11 +8,6 @@
 
 : "${WORKBENCH_ROOT:=$HOME/Workbench}"
 
-# Blessed commands
-if (( ${path[(Ie)"$WORKBENCH_ROOT/commands"]} == 0 )); then
-  path=("$WORKBENCH_ROOT/commands" $path)
-fi
-
 # Generic shell environment
 if [[ -f "$WORKBENCH_ROOT/shell/core/env/core.zsh" ]]; then
   source "$WORKBENCH_ROOT/shell/core/env/core.zsh"

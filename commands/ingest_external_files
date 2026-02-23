@@ -1,3 +1,0 @@
-#!/usr/bin/env zsh
-source "$HOME/Workbench/shell/modules/ingest_external_files.zsh"
-ingest_external_files "$@"
