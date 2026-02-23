@@ -90,4 +90,4 @@ bindkey '^L' redraw-and-clear
 # ------------------------------------------------------------
 # Workbench loader (canonical)
 # ------------------------------------------------------------
-source "$HOME/Workbench/lib/sh/core.zsh"
+source "$HOME/Workbench/shell/core/core.zsh"
