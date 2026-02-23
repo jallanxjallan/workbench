@@ -1,3 +1,3 @@
 workbench_create_project() {
-  "$HOME/Workbench/bin/create-project" "$@"
+  "$HOME/Workbench/commands/create-project" "$@"
 }

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SPLIT_BIN="$ROOT/bin/split-files"
-WRITE_BIN="$ROOT/bin/write-vault-files"
+SPLIT_BIN="$ROOT/commands/split-files"
+WRITE_BIN="$ROOT/commands/write-vault-files"
 
 VAULT_DIR="$(mktemp -d)"
 OUTPUT_LOG="$(mktemp)"

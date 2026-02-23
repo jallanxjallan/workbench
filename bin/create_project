@@ -1,2 +1,0 @@
-#!/usr/bin/env zsh
-exec "$HOME/Workbench/bin/create-project" "$@"

@@ -1,0 +1,6 @@
+#!/home/jeremy/Python3.13Env/bin/python
+
+from workbench.cli.wb import main
+
+if __name__ == "__main__":
+    main()

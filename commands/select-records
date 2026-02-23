@@ -1,0 +1,6 @@
+#!/home/jeremy/Python3.13Env/bin/python
+
+from workbench.adapters.select.select_records import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())
