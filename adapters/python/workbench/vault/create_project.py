@@ -446,10 +446,10 @@ def main() -> int:
 
     workbench_root = Path(os.environ.get("WORKBENCH_ROOT", str(home_dir / "Workbench"))).expanduser()
     workbench_common = Path(
-        os.environ.get("WORKBENCH_COMMON", str(workbench_root / "obsidian-common"))
+        os.environ.get("WORKBENCH_COMMON", str(workbench_root / "assets" / "obsidian"))
     ).expanduser()
     workbench_obsidian = Path(
-        os.environ.get("WORKBENCH_OBSIDIAN", str(workbench_root / "obsidian"))
+        os.environ.get("WORKBENCH_OBSIDIAN", str(workbench_root / "assets" / "obsidian"))
     ).expanduser()
     workbench_plugins = workbench_obsidian / "plugins"
 
@@ -458,7 +458,7 @@ def main() -> int:
     plugins_root = project_vault / ".obsidian/plugins"
 
     if not workbench_common.is_dir():
-        die(f"shared obsidian-common not found: {workbench_common}")
+        die(f"shared obsidian assets not found: {workbench_common}")
     if not workbench_plugins.is_dir():
         die(f"workbench obsidian plugins directory not found: {workbench_plugins}")
     if project_vault.exists():
