@@ -9,22 +9,22 @@
 : "${WORKBENCH_ROOT:=$HOME/Workbench}"
 
 # Blessed commands
-if (( ${path[(Ie)"$WORKBENCH_ROOT/bin"]} == 0 )); then
-  path=("$WORKBENCH_ROOT/bin" $path)
+if (( ${path[(Ie)"$WORKBENCH_ROOT/commands"]} == 0 )); then
+  path=("$WORKBENCH_ROOT/commands" $path)
 fi
 
 # Generic shell environment
-if [[ -f "$WORKBENCH_ROOT/lib/sh/env/core.zsh" ]]; then
-  source "$WORKBENCH_ROOT/lib/sh/env/core.zsh"
+if [[ -f "$WORKBENCH_ROOT/shell/core/env/core.zsh" ]]; then
+  source "$WORKBENCH_ROOT/shell/core/env/core.zsh"
 fi
 
 # Shell modules
-for config_file in "$WORKBENCH_ROOT"/lib/sh/modules/*.zsh(N); do
+for config_file in "$WORKBENCH_ROOT"/shell/modules/*.zsh(N); do
   source "$config_file"
 done
 
 # Lifecycle functions
-for config_file in "$WORKBENCH_ROOT"/lib/sh/functions/*.zsh(N); do
+for config_file in "$WORKBENCH_ROOT"/shell/core/functions/*.zsh(N); do
   source "$config_file"
 done
 

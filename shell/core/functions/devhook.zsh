@@ -27,7 +27,7 @@ workbench_devhook_unset_autoscribe_env() {
 
 workbench_devhook_load_aliases() {
   emulate -L zsh
-  local global_aliases="$WORKBENCH_ROOT/bin/aliases.zsh"
+  local global_aliases="$WORKBENCH_ROOT/shell/aliases.zsh"
 
   [[ -f "$global_aliases" ]] && source "$global_aliases"
 
@@ -46,7 +46,7 @@ workbench_devhook_apply_project_context() {
   emulate -L zsh
 
   if [[ -n "${AUTOSCRIBE_PROJECT_ROOT:-}" ]]; then
-    source "$WORKBENCH_ROOT/lib/sh/env/autoscribe.zsh"
+    source "$WORKBENCH_ROOT/shell/core/env/autoscribe.zsh"
     return 0
   fi
 
