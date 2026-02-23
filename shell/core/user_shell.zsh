@@ -8,8 +8,8 @@
 
 : "${WORKBENCH_ROOT:=$HOME/Workbench}"
 
-if [[ -f "$WORKBENCH_ROOT/shell/core/core.zsh" ]]; then
-  source "$WORKBENCH_ROOT/shell/core/core.zsh"
+if [[ -f "$WORKBENCH_ROOT/shell/core/base.zsh" ]]; then
+  source "$WORKBENCH_ROOT/shell/core/base.zsh"
 fi
 
 if [[ -f "$HOME/.work_aliases.zsh" ]]; then

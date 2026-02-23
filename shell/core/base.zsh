@@ -9,12 +9,12 @@
 : "${WORKBENCH_ROOT:=$HOME/Workbench}"
 
 # Generic shell environment
-if [[ -f "$WORKBENCH_ROOT/shell/core/env/core.zsh" ]]; then
-  source "$WORKBENCH_ROOT/shell/core/env/core.zsh"
+if [[ -f "$WORKBENCH_ROOT/shell/core/env/environment.zsh" ]]; then
+  source "$WORKBENCH_ROOT/shell/core/env/environment.zsh"
 fi
 
-# Shell modules
-for config_file in "$WORKBENCH_ROOT"/shell/modules/*.zsh(N); do
+# Shell commands
+for config_file in "$WORKBENCH_ROOT"/shell/commands/*.zsh(N); do
   source "$config_file"
 done
 
