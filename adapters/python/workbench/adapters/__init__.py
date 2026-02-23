@@ -1,0 +1,1 @@
+"""AutoScribe Workbench adapters."""

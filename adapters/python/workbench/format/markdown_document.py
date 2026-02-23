@@ -5,8 +5,11 @@ from attr import define, field
 from attrs.converters import optional
 import frontmatter
 import re
-from datetime import datetime
-from utility import to_title
+
+
+def _to_title(value: str) -> str:
+    words = re.split(r"[_\-\s]+", str(value).strip())
+    return " ".join(word.capitalize() for word in words if word)
 
 
 @define()
@@ -86,7 +89,7 @@ class Document:
         if fp.exists() and not overwrite:
             raise FileExistsError(f"{fp} exists and overwrite not permitted.")
         meta = self.metadata or {
-            'name': title_case(fp.stem),
+            'name': _to_title(fp.stem),
             'status': 'new'
         }
         try:
@@ -108,6 +111,9 @@ class Document:
 
     def words(self) -> int:
         return len(re.findall(r'\b\w+\b', self.content or ""))
+
+    def word_count(self) -> int:
+        return self.words()
 
     def modified(self) -> Optional[int]:
         return int(self.filepath.stat().st_mtime) if self.filepath and self.filepath.exists() else None

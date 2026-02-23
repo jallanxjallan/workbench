@@ -332,7 +332,7 @@ def scan_redis_segments(path: Path, entries: list[dict[str, str]]) -> None:
 
 
 def scan_cli_commands(repo: Path, entries: list[dict[str, str]]) -> None:
-    pyproject = repo / "pyproject.toml"
+    pyproject = repo / "dev" / "packaging" / "pyproject.toml"
     if pyproject.exists():
         try:
             raw = pyproject.read_text(encoding="utf-8")
@@ -356,9 +356,9 @@ def scan_cli_commands(repo: Path, entries: list[dict[str, str]]) -> None:
                     recommended_case="kebab-case",
                 )
 
-    bin_dir = repo / "bin"
-    if bin_dir.is_dir():
-        for path in bin_dir.iterdir():
+    commands_dir = repo / "commands"
+    if commands_dir.is_dir():
+        for path in commands_dir.iterdir():
             if path.is_file() and path.name:
                 add_entry(
                     entries,
@@ -444,15 +444,13 @@ def build_rename_plan(entries: list[dict[str, str]]) -> list[dict[str, Any]]:
     return sorted(deduped.values(), key=lambda item: (item["old"], item["new"]))
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate identifier inventory and rename plan")
-    parser.add_argument("--repos", nargs="+", required=True, help="Repo roots to scan")
-    parser.add_argument("--inventory-out", required=True, help="Output JSON path for inventory")
-    parser.add_argument("--rename-plan-out", required=True, help="Output JSON path for rename plan")
-    args = parser.parse_args()
-
+def generate(
+    repos: list[str],
+    inventory_out: str,
+    rename_plan_out: str,
+) -> tuple[Path, Path, int, int]:
     entries: list[dict[str, str]] = []
-    for repo_raw in args.repos:
+    for repo_raw in repos:
         repo = Path(repo_raw).expanduser().resolve()
         if not repo.exists() or not repo.is_dir():
             raise SystemExit(f"Repo not found: {repo}")
@@ -467,16 +465,30 @@ def main() -> int:
             row["recommended_case"],
         ),
     )
-
     plan = build_rename_plan(entries_sorted)
 
-    inv_path = Path(args.inventory_out).expanduser().resolve()
-    plan_path = Path(args.rename_plan_out).expanduser().resolve()
+    inv_path = Path(inventory_out).expanduser().resolve()
+    plan_path = Path(rename_plan_out).expanduser().resolve()
     inv_path.write_text(json.dumps(entries_sorted, indent=2) + "\n", encoding="utf-8")
     plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+    return inv_path, plan_path, len(entries_sorted), len(plan)
 
-    print(f"Inventory entries: {len(entries_sorted)}")
-    print(f"Rename plan entries: {len(plan)}")
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate identifier inventory and rename plan")
+    parser.add_argument("--repos", nargs="+", required=True, help="Repo roots to scan")
+    parser.add_argument("--inventory-out", required=True, help="Output JSON path for inventory")
+    parser.add_argument("--rename-plan-out", required=True, help="Output JSON path for rename plan")
+    args = parser.parse_args()
+
+    inv_path, plan_path, inventory_count, plan_count = generate(
+        repos=args.repos,
+        inventory_out=args.inventory_out,
+        rename_plan_out=args.rename_plan_out,
+    )
+
+    print(f"Inventory entries: {inventory_count}")
+    print(f"Rename plan entries: {plan_count}")
     print(f"Inventory path: {inv_path}")
     print(f"Rename plan path: {plan_path}")
     return 0

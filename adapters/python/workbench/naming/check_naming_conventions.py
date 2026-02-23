@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -58,8 +59,7 @@ def iter_text_files(root: Path) -> list[Path]:
     return files
 
 
-def main() -> int:
-    root = Path(__file__).resolve().parents[1]
+def find_violations(root: Path) -> list[str]:
     violations: list[str] = []
 
     for path in iter_text_files(root):
@@ -78,6 +78,12 @@ def main() -> int:
                     violations.append(
                         f"{path}:{line_no}: slug value must be kebab-case: {value!r}"
                     )
+    return violations
+
+
+def check(root: str = ".") -> int:
+    target_root = Path(root).expanduser().resolve()
+    violations = find_violations(target_root)
 
     if violations:
         print("Naming policy violations found:", file=sys.stderr)
@@ -87,6 +93,17 @@ def main() -> int:
 
     print("Naming policy checks passed.")
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Check slug naming conventions.")
+    parser.add_argument(
+        "--root",
+        default=".",
+        help="Repository root to scan (default: current working directory).",
+    )
+    args = parser.parse_args(argv)
+    return check(args.root)
 
 
 if __name__ == "__main__":

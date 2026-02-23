@@ -33,4 +33,4 @@ This repository uses canonical identifier forms to prevent aliasing, drift, and 
 
 - `identifier_inventory.json` records discovered identifiers and recommended case.
 - `rename_plan.json` records candidate refactors and reference-update requirements.
-- `scripts/check_naming_conventions.py` is the policy gate for hooks/CI.
+- `adapters/python/workbench/naming/check_naming_conventions.py` is the policy gate for hooks/CI.
