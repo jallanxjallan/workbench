@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-DEFAULT_INCLUDE_FILE = "~/Workbench/backups/secrets_include.txt"
+DEFAULT_INCLUDE_FILE = "~/.config/workbench/secrets_include.txt"
 DEFAULT_BACKUP_ROOT = "~/Dropbox/secure-backups"
 DEFAULT_KEY_FILE = "~/.config/age/keys.txt"
 DEFAULT_KEEP = 30
