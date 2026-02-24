@@ -17,7 +17,13 @@ Namespaces:
 - `wkb project`
 - `wkb backup`
 
-Run `wkb <namespace> <command> --help` for command-level usage.
+Top-level write commands:
+
+- `wkb writenew --target-dir <path>`
+- `wkb writeback`
+- `wkb writestream`
+
+Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
 
 ## Batch Framing
 
@@ -28,13 +34,32 @@ Workbench framing is Python-native and batch-oriented.
   - `workbench.framing.markdown.emit_markdown_batch`
   - `workbench.framing.ndjson.records_to_ndjson`
   - `workbench.framing.ndjson.ndjson_to_records`
-- CLI wrappers:
-  - `bin/md_to_json` (markdown batch -> NDJSON)
-  - `bin/json_to_md` (NDJSON -> markdown batch)
-  - `wkb ingest md-to-json`
-  - `wkb emit json-to-md`
+- Internal conversion primitives:
+  - `workbench.ingest.markdown_to_record.markdown_text_to_record_batch`
+  - `workbench.emit.record_to_markdown.record_to_markdown`
+  - `workbench.emit.assemble.assemble_markdown_documents`
+
+`record` means the internal NDJSON structure used by the pipeline. These modules are internal primitives, not public CLI commands.
 
 Null-delimited framing is not used.
+
+## Emit vs Write Separation
+
+Canonical composition:
+
+```bash
+asc emit <batch> | wkb emit export | wkb writenew --target-dir notes/output
+asc emit <batch> | wkb emit export | wkb writeback
+asc emit <batch> | wkb emit export | wkb writestream
+```
+
+Layer responsibilities:
+
+| Layer | Responsibility |
+| --- | --- |
+| `asc emit` | Produce records |
+| `wkb emit` | Convert records -> markdown |
+| `wkb write*` | Persist or stream markdown |
 
 ## Pandoc Integration Policy
 

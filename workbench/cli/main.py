@@ -6,17 +6,23 @@ import importlib
 import sys
 from typing import Callable
 
-from workbench.cli.registry import REGISTRY, CommandEntry
+from workbench.cli.registry import REGISTRY, ROOT_COMMANDS, CommandEntry
 
 
 def _print_root_help() -> None:
-    print("Usage: wkb <namespace> [command] [args]")
+    print("Usage: wkb <command> [args]")
+    print("       wkb <namespace> <command> [args]")
+    print()
+    print("Top-level commands:")
+    for name, entry in ROOT_COMMANDS.items():
+        print(f"  {name:<12} {entry.summary}")
     print()
     print("Namespaces:")
     for name, entry in REGISTRY.items():
         print(f"  {name:<8} {entry.summary}")
     print()
     print("Run `wkb <namespace>` to list commands.")
+    print("Run `wkb <command> --help` for top-level command help.")
     print("Run `wkb <namespace> <command> --help` for command help.")
 
 
@@ -44,9 +50,15 @@ def main(argv: list[str] | None = None) -> int:
         _print_root_help()
         return 0
 
-    namespace = args[0]
+    root = args[0]
+    root_entry = ROOT_COMMANDS.get(root)
+    if root_entry is not None:
+        command_main = _load_main(root_entry)
+        return int(command_main(args[1:]))
+
+    namespace = root
     if namespace not in REGISTRY:
-        print(f"wkb: unknown namespace '{namespace}'", file=sys.stderr)
+        print(f"wkb: unknown command/namespace '{namespace}'", file=sys.stderr)
         _print_root_help()
         return 2
 

@@ -6,6 +6,18 @@ Generated as a visibility pass before refactor. This map covers all in-scope fil
 - Scope notes: includes Python, Lua, shell, templates, markdown docs, package modules, utility modules, vendored runtime assets, and repository config files.
 - Exclusions applied: `.git/`, `__pycache__/`, `.venv/`, build/dist artifacts, compiled binaries.
 
+## Current Write Surface (Post-Refactor)
+
+- `workbench/emit/` now handles record-to-markdown conversion and markdown-level composition only.
+- Filesystem persistence has moved to top-level write command modules:
+  - `workbench/write/writenew.py`
+  - `workbench/write/writeback.py`
+  - `workbench/write/writestream.py`
+- `wkb emit write` has been removed in favor of:
+  - `wkb writenew`
+  - `wkb writeback`
+  - `wkb writestream`
+
 ## 1️⃣ Repository Tree Overview
 
 ```text
@@ -138,7 +150,7 @@ Workbench/
 | `cli/backup.py` | CLI Adapter | Python CLI Entrypoint | Registers argparse subcommands and delegates runtime work to deeper Python/shell modules. It should stay thin orchestration only with stable command contracts. | By design overlaps with delegated modules; avoid embedding business logic. |
 | `cli/detect_sentinel.py` | NDJSON Adapter | Python CLI Transform | Implements a focused stdin/stdout transform for NDJSON/content preprocessing in pipelines. It should remain composable, stateless, and contract-driven. | Some transform responsibilities partially overlap (e.g., split/wrap/metadata stages) and may be merged later. |
 | `cli/inject_metadata.py` | NDJSON Adapter | Python CLI Transform | Implements a focused stdin/stdout transform for NDJSON/content preprocessing in pipelines. It should remain composable, stateless, and contract-driven. | Some transform responsibilities partially overlap (e.g., split/wrap/metadata stages) and may be merged later. |
-| `cli/md_to_json.py` | NDJSON Adapter | Python CLI Transform | Implements a focused stdin/stdout transform for NDJSON/content preprocessing in pipelines. It should remain composable, stateless, and contract-driven. | Some transform responsibilities partially overlap (e.g., split/wrap/metadata stages) and may be merged later. |
+| `workbench/ingest/markdown_to_record.py` | Ingest Primitive | Python Module | Provides internal markdown-to-record conversion helpers for pipeline use. It should remain import-only and free of direct CLI behavior. | Keep behavior aligned with framing contract to avoid duplicate conversion logic. |
 | `cli/normalize_path.py` | NDJSON Adapter | Python CLI Transform | Implements a focused stdin/stdout transform for NDJSON/content preprocessing in pipelines. It should remain composable, stateless, and contract-driven. | Some transform responsibilities partially overlap (e.g., split/wrap/metadata stages) and may be merged later. |
 | `cli/split.py` | CLI Adapter | Python CLI Entrypoint | Registers argparse subcommands and delegates runtime work to deeper Python/shell modules. It should stay thin orchestration only with stable command contracts. | By design overlaps with delegated modules; avoid embedding business logic. |
 | `cli/split_by_regex.py` | NDJSON Adapter | Python CLI Transform | Implements a focused stdin/stdout transform for NDJSON/content preprocessing in pipelines. It should remain composable, stateless, and contract-driven. | Some transform responsibilities partially overlap (e.g., split/wrap/metadata stages) and may be merged later. |
@@ -196,7 +208,7 @@ Workbench/
 - `cli/backup.py`
 - `cli/split.py`
 - `cli/vault.py`
-- `cli/md_to_json.py`
+- `workbench/ingest/markdown_to_record.py`
 - `cli/wrap_ndjson.py`
 - `cli/normalize_path.py`
 - `cli/detect_sentinel.py`

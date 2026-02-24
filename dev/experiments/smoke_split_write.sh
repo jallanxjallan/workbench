@@ -10,19 +10,20 @@ trap 'rm -rf "$VAULT_DIR" "$OUTPUT_LOG"' EXIT
 
 printf '%s\n' '{"content":"Alpha\n<!-- AS:SECTION -->\nBeta\n","stem":"Smoke Test","source_file":"tests/smoke.md"}' \
   | "$WKB_BIN" ingest split --out-dir _new --digits 3 \
-  | "$WKB_BIN" emit write --base-dir "$VAULT_DIR" --mode writenew >"$OUTPUT_LOG"
+  | "$WKB_BIN" emit export \
+  | "$WKB_BIN" writenew --target-dir "$VAULT_DIR" >"$OUTPUT_LOG"
 
-FILE_ONE="$VAULT_DIR/_new/smoke_test/smoke_test--001.md"
-FILE_TWO="$VAULT_DIR/_new/smoke_test/smoke_test--002.md"
+FILE_ONE="$VAULT_DIR/doc-001.md"
+FILE_TWO="$VAULT_DIR/doc-002.md"
 
 [[ -f "$FILE_ONE" ]] || { echo "missing expected file: $FILE_ONE" >&2; exit 1; }
 [[ -f "$FILE_TWO" ]] || { echo "missing expected file: $FILE_TWO" >&2; exit 1; }
 
-diff -u <(printf 'Alpha\n') "$FILE_ONE"
-diff -u <(printf 'Beta\n') "$FILE_TWO"
+diff -u <(printf -- '---\n{}\n---\n\nAlpha\n') "$FILE_ONE"
+diff -u <(printf -- '---\n{}\n---\n\nBeta\n') "$FILE_TWO"
 
-grep -q '"ok": true' "$OUTPUT_LOG" || {
-  echo "writer output did not include successful records" >&2
+[[ ! -s "$OUTPUT_LOG" ]] || {
+  echo "writenew output is expected to be empty on success" >&2
   exit 1
 }
 
