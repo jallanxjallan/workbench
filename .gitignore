@@ -15,3 +15,6 @@ dist/
 # Local development scratch space
 dev/experiments/root_pytest_cache/
 dev/experiments/tmp_artifacts/
+
+# Local Pandoc data-dir editing symlink (not owned by Workbench)
+pandoc-data
