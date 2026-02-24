@@ -19,6 +19,23 @@ Namespaces:
 
 Run `wkb <namespace> <command> --help` for command-level usage.
 
+## Batch Framing
+
+Workbench framing is Python-native and batch-oriented.
+
+- Import surface:
+  - `workbench.framing.markdown.parse_markdown_batch`
+  - `workbench.framing.markdown.emit_markdown_batch`
+  - `workbench.framing.ndjson.records_to_ndjson`
+  - `workbench.framing.ndjson.ndjson_to_records`
+- CLI wrappers:
+  - `bin/md_to_json` (markdown batch -> NDJSON)
+  - `bin/json_to_md` (NDJSON -> markdown batch)
+  - `wkb ingest md-to-json`
+  - `wkb emit json-to-md`
+
+Null-delimited framing is not used.
+
 ## Pandoc Integration Policy
 
 Workbench does **not** own Pandoc filters/templates internally.
