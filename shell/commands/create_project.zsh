@@ -1,6 +1,13 @@
 workbench_create_project() {
-  local python_bin="${WORKBENCH_PYTHON:-/home/jeremy/Python3.13Env/bin/python}"
-  local pythonpath_root="$HOME/Workbench/cli"
-  PYTHONPATH="${pythonpath_root}${PYTHONPATH:+:${PYTHONPATH}}" \
-    "$python_bin" -m workbench.vault.create_project "$@"
+  local wkb_bin=""
+  if [[ -n "${WORKBENCH_ROOT:-}" && -x "${WORKBENCH_ROOT}/bin/wkb" ]]; then
+    wkb_bin="${WORKBENCH_ROOT}/bin/wkb"
+  else
+    wkb_bin="$(command -v wkb || true)"
+  fi
+  if [[ -z "${wkb_bin}" ]]; then
+    echo "wkb not found in PATH and WORKBENCH_ROOT/bin/wkb is unavailable" >&2
+    return 1
+  fi
+  "$wkb_bin" project create "$@"
 }

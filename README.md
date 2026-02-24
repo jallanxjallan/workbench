@@ -2,6 +2,23 @@
 
 Runtime toolchain repository for CLI stream adapters, shell integration, vault workflows, and backup orchestration.
 
+## CLI Surface
+
+Workbench exposes one operator entrypoint:
+
+```bash
+wkb
+```
+
+Namespaces:
+
+- `wkb ingest`
+- `wkb emit`
+- `wkb project`
+- `wkb backup`
+
+Run `wkb <namespace> <command> --help` for command-level usage.
+
 ## Pandoc Integration Policy
 
 Workbench does **not** own Pandoc filters/templates internally.
