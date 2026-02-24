@@ -1,17 +1,17 @@
-"""Convert markdown batch stdin into NDJSON records."""
+"""Convert NDJSON batch stdin into markdown records."""
 
 from __future__ import annotations
 
 import argparse
 import sys
 
-from workbench.framing.batch import markdown_to_ndjson
+from workbench.framing.batch import ndjson_to_markdown
 from workbench.io.streams import read_stdin_text, write_stdout_text
 
 
 def _parser() -> argparse.ArgumentParser:
     return argparse.ArgumentParser(
-        prog="md-to-json",
+        prog="json-to-md",
         description=__doc__,
     )
 
@@ -19,10 +19,10 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     _parser().parse_args(argv)
     try:
-        write_stdout_text(markdown_to_ndjson(read_stdin_text()))
+        write_stdout_text(ndjson_to_markdown(read_stdin_text()))
         return 0
     except ValueError as exc:
-        print(f"md-to-json: {exc}", file=sys.stderr)
+        print(f"json-to-md: {exc}", file=sys.stderr)
         return 1
 
 

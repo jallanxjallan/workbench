@@ -22,7 +22,7 @@ REGISTRY: dict[str, NamespaceEntry] = {
         summary="Inward data-flow adapters.",
         commands={
             "split": CommandEntry("workbench.ingest.split", "Split NDJSON content by section markers."),
-            "md-to-json": CommandEntry("workbench.ingest.md_to_json", "Convert null-delimited markdown stream to NDJSON."),
+            "md-to-json": CommandEntry("workbench.ingest.md_to_json", "Convert markdown batch input to NDJSON."),
             "inject-metadata": CommandEntry("workbench.ingest.inject_metadata", "Inject selected frontmatter metadata into records."),
             "normalize-path": CommandEntry("workbench.ingest.normalize_path", "Normalize path rows from stdin."),
             "select": CommandEntry("workbench.ingest.select", "Select sentinel files and resolve content records."),
@@ -34,6 +34,7 @@ REGISTRY: dict[str, NamespaceEntry] = {
             "write": CommandEntry("workbench.emit.write", "Write NDJSON records to vault/filesystem paths."),
             "export": CommandEntry("workbench.emit.export", "Export namespace surface."),
             "assemble": CommandEntry("workbench.emit.assemble", "Assembly namespace surface."),
+            "json-to-md": CommandEntry("workbench.emit.json_to_md", "Convert NDJSON batch input to markdown."),
         },
     ),
     "project": NamespaceEntry(

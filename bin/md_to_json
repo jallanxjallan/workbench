@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+WORKBENCH_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+
+PYTHON_BIN="${WORKBENCH_PYTHON:-python3}"
+export PYTHONPATH="${WORKBENCH_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+
+exec "${PYTHON_BIN}" -m workbench.ingest.md_to_json "$@"
