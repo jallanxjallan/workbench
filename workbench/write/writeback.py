@@ -76,6 +76,7 @@ def _resolve_by_slug(project_root: Path, slug: str) -> Path:
 
 
 def _resolve_target_path(project_root: Path, doc: Document, index: int) -> Path:
+    slug = _required_slug(doc, index)
     source_path = doc.metadata.get("source_path")
     if isinstance(source_path, str) and source_path.strip():
         target_path = _resolve_under_project(project_root, source_path.strip())
@@ -83,13 +84,23 @@ def _resolve_target_path(project_root: Path, doc: Document, index: int) -> Path:
             raise FileNotFoundError(f"writeback: target does not exist: {target_path}")
         if target_path.is_dir():
             raise IsADirectoryError(f"writeback: target is a directory: {target_path}")
+        existing_slug = _slug_from_file(target_path)
+        if existing_slug is None:
+            raise ValueError(f"writeback: target file missing slug: {target_path}")
+        if existing_slug != slug:
+            raise ValueError(
+                f"writeback: slug mismatch for target {target_path}; expected '{existing_slug}', got '{slug}'"
+            )
         return target_path
 
+    return _resolve_by_slug(project_root, slug)
+
+
+def _required_slug(doc: Document, index: int) -> str:
     slug = doc.metadata.get("slug")
     if isinstance(slug, str) and slug.strip():
-        return _resolve_by_slug(project_root, slug.strip())
-
-    raise ValueError(f"writeback: document {index} requires frontmatter slug or source_path")
+        return slug.strip()
+    raise ValueError(f"writeback: document {index} requires frontmatter slug")
 
 
 def writeback_markdown_batch(text: str, project_root: Path) -> None:

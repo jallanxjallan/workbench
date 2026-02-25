@@ -21,6 +21,7 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
     "writenew": CommandEntry("workbench.write.writenew", "Write markdown batch to new files in a target directory."),
     "writeback": CommandEntry("workbench.write.writeback", "Write markdown batch back to existing project files."),
     "writestream": CommandEntry("workbench.write.writestream", "Pass markdown batch through unchanged to stdout."),
+    "slug": CommandEntry("workbench.identity.slug_cmd", "Generate immutable vault slug."),
 }
 
 

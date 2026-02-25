@@ -3,7 +3,7 @@
 // - Template sources: _common/template, _common/templates, and vault-root templates/.
 // - Fails only if active file already has a slug property.
 // - Fails if active file is not markdown or contains Dataview code blocks.
-// - Sets slug (kebab-case parent + filename) and project.
+// - Sets slug via `wkb slug` and project.
 
 module.exports = async (params = {}) => {
   const app = params.app || globalThis.app;
@@ -49,7 +49,12 @@ module.exports = async (params = {}) => {
   }
   const templateBody = parsedTemplate.body;
 
-  const slug = buildSlug(activeFile.path);
+  let slug = "";
+  try {
+    slug = buildSlugViaCli(app, activeFile);
+  } catch (error) {
+    return fail(error && error.message ? error.message : "failed to generate slug");
+  }
   const project = await resolveProjectName(app);
 
   // Merge template properties with existing frontmatter, preserving existing values.
@@ -213,25 +218,38 @@ function containsDataview(text) {
   return /```(?:dataview|dataviewjs)\b/i.test(String(text || ""));
 }
 
-function buildSlug(filePath) {
-  const parts = String(filePath || "").split("/").filter(Boolean);
-  const file = parts.length ? parts[parts.length - 1] : "untitled.md";
-  const parent = parts.length > 1 ? parts[parts.length - 2] : "";
-  const base = file.replace(/\.md$/i, "");
-  const left = toKebab(parent);
-  const right = toKebab(base);
-  return left ? `${left}-${right}` : right;
+function buildSlugViaCli(app, activeFile) {
+  const { execFileSync } = require("child_process");
+  const path = require("path");
+  const fullPath = resolveFullPath(app, activeFile);
+  const folderPath = path.dirname(fullPath);
+  const filename = path.basename(fullPath);
+  const wkbBin = process.env.WKB_BIN || "wkb";
+
+  try {
+    const output = execFileSync(wkbBin, ["slug", folderPath, filename], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const slug = String(output || "").trim();
+    if (!slug) throw new Error("empty slug from CLI");
+    return slug;
+  } catch (error) {
+    const stderr = error && error.stderr ? String(error.stderr).trim() : "";
+    const detail = stderr || (error && error.message ? error.message : "unknown error");
+    throw new Error(`slug generation failed via '${wkbBin} slug': ${detail}`);
+  }
 }
 
-function toKebab(s) {
-  return String(s || "")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
+function resolveFullPath(app, activeFile) {
+  const adapter = app.vault && app.vault.adapter;
+  const basePath =
+    (adapter && typeof adapter.getBasePath === "function" && adapter.getBasePath()) ||
+    (adapter && adapter.basePath) ||
+    "";
+  if (!basePath) throw new Error("vault base path is unavailable");
+  const path = require("path");
+  return path.join(basePath, String(activeFile.path || ""));
 }
 
 async function resolveProjectName(app) {

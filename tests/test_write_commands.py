@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import io
+import json
+import re
 import sys
 from contextlib import redirect_stdout
 
@@ -11,10 +13,27 @@ from workbench.write.writenew import main as writenew_main
 from workbench.write.writestream import main as writestream_main
 
 
+def _create_vault(tmp_path):
+    vault_root = tmp_path / "vault"
+    target_dir = vault_root / "projects" / "odyssey" / "drafts"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    registry = {
+        "projects": {
+            "odyssey": {
+                "project_code": "omaf",
+            }
+        }
+    }
+    registry_path = vault_root / "00-system" / "project_registry.json"
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    return target_dir
+
+
 def test_writenew_creates_file(tmp_path) -> None:
-    doc = Document(metadata={"slug": "Alpha Beta"}, content="First body")
+    doc = Document(metadata={"slug": "legacy", "title": "The Blockade Run"}, content="First body")
     stream = emit_markdown_batch([doc])
-    target_dir = tmp_path / "target"
+    target_dir = _create_vault(tmp_path)
 
     stdin_backup = sys.stdin
     try:
@@ -24,7 +43,14 @@ def test_writenew_creates_file(tmp_path) -> None:
         sys.stdin = stdin_backup
 
     assert exit_code == 0
-    assert (target_dir / "alpha-beta.md").read_text(encoding="utf-8") == emit_markdown_batch([doc])
+    files = sorted(target_dir.glob("*.md"))
+    assert len(files) == 1
+    written = Document.read_text(files[0].read_text(encoding="utf-8"))
+    slug = written.metadata.get("slug")
+    assert isinstance(slug, str)
+    assert slug == files[0].stem
+    assert slug != "legacy"
+    assert re.fullmatch(r"omaf-the-blockade-run-[0-9a-z]{5}", slug)
 
 
 def test_writenew_rejects_multi_document_markdown(tmp_path, capsys) -> None:
@@ -69,6 +95,58 @@ def test_writeback_overwrites_existing(tmp_path) -> None:
 
     assert exit_code == 0
     assert existing.read_text(encoding="utf-8") == updated
+
+
+def test_writeback_requires_slug_even_with_source_path(tmp_path, capsys) -> None:
+    project_root = tmp_path / "project"
+    existing = project_root / "docs" / "entry.md"
+    existing.parent.mkdir(parents=True, exist_ok=True)
+    existing.write_text("---\nslug: demo\n---\n\nOld", encoding="utf-8")
+
+    updated = emit_markdown_batch(
+        [
+            Document(
+                metadata={"source_path": "docs/entry.md"},
+                content="New body",
+            )
+        ]
+    )
+
+    stdin_backup = sys.stdin
+    try:
+        sys.stdin = io.StringIO(updated)
+        exit_code = writeback_main(["--project-root", str(project_root)])
+    finally:
+        sys.stdin = stdin_backup
+
+    assert exit_code == 1
+    assert "requires frontmatter slug" in capsys.readouterr().err
+
+
+def test_writeback_rejects_slug_mismatch_for_source_path(tmp_path, capsys) -> None:
+    project_root = tmp_path / "project"
+    existing = project_root / "docs" / "entry.md"
+    existing.parent.mkdir(parents=True, exist_ok=True)
+    existing.write_text("---\nslug: demo\n---\n\nOld", encoding="utf-8")
+
+    updated = emit_markdown_batch(
+        [
+            Document(
+                metadata={"source_path": "docs/entry.md", "slug": "changed"},
+                content="New body",
+            )
+        ]
+    )
+
+    stdin_backup = sys.stdin
+    try:
+        sys.stdin = io.StringIO(updated)
+        exit_code = writeback_main(["--project-root", str(project_root)])
+    finally:
+        sys.stdin = stdin_backup
+
+    assert exit_code == 1
+    assert "slug mismatch for target" in capsys.readouterr().err
 
 
 def test_writestream_passthrough() -> None:

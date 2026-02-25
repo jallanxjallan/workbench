@@ -29,7 +29,6 @@ def to_ndjson(docs: Iterable[Document]) -> str:
         )
         for doc in docs
     ]
-
     return "\n".join(lines) + ("\n" if lines else "")
 
 
@@ -49,14 +48,10 @@ def from_ndjson(text: str) -> List[Document]:
         content = record["content"]
 
         if not isinstance(metadata, dict):
-            raise StreamError(
-                f"NDJSON record {record_no} metadata must be an object"
-            )
+            raise StreamError(f"NDJSON record {record_no} metadata must be an object")
 
         if not isinstance(content, str):
-            raise StreamError(
-                f"NDJSON record {record_no} content must be a string"
-            )
+            raise StreamError(f"NDJSON record {record_no} content must be a string")
 
         documents.append(Document(metadata=metadata, content=content))
 

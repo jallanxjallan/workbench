@@ -6,8 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from workbench.interop.identity import create_slug
 from workbench.io.streams import read_stdin_text
-from workbench.lib.text import kebab_case
 from workbench.tools.markdown_document import Document
 from workbench.write.common import atomic_write_text, parse_documents, serialize_document
 
@@ -25,17 +25,25 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _file_stem(doc: Document, index: int) -> str:
-    slug = doc.metadata.get("slug")
-    if isinstance(slug, str) and slug.strip():
-        return kebab_case(slug)
+def _filename_hint(doc: Document, index: int) -> str:
+    title = doc.metadata.get("title")
+    if isinstance(title, str) and title.strip():
+        return title.strip()
     return f"doc-{index:03d}"
 
 
 def writenew_markdown_batch(text: str, target_dir: Path) -> None:
     docs = parse_documents(text)
+    generated_slugs: set[str] = set()
+
     for index, doc in enumerate(docs, start=1):
-        target_path = target_dir / f"{_file_stem(doc, index)}.md"
+        slug = create_slug(target_dir, _filename_hint(doc, index))
+        while slug in generated_slugs:
+            slug = create_slug(target_dir, _filename_hint(doc, index))
+        generated_slugs.add(slug)
+        doc.metadata["slug"] = slug
+
+        target_path = target_dir / f"{slug}.md"
         if target_path.exists():
             raise FileExistsError(f"writenew: target already exists: {target_path}")
         atomic_write_text(target_path, serialize_document(doc))
