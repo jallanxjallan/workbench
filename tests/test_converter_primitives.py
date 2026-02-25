@@ -4,8 +4,9 @@ import pytest
 
 from workbench.emit.record_to_markdown import record_to_markdown
 from workbench.framing.batch import markdown_to_ndjson
-from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch
+from workbench.framing.markdown import MULTI_DOCUMENT_ERROR, emit_markdown_batch
 from workbench.ingest.markdown_to_record import convert_markdown_stream, markdown_text_to_record_batch
+from workbench.tools.markdown_document import Document
 
 
 def test_markdown_to_record_primitive_matches_batch_converter() -> None:
@@ -16,7 +17,7 @@ def test_markdown_to_record_primitive_matches_batch_converter() -> None:
 def test_record_to_markdown_primitive_single_record() -> None:
     record = {"metadata": {"title": "Alpha"}, "content": "Body"}
     assert record_to_markdown(record) == emit_markdown_batch(
-        [MarkdownRecord(metadata={"title": "Alpha"}, content="Body")]
+        [Document(metadata={"title": "Alpha"}, content="Body")]
     )
 
 
@@ -30,3 +31,12 @@ def test_markdown_to_record_stream_entrypoint_is_functional() -> None:
 def test_record_to_markdown_requires_string_content() -> None:
     with pytest.raises(ValueError, match="record content must be a string"):
         record_to_markdown({"metadata": {}, "content": None})
+
+
+def test_markdown_to_record_rejects_multi_document_markdown() -> None:
+    source = (
+        "---\ntitle: One\n---\n\nA\n\n"
+        "---\ntitle: Two\n---\n\nB\n"
+    )
+    with pytest.raises(ValueError, match=MULTI_DOCUMENT_ERROR):
+        markdown_text_to_record_batch(source)

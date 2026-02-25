@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 import re
 import sys
-from typing import Any
 
-import yaml
+from workbench.lib.frontmatter import parse_frontmatter
+from workbench.lib.ndjson import StreamError, emit_ndjson, parse_ndjson
+from workbench.lib.paths import PathError, ensure_within
 
 
 _BATCH_SENTINEL_LINE_RE = re.compile(
@@ -33,53 +33,20 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _to_json_value(value: Any) -> Any:
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, dict):
-        return {str(k): _to_json_value(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_to_json_value(v) for v in value]
-    return str(value)
-
-
 def _ensure_within(*, root: Path, path: Path, raw: str) -> None:
     try:
-        path.relative_to(root)
-    except ValueError as exc:
+        ensure_within(root, path, raw=raw)
+    except PathError as exc:
         raise SelectRecordsError(f"path is outside base dir: {raw}") from exc
 
 
 def _extract_frontmatter(content: str) -> dict[str, object] | None:
-    normalized = content[1:] if content.startswith("\ufeff") else content
-    lines = normalized.splitlines()
-    if not lines:
+    parsed = parse_frontmatter(content, sentinel_pattern=_BATCH_SENTINEL_LINE_RE)
+    if not parsed.has_frontmatter:
         return None
-
-    idx = 0
-    if _BATCH_SENTINEL_LINE_RE.match(lines[0].strip()):
-        idx = 1
-
-    while idx < len(lines) and lines[idx].strip() == "":
-        idx += 1
-
-    if idx >= len(lines) or lines[idx].strip() != "---":
+    if parsed.error:
         return None
-
-    end = idx + 1
-    while end < len(lines) and lines[end].strip() != "---":
-        end += 1
-    if end >= len(lines):
-        return None
-
-    raw_yaml = "\n".join(lines[idx + 1 : end])
-    try:
-        data = yaml.safe_load(raw_yaml)
-    except Exception:
-        return None
-    if not isinstance(data, dict):
-        return None
-    return _to_json_value(data)
+    return parsed.data
 
 
 def _resolve_path(*, base_dir: Path, raw_path: str) -> Path:
@@ -94,23 +61,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     base_dir = Path(args.base_dir).expanduser().resolve()
 
-    line_no = 0
     try:
-        for raw in sys.stdin:
-            line_no += 1
-            line = raw.strip()
-            if not line:
-                continue
-
-            try:
-                input_record = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise SelectRecordsError(
-                    f"invalid NDJSON input at line {line_no}"
-                ) from exc
-            if not isinstance(input_record, dict):
-                raise SelectRecordsError(f"invalid NDJSON object at line {line_no}")
-
+        for line_no, input_record in enumerate(parse_ndjson(sys.stdin), start=1):
             raw_path = input_record.get("path")
             if not isinstance(raw_path, str) or not raw_path.strip():
                 raise SelectRecordsError(f"missing path at line {line_no}")
@@ -133,9 +85,12 @@ def main(argv: list[str] | None = None) -> int:
                 "content": content,
                 "frontmatter": _extract_frontmatter(content),
             }
-            print(json.dumps(output_record, ensure_ascii=False))
+            sys.stdout.write(emit_ndjson(output_record) + "\n")
 
         return 0
+    except StreamError as exc:
+        print(f"[select_records] error: {exc}", file=sys.stderr)
+        return 1
     except SelectRecordsError as exc:
         print(f"[select_records] error: {exc}", file=sys.stderr)
         return 1

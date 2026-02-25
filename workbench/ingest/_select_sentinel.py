@@ -1,23 +1,21 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
-import re
 import sys
+
+from workbench.lib.ndjson import emit_ndjson
 
 try:
     from workbench.ingest._sentinel_scan import (
         SelectError,
+        is_valid_batch_slug,
         scan_batch_sentinel_records,
     )
     from workbench.ingest._snapshot_boundary import prepare_snapshot_boundary
 except ImportError:  # pragma: no cover - script-mode fallback
-    from _sentinel_scan import SelectError, scan_batch_sentinel_records
+    from _sentinel_scan import SelectError, is_valid_batch_slug, scan_batch_sentinel_records
     from _snapshot_boundary import prepare_snapshot_boundary
-
-
-_BATCH_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -57,15 +55,6 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _is_valid_batch_slug(value: str) -> bool:
-    if not isinstance(value, str):
-        return False
-    normalized = value.strip()
-    if not normalized or normalized != value:
-        return False
-    return _BATCH_SLUG_RE.fullmatch(normalized) is not None
-
-
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     cwd = Path.cwd().resolve()
@@ -81,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.snapshot:
             batch_slug = "mixed"
             if isinstance(args.batch_slug, str) and args.batch_slug.strip():
-                if not _is_valid_batch_slug(args.batch_slug):
+                if not is_valid_batch_slug(args.batch_slug):
                     raise SelectError("--batch-slug must be valid when provided")
                 batch_slug = args.batch_slug
 
@@ -108,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
 
         for row in rows:
-            print(json.dumps({"path": row["path"]}, ensure_ascii=False))
+            sys.stdout.write(emit_ndjson({"path": row["path"]}) + "\n")
         return 0
     except SelectError as exc:
         print(f"[select_sentinel] error: {exc}", file=sys.stderr)

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import re
 import subprocess
 
+from workbench.lib.ndjson import StreamError, parse_ndjson
+from workbench.lib.paths import PathError, ensure_within
+from workbench.lib.slug import is_valid_batch_slug
 
 AUTO_GENERATED_SENTINEL = "<!-- AUTO_GENERATED -->"
 AUTO_GENERATED_SENTINEL_RE = re.compile(r"^\s*<!--\s*AUTO_GENERATED\s*-->\s*$")
@@ -13,7 +15,6 @@ _BATCH_SENTINEL_LINE_RE = re.compile(
     r"^---\s*ASC\s+BATCH:\s*(?P<slug>.+?)\s*---\s*$",
     re.IGNORECASE,
 )
-_BATCH_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 _RG_BATCH_SENTINEL_REGEX = (
     r"^\s*---\s*ASC\s+BATCH:\s*[a-z0-9]+(?:-[a-z0-9]+)*\s*---\s*$"
@@ -162,46 +163,41 @@ def _scan_with_rg(
         raise SelectError(message)
 
     rows: list[dict[str, str]] = []
-    for raw_line in proc.stdout.splitlines():
-        raw_line = raw_line.strip()
-        if not raw_line:
-            continue
+    try:
+        input_stream = proc.stdout.splitlines()
+        for input_record in parse_ndjson(input_stream):
+            if input_record.get("type") != "match":
+                continue
 
-        try:
-            input_record = json.loads(raw_line)
-        except json.JSONDecodeError as exc:
-            raise SelectError("invalid rg output") from exc
+            data = input_record.get("data")
+            if not isinstance(data, dict):
+                continue
 
-        if input_record.get("type") != "match":
-            continue
+            line_number = data.get("line_number")
+            if line_number != 1:
+                continue
 
-        data = input_record.get("data")
-        if not isinstance(data, dict):
-            continue
+            path_data = data.get("path")
+            if not isinstance(path_data, dict):
+                continue
+            path_text = path_data.get("text")
+            if not isinstance(path_text, str) or not path_text:
+                continue
 
-        line_number = data.get("line_number")
-        if line_number != 1:
-            continue
+            lines_data = data.get("lines")
+            if not isinstance(lines_data, dict):
+                continue
+            lines_text = lines_data.get("text")
+            if not isinstance(lines_text, str) or not lines_text:
+                continue
 
-        path_data = data.get("path")
-        if not isinstance(path_data, dict):
-            continue
-        path_text = path_data.get("text")
-        if not isinstance(path_text, str) or not path_text:
-            continue
+            first_line = lines_text.splitlines()[0].strip()
+            if extract_batch_slug_from_first_line(first_line) is None:
+                continue
 
-        lines_data = data.get("lines")
-        if not isinstance(lines_data, dict):
-            continue
-        lines_text = lines_data.get("text")
-        if not isinstance(lines_text, str) or not lines_text:
-            continue
-
-        first_line = lines_text.splitlines()[0].strip()
-        if extract_batch_slug_from_first_line(first_line) is None:
-            continue
-
-        rows.append({"path": path_text})
+            rows.append({"path": path_text})
+    except StreamError as exc:
+        raise SelectError("invalid rg output") from exc
 
     return rows
 
@@ -237,8 +233,8 @@ def _expand_paths(
 
 def _ensure_within(*, cwd: Path, path: Path, raw: str) -> None:
     try:
-        path.relative_to(cwd)
-    except ValueError as exc:
+        ensure_within(cwd, path, raw=raw)
+    except PathError as exc:
         raise SelectError(f"path is outside project root: {raw}") from exc
 
 
@@ -314,7 +310,7 @@ def extract_batch_slug_from_first_line(first_line: str) -> str | None:
     if not found:
         return None
     slug = found.group("slug").strip("\"' ")
-    if not _is_valid_batch_slug(slug):
+    if not is_valid_batch_slug(slug):
         return None
     return slug
 
@@ -323,15 +319,6 @@ def _strip_bom_prefix(text: str) -> str:
     if text.startswith("\ufeff"):
         return text[1:]
     return text
-
-
-def _is_valid_batch_slug(value: str) -> bool:
-    if not isinstance(value, str):
-        return False
-    normalized = value.strip()
-    if not normalized or normalized != value:
-        return False
-    return _BATCH_SLUG_RE.fullmatch(normalized) is not None
 
 
 __all__ = [
@@ -343,4 +330,5 @@ __all__ = [
     "scan_batch_sentinel_records",
     "extract_batch_slug",
     "extract_batch_slug_from_first_line",
+    "is_valid_batch_slug",
 ]

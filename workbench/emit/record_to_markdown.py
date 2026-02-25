@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch
+from workbench.tools.markdown_document import Document
 
 
 def _record_metadata(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -26,8 +26,8 @@ def _record_content(record: Mapping[str, Any]) -> str:
 
 def record_to_markdown(record: Mapping[str, Any]) -> str:
     """Convert a single NDJSON-style record to one markdown document."""
-    markdown_record = MarkdownRecord(
+    document = Document(
         metadata=_record_metadata(record),
         content=_record_content(record),
     )
-    return emit_markdown_batch([markdown_record])
+    return document.write_text()

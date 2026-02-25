@@ -18,6 +18,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from workbench.lib.git import run_git
+from workbench.lib.subprocess import CommandError
+
 
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H-%M"
 DEFAULT_BACKUP_ROOT = "~/Dropbox/Backups/projects"
@@ -62,33 +65,20 @@ def project_slug(name: str) -> str:
     return slug or "project"
 
 
-def run_git(repo_root: Path, args: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            ["git", *args],
-            cwd=repo_root,
-            check=check,
-            capture_output=True,
-            text=True,
-        )
-    except FileNotFoundError as exc:
-        raise RuntimeError(f"git is not installed or not available in PATH: {exc}") from exc
-
-
 def ensure_project_root(project_dir: Path) -> Path:
     if not project_dir.exists() or not project_dir.is_dir():
         raise RuntimeError(f"current working directory does not exist or is not a directory: {project_dir}")
 
     try:
         result = run_git(project_dir, ["rev-parse", "--show-toplevel"], check=True)
-    except subprocess.CalledProcessError as exc:
-        detail = (exc.stderr or exc.stdout or str(exc)).strip()
+    except CommandError as exc:
+        detail = str(exc).strip()
         raise RuntimeError(
             "backup-project must be run from a git project root directory"
             + (f" ({detail})" if detail else "")
         ) from exc
 
-    top_level = Path(result.stdout.strip()).resolve()
+    top_level = Path(result.strip()).resolve()
     if top_level != project_dir:
         raise RuntimeError(f"backup-project must be run from the project root: {top_level}")
 
@@ -100,11 +90,11 @@ def ensure_clean_worktree(project_dir: Path, *, allow_dirty: bool) -> None:
         return
     try:
         res = run_git(project_dir, ["status", "--porcelain"], check=True)
-    except subprocess.CalledProcessError as exc:
-        detail = (exc.stderr or exc.stdout or str(exc)).strip()
+    except CommandError as exc:
+        detail = str(exc).strip()
         raise RuntimeError(f"failed to check git status ({detail})") from exc
 
-    if res.stdout.strip():
+    if res.strip():
         raise RuntimeError(
             "working tree is dirty (uncommitted changes). Commit/stash first, or pass --allow-dirty."
         )

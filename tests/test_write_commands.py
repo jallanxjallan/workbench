@@ -4,18 +4,16 @@ import io
 import sys
 from contextlib import redirect_stdout
 
-from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch
+from workbench.framing.markdown import MULTI_DOCUMENT_ERROR, emit_markdown_batch
+from workbench.tools.markdown_document import Document
 from workbench.write.writeback import main as writeback_main
 from workbench.write.writenew import main as writenew_main
 from workbench.write.writestream import main as writestream_main
 
 
-def test_writenew_creates_files(tmp_path) -> None:
-    docs = [
-        MarkdownRecord(metadata={"slug": "Alpha Beta"}, content="First body"),
-        MarkdownRecord(metadata={}, content="Second body"),
-    ]
-    stream = emit_markdown_batch(docs)
+def test_writenew_creates_file(tmp_path) -> None:
+    doc = Document(metadata={"slug": "Alpha Beta"}, content="First body")
+    stream = emit_markdown_batch([doc])
     target_dir = tmp_path / "target"
 
     stdin_backup = sys.stdin
@@ -26,8 +24,25 @@ def test_writenew_creates_files(tmp_path) -> None:
         sys.stdin = stdin_backup
 
     assert exit_code == 0
-    assert (target_dir / "alpha-beta.md").read_text(encoding="utf-8") == emit_markdown_batch([docs[0]])
-    assert (target_dir / "doc-002.md").read_text(encoding="utf-8") == emit_markdown_batch([docs[1]])
+    assert (target_dir / "alpha-beta.md").read_text(encoding="utf-8") == emit_markdown_batch([doc])
+
+
+def test_writenew_rejects_multi_document_markdown(tmp_path, capsys) -> None:
+    stream = (
+        "---\nslug: one\n---\n\nOne\n\n"
+        "---\nslug: two\n---\n\nTwo\n"
+    )
+    target_dir = tmp_path / "target"
+
+    stdin_backup = sys.stdin
+    try:
+        sys.stdin = io.StringIO(stream)
+        exit_code = writenew_main(["--target-dir", str(target_dir)])
+    finally:
+        sys.stdin = stdin_backup
+
+    assert exit_code == 1
+    assert MULTI_DOCUMENT_ERROR in capsys.readouterr().err
 
 
 def test_writeback_overwrites_existing(tmp_path) -> None:
@@ -38,7 +53,7 @@ def test_writeback_overwrites_existing(tmp_path) -> None:
 
     updated = emit_markdown_batch(
         [
-            MarkdownRecord(
+            Document(
                 metadata={"source_path": "docs/entry.md", "slug": "demo"},
                 content="New body",
             )
@@ -68,3 +83,19 @@ def test_writestream_passthrough() -> None:
 
     assert exit_code == 0
     assert captured.getvalue() == source
+
+
+def test_writestream_rejects_multi_document_markdown(capsys) -> None:
+    source = (
+        "---\nslug: one\n---\n\nOne\n\n"
+        "---\nslug: two\n---\n\nTwo\n"
+    )
+    stdin_backup = sys.stdin
+    try:
+        sys.stdin = io.StringIO(source)
+        exit_code = writestream_main([])
+    finally:
+        sys.stdin = stdin_backup
+
+    assert exit_code == 1
+    assert MULTI_DOCUMENT_ERROR in capsys.readouterr().err

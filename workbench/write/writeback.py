@@ -5,11 +5,12 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-import tempfile
 from pathlib import Path
 
-from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch, parse_markdown_batch
+from workbench.framing.markdown import parse_markdown_batch
 from workbench.io.streams import read_stdin_text
+from workbench.tools.markdown_document import Document
+from workbench.write.common import atomic_write_text, parse_documents, serialize_document
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -31,29 +32,6 @@ def _project_root(override: str | None) -> Path:
     if configured and configured.strip():
         return Path(configured).expanduser().resolve()
     return Path.cwd().resolve()
-
-
-def _atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding=encoding,
-        delete=False,
-        dir=str(path.parent),
-        prefix=path.name + ".",
-        suffix=".tmp",
-    ) as tmp:
-        tmp.write(content)
-        tmp.flush()
-        os.fsync(tmp.fileno())
-        tmp_name = tmp.name
-    os.replace(tmp_name, path)
-
-
-def _parse_documents(text: str) -> list[MarkdownRecord]:
-    if text.strip() == "":
-        return []
-    return parse_markdown_batch(text)
 
 
 def _resolve_under_project(project_root: Path, raw_path: str) -> Path:
@@ -97,7 +75,7 @@ def _resolve_by_slug(project_root: Path, slug: str) -> Path:
     return matches[0]
 
 
-def _resolve_target_path(project_root: Path, doc: MarkdownRecord, index: int) -> Path:
+def _resolve_target_path(project_root: Path, doc: Document, index: int) -> Path:
     source_path = doc.metadata.get("source_path")
     if isinstance(source_path, str) and source_path.strip():
         target_path = _resolve_under_project(project_root, source_path.strip())
@@ -115,10 +93,10 @@ def _resolve_target_path(project_root: Path, doc: MarkdownRecord, index: int) ->
 
 
 def writeback_markdown_batch(text: str, project_root: Path) -> None:
-    docs = _parse_documents(text)
+    docs = parse_documents(text)
     for index, doc in enumerate(docs, start=1):
         target_path = _resolve_target_path(project_root, doc, index)
-        _atomic_write_text(target_path, emit_markdown_batch([doc]))
+        atomic_write_text(target_path, serialize_document(doc))
 
 
 def main(argv: list[str] | None = None) -> int:

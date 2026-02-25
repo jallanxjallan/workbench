@@ -1,0 +1,338 @@
+{
+  "module": "workbench/framing/markdown.py",
+  "summary": {
+    "purpose": "Batch markdown framing adapter: parse markdown batch text into MarkdownRecord objects and emit MarkdownRecord objects back to markdown batch text.",
+    "handles_ndjson_directly": false,
+    "ndjson_related_modules": [
+      "workbench/framing/ndjson.py",
+      "workbench/framing/batch.py"
+    ]
+  },
+  "interfaces": {
+    "data_class": {
+      "name": "MarkdownRecord",
+      "line": 12,
+      "fields": [
+        {
+          "name": "metadata",
+          "type": "dict[str, Any]"
+        },
+        {
+          "name": "content",
+          "type": "str"
+        }
+      ]
+    },
+    "functions": [
+      {
+        "name": "_line_content",
+        "signature_args": "line: str",
+        "returns": "str",
+        "line": 17
+      },
+      {
+        "name": "_is_delimiter",
+        "signature_args": "line: str",
+        "returns": "bool",
+        "line": 21
+      },
+      {
+        "name": "_is_blank",
+        "signature_args": "line: str",
+        "returns": "bool",
+        "line": 25
+      },
+      {
+        "name": "_line_offsets",
+        "signature_args": "lines: list[str]",
+        "returns": "list[int]",
+        "line": 29
+      },
+      {
+        "name": "_rstrip_one_newline",
+        "signature_args": "text: str",
+        "returns": "str",
+        "line": 38
+      },
+      {
+        "name": "_parse_metadata",
+        "signature_args": "raw_yaml: str, record_no: int",
+        "returns": "dict[str, Any]",
+        "line": 46
+      },
+      {
+        "name": "_find_closing_delimiter",
+        "signature_args": "lines: list[str], start_line: int",
+        "returns": "int | None",
+        "line": 56
+      },
+      {
+        "name": "_looks_like_record_start",
+        "signature_args": "lines: list[str], start_line: int, offsets: list[int], text: str, record_no: int",
+        "returns": "bool",
+        "line": 65
+      },
+      {
+        "name": "parse_markdown_batch",
+        "signature_args": "text: str",
+        "returns": "list[MarkdownRecord]",
+        "line": 81
+      },
+      {
+        "name": "emit_markdown_batch",
+        "signature_args": "records: list[MarkdownRecord]",
+        "returns": "str",
+        "line": 151
+      }
+    ],
+    "io_contract": [
+      {
+        "function": "parse_markdown_batch",
+        "input": "markdown batch text (str)",
+        "output": "list[MarkdownRecord]"
+      },
+      {
+        "function": "emit_markdown_batch",
+        "input": "list[MarkdownRecord]",
+        "output": "markdown batch text (str)"
+      }
+    ]
+  },
+  "usage_sites": [
+    {
+      "path": "tests/test_write_commands.py",
+      "line": 7,
+      "context": "from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch"
+    },
+    {
+      "path": "tests/test_write_commands.py",
+      "line": 15,
+      "context": "MarkdownRecord(metadata={\"slug\": \"Alpha Beta\"}, content=\"First body\"),"
+    },
+    {
+      "path": "tests/test_write_commands.py",
+      "line": 16,
+      "context": "MarkdownRecord(metadata={}, content=\"Second body\"),"
+    },
+    {
+      "path": "tests/test_write_commands.py",
+      "line": 18,
+      "context": "stream = emit_markdown_batch(docs)"
+    },
+    {
+      "path": "tests/test_write_commands.py",
+      "line": 29,
+      "context": "assert (target_dir / \"alpha-beta.md\").read_text(encoding=\"utf-8\") == emit_markdown_batch([docs[0]])"
+    },
+    {
+      "path": "tests/test_write_commands.py",
+      "line": 30,
+      "context": "assert (target_dir / \"doc-002.md\").read_text(encoding=\"utf-8\") == emit_markdown_batch([docs[1]])"
+    },
+    {
+      "path": "tests/test_write_commands.py",
+      "line": 39,
+      "context": "updated = emit_markdown_batch("
+    },
+    {
+      "path": "tests/test_write_commands.py",
+      "line": 41,
+      "context": "MarkdownRecord("
+    },
+    {
+      "path": "tests/test_converter_primitives.py",
+      "line": 7,
+      "context": "from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch"
+    },
+    {
+      "path": "tests/test_converter_primitives.py",
+      "line": 18,
+      "context": "assert record_to_markdown(record) == emit_markdown_batch("
+    },
+    {
+      "path": "tests/test_converter_primitives.py",
+      "line": 19,
+      "context": "[MarkdownRecord(metadata={\"title\": \"Alpha\"}, content=\"Body\")]"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 5,
+      "context": "from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch, parse_markdown_batch"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 11,
+      "context": "parsed = parse_markdown_batch(source)"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 15,
+      "context": "assert emit_markdown_batch(parsed) == source"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 20,
+      "context": "MarkdownRecord(metadata={\"title\": \"One\"}, content=\"A\"),"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 21,
+      "context": "MarkdownRecord(metadata={\"title\": \"Two\", \"tags\": [\"x\", \"y\"]}, content=\"B\\nC\"),"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 23,
+      "context": "markdown = emit_markdown_batch(records)"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 24,
+      "context": "reparsed = parse_markdown_batch(markdown)"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 26,
+      "context": "assert emit_markdown_batch(reparsed) == markdown"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 31,
+      "context": "parsed = parse_markdown_batch(source)"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 32,
+      "context": "assert parsed == [MarkdownRecord(metadata={\"title\": \"Mixed\"}, content=\"First paragraph.\\nSecond paragraph.\")]"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 38,
+      "context": "parse_markdown_batch(source)"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 48,
+      "context": "records = [MarkdownRecord(metadata={\"z\": 1, \"a\": 2}, content=\"Deterministic body\")]"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 49,
+      "context": "first = emit_markdown_batch(records)"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 50,
+      "context": "second = emit_markdown_batch(records)"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 60,
+      "context": "MarkdownRecord(metadata={\"title\": \"First\"}, content=\"One\"),"
+    },
+    {
+      "path": "tests/test_framing_batch.py",
+      "line": 61,
+      "context": "MarkdownRecord(metadata={\"title\": \"Second\"}, content=\"Two\"),"
+    },
+    {
+      "path": "workbench/write/writenew.py",
+      "line": 9,
+      "context": "from workbench.framing.markdown import MarkdownRecord"
+    },
+    {
+      "path": "workbench/write/writenew.py",
+      "line": 28,
+      "context": "def _file_stem(record: MarkdownRecord, index: int) -> str:"
+    },
+    {
+      "path": "workbench/write/writeback.py",
+      "line": 10,
+      "context": "from workbench.framing.markdown import MarkdownRecord, parse_markdown_batch"
+    },
+    {
+      "path": "workbench/write/writeback.py",
+      "line": 52,
+      "context": "docs = parse_markdown_batch(text)"
+    },
+    {
+      "path": "workbench/write/writeback.py",
+      "line": 77,
+      "context": "def _resolve_target_path(project_root: Path, doc: MarkdownRecord, index: int) -> Path:"
+    },
+    {
+      "path": "workbench/write/common.py",
+      "line": 9,
+      "context": "from workbench.framing.markdown import MarkdownRecord, parse_markdown_batch"
+    },
+    {
+      "path": "workbench/write/common.py",
+      "line": 30,
+      "context": "def parse_documents(text: str) -> list[MarkdownRecord]:"
+    },
+    {
+      "path": "workbench/write/common.py",
+      "line": 33,
+      "context": "return parse_markdown_batch(text)"
+    },
+    {
+      "path": "workbench/write/common.py",
+      "line": 36,
+      "context": "def serialize_document(record: MarkdownRecord) -> str:"
+    },
+    {
+      "path": "workbench/framing/ndjson.py",
+      "line": 1,
+      "context": "\"\"\"NDJSON batch conversion for MarkdownRecord objects.\"\"\""
+    },
+    {
+      "path": "workbench/framing/ndjson.py",
+      "line": 7,
+      "context": "from workbench.framing.markdown import MarkdownRecord"
+    },
+    {
+      "path": "workbench/framing/ndjson.py",
+      "line": 10,
+      "context": "def records_to_ndjson(records: list[MarkdownRecord]) -> str:"
+    },
+    {
+      "path": "workbench/framing/ndjson.py",
+      "line": 26,
+      "context": "def ndjson_to_records(text: str) -> list[MarkdownRecord]:"
+    },
+    {
+      "path": "workbench/framing/ndjson.py",
+      "line": 27,
+      "context": "records: list[MarkdownRecord] = []"
+    },
+    {
+      "path": "workbench/framing/ndjson.py",
+      "line": 52,
+      "context": "records.append(MarkdownRecord(metadata=metadata, content=content))"
+    },
+    {
+      "path": "workbench/framing/batch.py",
+      "line": 5,
+      "context": "from workbench.framing.markdown import emit_markdown_batch, parse_markdown_batch"
+    },
+    {
+      "path": "workbench/framing/batch.py",
+      "line": 10,
+      "context": "return records_to_ndjson(parse_markdown_batch(text))"
+    },
+    {
+      "path": "workbench/framing/batch.py",
+      "line": 14,
+      "context": "return emit_markdown_batch(ndjson_to_records(text))"
+    },
+    {
+      "path": "workbench/framing/__init__.py",
+      "line": 4,
+      "context": "from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch, parse_markdown_batch"
+    },
+    {
+      "path": "workbench/framing/__init__.py",
+      "line": 8,
+      "context": "\"MarkdownRecord\","
+    }
+  ]
+}

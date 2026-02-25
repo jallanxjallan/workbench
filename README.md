@@ -25,23 +25,27 @@ Top-level write commands:
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
 
-## Batch Framing
+## Public Integration API
 
-Workbench framing is Python-native and batch-oriented.
+External scripts should import from:
 
-- Import surface:
-  - `workbench.framing.markdown.parse_markdown_batch`
-  - `workbench.framing.markdown.emit_markdown_batch`
-  - `workbench.framing.ndjson.records_to_ndjson`
-  - `workbench.framing.ndjson.ndjson_to_records`
-- Internal conversion primitives:
-  - `workbench.ingest.markdown_to_record.markdown_text_to_record_batch`
-  - `workbench.emit.record_to_markdown.record_to_markdown`
-  - `workbench.emit.assemble.assemble_markdown_documents`
+```python
+from workbench.interop import Document, to_ndjson, from_ndjson
+```
 
-`record` means the internal NDJSON structure used by the pipeline. These modules are internal primitives, not public CLI commands.
+Available symbols:
 
-Null-delimited framing is not used.
+- `Document`
+- `to_ndjson`
+- `from_ndjson`
+
+The `framing` namespace is internal and may change.
+
+## Transport Rules
+
+- Markdown input/output represents exactly one document.
+- NDJSON is required for multi-record streaming.
+- Multi-document markdown streams are not supported.
 
 ## Emit vs Write Separation
 
@@ -104,3 +108,20 @@ wb-pandoc() {
 
 - In scope: CLI orchestration, stream adapters, shell lifecycle, vault logic, backups.
 - Out of scope: Pandoc filter/template/reference implementation.
+
+## Pre-Commit Enforcement
+
+Workbench commits must go through pre-commit.
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+The configured hooks enforce:
+
+- `pytest -q` on every commit
+- `ruff` linting with autofix
+- `ruff format`
+- trailing whitespace cleanup
+- end-of-file newline normalization

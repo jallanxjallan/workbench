@@ -1,15 +1,11 @@
-"""Batch framing primitives for Markdown and NDJSON conversions."""
+"""Internal markdown framing primitives."""
 
-from workbench.framing.batch import markdown_to_ndjson, ndjson_to_markdown
 from workbench.framing.markdown import MarkdownRecord, emit_markdown_batch, parse_markdown_batch
-from workbench.framing.ndjson import ndjson_to_records, records_to_ndjson
+from workbench.tools.markdown_document import Document
 
 __all__ = [
+    "Document",
     "MarkdownRecord",
     "emit_markdown_batch",
-    "markdown_to_ndjson",
-    "ndjson_to_markdown",
-    "ndjson_to_records",
     "parse_markdown_batch",
-    "records_to_ndjson",
 ]

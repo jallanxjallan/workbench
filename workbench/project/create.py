@@ -9,6 +9,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from workbench.lib.git import run_git
+from workbench.lib.subprocess import CommandError
+
 REQUIRED_PLUGINS = ("dataview", "quickadd", "templater-obsidian")
 
 QUICKADD_OPEN_COMMON_QUERY_PICKER_CHOICE_ID = "5c4b5b1a-89cb-47f2-83da-c78d3f9f5370"
@@ -382,19 +385,6 @@ def seed_plugins(plugins_root: Path, source_plugins_root: Path) -> int:
     return ensured
 
 
-def run_git(repo_root: Path, args: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            ["git", *args],
-            cwd=repo_root,
-            check=check,
-            capture_output=True,
-            text=True,
-        )
-    except FileNotFoundError as exc:
-        die(f"git is not installed or not available in PATH: {exc}")
-
-
 def try_direnv_allow(project_root: Path) -> tuple[bool, str]:
     try:
         subprocess.run(
@@ -528,16 +518,23 @@ def main(argv: list[str] | None = None) -> int:
     write_text(project_root / ".gitignore", GITIGNORE_TEXT)
     try:
         run_git(project_root, ["init"], check=True)
-    except subprocess.CalledProcessError as exc:
-        stderr = exc.stderr.strip() if exc.stderr else str(exc)
-        die(f"git init failed: {stderr}")
+    except CommandError as exc:
+        die(f"git init failed: {exc}")
+    except RuntimeError as exc:
+        die(str(exc))
 
     try:
         subprocess.run(["git", "add", "-A"], cwd=project_root, check=True)
     except subprocess.CalledProcessError as exc:
         die(f"git add -A failed: {exc}")
 
-    staged_check = run_git(project_root, ["diff", "--cached", "--quiet"], check=False)
+    staged_check = subprocess.run(
+        ["git", "diff", "--cached", "--quiet"],
+        cwd=project_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     if staged_check.returncode not in (0, 1):
         die(
             "git diff --cached --quiet failed: "
@@ -546,9 +543,10 @@ def main(argv: list[str] | None = None) -> int:
     if staged_check.returncode == 1:
         try:
             run_git(project_root, ["commit", "-m", "INIT: project scaffold"], check=True)
-        except subprocess.CalledProcessError as exc:
-            stderr = exc.stderr.strip() if exc.stderr else str(exc)
-            die(f"git commit failed: {stderr}")
+        except CommandError as exc:
+            die(f"git commit failed: {exc}")
+        except RuntimeError as exc:
+            die(str(exc))
 
     if copied_plugins < len(REQUIRED_PLUGINS):
         print(

@@ -3,29 +3,19 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable
 
+from workbench.lib.ndjson import StreamError, emit_ndjson, parse_ndjson
 from workbench.lib.text import snake_case
 
 DEFAULT_PATTERN = r"^<!--\s*AS:SECTION\s*-->\s*$"
 
 
 def _read_ndjson(stream: Iterable[str]) -> Iterable[dict[str, Any]]:
-    for line_no, line in enumerate(stream, start=1):
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            obj = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise SystemExit(f"Invalid NDJSON on line {line_no}: {exc}") from exc
-        if not isinstance(obj, dict):
-            raise SystemExit(f"NDJSON record on line {line_no} must be an object")
-        yield obj
+    yield from parse_ndjson(stream)
 
 
 def _get_content(rec: dict[str, Any]) -> str:
@@ -107,7 +97,7 @@ def _build_output_path(
 
 
 def _emit(obj: dict[str, Any]) -> None:
-    sys.stdout.write(json.dumps(obj, ensure_ascii=False) + "\n")
+    sys.stdout.write(emit_ndjson(obj) + "\n")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -166,42 +156,45 @@ def main(argv: list[str] | None = None) -> int:
     except re.error as exc:
         raise SystemExit(f"Invalid --pattern regex: {exc}") from exc
 
-    for rec_no, rec in enumerate(_read_ndjson(sys.stdin), start=1):
-        try:
-            content = _get_content(rec)
-            stem = _derive_stem(args.stem, rec)
-            sections = _split_content(
-                content,
-                pattern_rx=pattern_rx,
-                strip=args.strip,
-                drop_empty=args.drop_empty,
-            )
+    try:
+        for rec_no, rec in enumerate(_read_ndjson(sys.stdin), start=1):
+            try:
+                content = _get_content(rec)
+                stem = _derive_stem(args.stem, rec)
+                sections = _split_content(
+                    content,
+                    pattern_rx=pattern_rx,
+                    strip=args.strip,
+                    drop_empty=args.drop_empty,
+                )
 
-            for section_index, section in enumerate(sections, start=1):
-                out_rec: dict[str, Any] = {
-                    "content": section,
-                    "output_path": _build_output_path(
-                        out_dir=out_dir,
-                        stem=stem,
-                        section_index=section_index,
-                        digits=args.digits,
-                        flat=args.flat,
-                    ),
-                    "section_index": section_index,
-                    "split_stem": stem,
-                    "source_record_index": rec_no,
-                }
-                source_file = rec.get("source_file")
-                if isinstance(source_file, str) and source_file.strip():
-                    out_rec["source_file"] = source_file
-                _emit(out_rec)
-        except Exception as exc:  # noqa: BLE001
-            _emit(
-                {
-                    "error": str(exc),
-                    "input_record": rec,
-                    "source_record_index": rec_no,
-                }
-            )
+                for section_index, section in enumerate(sections, start=1):
+                    out_rec: dict[str, Any] = {
+                        "content": section,
+                        "output_path": _build_output_path(
+                            out_dir=out_dir,
+                            stem=stem,
+                            section_index=section_index,
+                            digits=args.digits,
+                            flat=args.flat,
+                        ),
+                        "section_index": section_index,
+                        "split_stem": stem,
+                        "source_record_index": rec_no,
+                    }
+                    source_file = rec.get("source_file")
+                    if isinstance(source_file, str) and source_file.strip():
+                        out_rec["source_file"] = source_file
+                    _emit(out_rec)
+            except Exception as exc:  # noqa: BLE001
+                _emit(
+                    {
+                        "error": str(exc),
+                        "input_record": rec,
+                        "source_record_index": rec_no,
+                    }
+                )
+    except StreamError as exc:
+        raise SystemExit(str(exc)) from exc
 
     return 0
