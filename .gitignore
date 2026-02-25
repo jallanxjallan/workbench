@@ -13,9 +13,8 @@ dist/
 .mypy_cache/
 
 # Local development scratch space
-dev/experimental/root_pytest_cache/
-dev/experimental/tmp_artifacts/
+dev/experiments/root_pytest_cache/
+dev/experiments/tmp_artifacts/
 
-# Local-only secrets data and docs
-backups/secrets_include.txt
-docs/SECRETS_BACKUP.md
+# Local Pandoc data-dir editing symlink (not owned by Workbench)
+pandoc-data
