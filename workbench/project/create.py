@@ -1,584 +1,415 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
-import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 from workbench.lib.git import run_git
 from workbench.lib.subprocess import CommandError
 
-REQUIRED_PLUGINS = ("dataview", "quickadd", "templater-obsidian")
-
-QUICKADD_OPEN_COMMON_QUERY_PICKER_CHOICE_ID = "5c4b5b1a-89cb-47f2-83da-c78d3f9f5370"
-QUICKADD_OPEN_COMMON_QUERY_PICKER_MACRO_ID = "3d05f542-4cb0-44ac-b875-b07d2bf23603"
-QUICKADD_OPEN_COMMON_QUERY_PICKER_COMMAND_ID = "e9f89df7-e004-4b5a-b2f8-c14553b7f073"
-
-QUICKADD_OPEN_DRAFT_STATUS_CHOICE_ID = "ef1a248d-6d77-4b72-88c2-f7cc5198bb36"
-QUICKADD_OPEN_DRAFT_STATUS_MACRO_ID = "e761d96e-4827-4a72-a3b4-6f8762905414"
-QUICKADD_OPEN_DRAFT_STATUS_COMMAND_ID = "1d67ee59-0d52-4f5f-b810-1a8f7f478072"
-
-QUICKADD_INSERT_BATCH_SENTINEL_CHOICE_ID = "1f4d1d9e-75a1-4f57-8c4e-1ccfbd88c941"
-QUICKADD_INSERT_BATCH_SENTINEL_MACRO_ID = "7720fb2f-dcb3-4f64-a902-8b7a1b862669"
-QUICKADD_INSERT_BATCH_SENTINEL_COMMAND_ID = "3f927f4c-d6db-47da-a89d-5f81f6776a1d"
-
-QUICKADD_APPLY_TEMPLATE_CHOICE_ID = "b3e9de39-5258-46fc-bf40-ac2fa35f7fd5"
-QUICKADD_APPLY_TEMPLATE_MACRO_ID = "ec443448-2039-4235-853f-e2f2adf59f68"
-QUICKADD_APPLY_TEMPLATE_COMMAND_ID = "7653328b-c3bb-4658-8e01-818325f59568"
-
-APP_JSON = {"promptDelete": False}
-CORE_PLUGINS_JSON = {
-    "file-explorer": True,
-    "global-search": True,
-    "switcher": True,
-    "graph": True,
-    "backlink": True,
-    "canvas": True,
-    "outgoing-link": True,
-    "tag-pane": True,
-    "page-preview": True,
-    "daily-notes": True,
-    "templates": True,
-    "note-composer": True,
-    "command-palette": True,
-    "editor-status": True,
-    "bookmarks": True,
-    "outline": True,
-    "word-count": True,
-    "file-recovery": True,
-}
-COMMUNITY_PLUGINS_JSON = ["dataview", "quickadd", "templater-obsidian"]
-TEMPLATES_JSON = {"folder": "_common/templates"}
-
-DATAVIEW_DATA_JSON = {
-    "renderNullAs": "\\-",
-    "taskCompletionTracking": False,
-    "taskCompletionUseEmojiShorthand": False,
-    "taskCompletionText": "completion",
-    "taskCompletionDateFormat": "yyyy-MM-dd",
-    "recursiveSubTaskCompletion": False,
-    "warnOnEmptyResult": True,
-    "refreshEnabled": True,
-    "refreshInterval": 2500,
-    "defaultDateFormat": "dd MMM yyyy",
-    "defaultDateTimeFormat": "h:mm a - dd MMM yyyy",
-    "maxRecursiveRenderDepth": 4,
-    "tableIdColumnName": "File",
-    "tableGroupColumnName": "Group",
-    "showResultCount": True,
-    "allowHtml": True,
-    "inlineQueryPrefix": "=",
-    "inlineJsQueryPrefix": "$=",
-    "inlineQueriesInCodeblocks": True,
-    "enableInlineDataview": True,
-    "enableDataviewJs": True,
-    "enableInlineDataviewJs": True,
-    "prettyRenderInlineFields": True,
-    "prettyRenderInlineFieldsInLivePreview": True,
-    "dataviewJsKeyword": "dataviewjs",
-}
-
-TEMPLATER_DATA_JSON = {
-    "command_timeout": 5,
-    "templates_folder": "_common/templates",
-    "templates_pairs": [["", ""]],
-    "trigger_on_file_creation": False,
-    "auto_jump_to_cursor": False,
-    "enable_system_commands": False,
-    "shell_path": "",
-    "user_scripts_folder": "_common/scripts",
-    "enable_folder_templates": True,
-    "folder_templates": [{"folder": "", "template": ""}],
-    "enable_file_templates": False,
-    "file_templates": [{"regex": ".*", "template": ""}],
-    "syntax_highlighting": True,
-    "syntax_highlighting_mobile": False,
-    "enabled_templates_hotkeys": [],
-    "startup_templates": [""],
-    "intellisense_render": 1,
-    "user_script_commands": True,
-}
-
-QUICKADD_DATA_JSON = {
-    "choices": [
-        {
-            "id": QUICKADD_OPEN_COMMON_QUERY_PICKER_CHOICE_ID,
-            "name": "Open Common Query",
-            "type": "Macro",
-            "command": True,
-            "runOnStartup": False,
-            "macro": {
-                "name": "Open Common Query",
-                "id": QUICKADD_OPEN_COMMON_QUERY_PICKER_MACRO_ID,
-                "commands": [
-                    {
-                        "name": "open_common_query_picker",
-                        "type": "UserScript",
-                        "id": QUICKADD_OPEN_COMMON_QUERY_PICKER_COMMAND_ID,
-                        "path": "_common/scripts/open_common_query_picker.js",
-                        "settings": {},
-                    }
-                ],
-            },
-        },
-        {
-            "id": QUICKADD_OPEN_DRAFT_STATUS_CHOICE_ID,
-            "name": "Open Draft Status Query",
-            "type": "Macro",
-            "command": True,
-            "runOnStartup": False,
-            "macro": {
-                "name": "Open Draft Status Query",
-                "id": QUICKADD_OPEN_DRAFT_STATUS_MACRO_ID,
-                "commands": [
-                    {
-                        "name": "open_draft_status_query",
-                        "type": "UserScript",
-                        "id": QUICKADD_OPEN_DRAFT_STATUS_COMMAND_ID,
-                        "path": "_common/scripts/open_draft_status_query.js",
-                        "settings": {},
-                    }
-                ],
-            },
-        },
-        {
-            "id": QUICKADD_INSERT_BATCH_SENTINEL_CHOICE_ID,
-            "name": "Insert Batch Sentinel From Query",
-            "type": "Macro",
-            "command": True,
-            "runOnStartup": False,
-            "macro": {
-                "name": "Insert Batch Sentinel From Query",
-                "id": QUICKADD_INSERT_BATCH_SENTINEL_MACRO_ID,
-                "commands": [
-                    {
-                        "name": "insert_batch_sentinel_from_query",
-                        "type": "UserScript",
-                        "id": QUICKADD_INSERT_BATCH_SENTINEL_COMMAND_ID,
-                        "path": "_common/scripts/insert_batch_sentinel_from_query.js",
-                        "settings": {},
-                    }
-                ],
-            },
-        },
-        {
-            "id": QUICKADD_APPLY_TEMPLATE_CHOICE_ID,
-            "name": "Apply Template",
-            "type": "Macro",
-            "command": True,
-            "runOnStartup": False,
-            "macro": {
-                "name": "Apply Template",
-                "id": QUICKADD_APPLY_TEMPLATE_MACRO_ID,
-                "commands": [
-                    {
-                        "name": "apply_template",
-                        "type": "UserScript",
-                        "id": QUICKADD_APPLY_TEMPLATE_COMMAND_ID,
-                        "path": "_common/scripts/apply_template.js",
-                        "settings": {},
-                    }
-                ],
-            },
-        },
-    ],
-    "inputPrompt": "single-line",
-    "devMode": False,
-    "templateFolderPath": "_common/templates",
-    "announceUpdates": True,
-    "globalVariables": {},
-    "onePageInputEnabled": False,
-    "disableOnlineFeatures": True,
-    "enableRibbonIcon": False,
-    "showCaptureNotification": True,
-    "enableTemplatePropertyTypes": False,
-}
-
-HOTKEYS_JSON = {
-    f"quickadd:choice:{QUICKADD_OPEN_COMMON_QUERY_PICKER_CHOICE_ID}": [
-        {
-            "modifiers": ["Mod", "Meta"],
-            "key": "Q",
-        }
-    ],
-    f"quickadd:choice:{QUICKADD_OPEN_DRAFT_STATUS_CHOICE_ID}": [
-        {
-            "modifiers": ["Mod", "Meta"],
-            "key": "S",
-        }
-    ],
-    f"quickadd:choice:{QUICKADD_APPLY_TEMPLATE_CHOICE_ID}": [
-        {
-            "modifiers": ["Mod", "Meta"],
-            "key": "T",
-        }
-    ],
-}
-
-GITIGNORE_TEXT = """# ----------------------------
-# Obsidian (ignore workspace)
-# ----------------------------
-.obsidian/
-.vault.json
-workspace.json
-.history/
-
-# ----------------------------
-# Runtime / local system files
-# ----------------------------
-.DS_Store
-Thumbs.db
-*.log
-*.tmp
-*.temp
-*.cache
-
-# ----------------------------
-# Databases
-# ----------------------------
-*.sqlite
-*.db
-
-# ----------------------------
-# Generated output (build artifacts)
-# ----------------------------
-*.pdf
-*.docx
-*.epub
-*.html
-
-# ----------------------------
-# Git bundle backups
-# ----------------------------
-*.bundle
-"""
+VALID_VAULTS = ("RealRiting", "HackWork")
+MNEMONIC_RE = re.compile(r"^[a-z0-9_]+$")
+REGISTRY_FILENAME = "project_registry.yaml"
+PROJECT_SUBDIRECTORIES = ("01-drafts", "02-reference", "03-output")
 
 
-def die(message: str) -> None:
-    print(f"Error: {message}", file=sys.stderr)
-    raise SystemExit(1)
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """YAML loader that rejects duplicate mapping keys."""
 
 
-def sanitize_mnemonic(raw: str) -> str:
-    cleaned = re.sub(r"[^a-z0-9]+", "_", raw.lower())
-    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
-    return cleaned
+def _construct_mapping_with_unique_keys(
+    loader: _UniqueKeyLoader,
+    node: yaml.nodes.MappingNode,
+    deep: bool = False,
+) -> dict[Any, Any]:
+    loader.flatten_mapping(node)
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ValueError(f"duplicate key '{key}' in project registry YAML")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
 
 
-def write_json(path: Path, payload: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_mapping_with_unique_keys,
+)
 
 
-def write_text(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+@dataclass(frozen=True)
+class ProjectPaths:
+    studio_root: Path
+    registry_path: Path
+    vault_root: Path
+    common_root: Path
+    project_root: Path
+    assets_root: Path
+    instructions_root: Path
+    assets_link: Path
+    instructions_link: Path
 
 
-def find_studio_root(home_dir: Path, studio_hint: str | None) -> Path:
-    candidates: list[Path] = []
-    if studio_hint:
-        expanded_hint = Path(studio_hint).expanduser().resolve()
-        candidates.append(expanded_hint)
-        candidates.extend(expanded_hint.parents)
-
-    studio_default = (home_dir / "Studio").expanduser().resolve()
-    candidates.append(studio_default)
-    candidates.extend(studio_default.parents)
-
-    seen: set[Path] = set()
-    for candidate in candidates:
-        if candidate in seen:
-            continue
-        seen.add(candidate)
-        if (candidate / "instructions").is_dir():
-            return candidate
-
-    if studio_default.exists() and studio_default.is_dir():
-        return studio_default
-
-    die(
-        "could not locate Studio root (expected an existing directory with an "
-        f"'instructions/' child, such as {studio_default})"
-    )
-
-
-def ensure_studio_workspace(
-    *,
-    studio_root: Path,
-    project_root: Path,
-    mnemonic: str,
-) -> tuple[Path, Path]:
-    instructions_project_dir = studio_root / "instructions" / mnemonic
-    instructions_project_dir.mkdir(parents=True, exist_ok=True)
-
-    project_path_for_workspace = os.path.relpath(project_root, studio_root)
-    workspace_payload = {
-        "folders": [
-            {"path": project_path_for_workspace},
-            {"path": f"instructions/{mnemonic}"},
-        ],
-        "settings": {},
-    }
-
-    workspace_path = studio_root / f"{project_root.name}.code-workspace"
-    write_json(workspace_path, workspace_payload)
-    return instructions_project_dir, workspace_path
-
-
-def ensure_project_instructions_link(project_root: Path, instructions_target: Path) -> Path:
-    link_path = project_root / "instructions"
-    ensure_symlink(link_path, instructions_target)
-    return link_path
-
-
-def ensure_symlink(link_path: Path, target: str | Path) -> None:
-    target_path = Path(target).expanduser()
-    link_abs = link_path.expanduser().absolute()
-    target_abs = target_path.absolute()
-    if target_abs == link_abs:
-        die(f"refusing to create self-referential symlink: {link_path} -> {target_abs}")
-
-    # If target already exists as a symlink chain, guard against indirect loops.
-    if target_path.exists():
-        try:
-            if target_path.resolve() == link_abs:
-                die(f"refusing to create self-referential symlink chain: {link_path} -> {target_path}")
-        except RuntimeError:
-            die(f"target path has a symlink resolution loop: {target_path}")
-
-    target_text = str(target_path)
-    if link_path.is_symlink():
-        existing = os.readlink(link_path)
-        if existing != target_text:
-            die(f"symlink exists with different target: {link_path} -> {existing}")
-        return
-    if link_path.exists():
-        die(f"path exists and is not a symlink: {link_path}")
-    link_path.symlink_to(target_text)
-
-
-def seed_plugins(plugins_root: Path, source_plugins_root: Path) -> int:
-    missing = []
-    ensured = 0
-
-    for plugin in REQUIRED_PLUGINS:
-        src = source_plugins_root / plugin
-        dst = plugins_root / plugin
-        if not src.is_dir():
-            missing.append(plugin)
-            continue
-        ensured += 1
-        if not dst.exists():
-            shutil.copytree(src, dst)
-
-    if missing:
-        die(
-            "missing required Obsidian plugin dependencies in "
-            f"{source_plugins_root}: {', '.join(missing)}"
-        )
-
-    return ensured
-
-
-def try_direnv_allow(project_root: Path) -> tuple[bool, str]:
-    try:
-        subprocess.run(
-            ["direnv", "allow", "."],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return True, "allowed .envrc for this project"
-    except FileNotFoundError:
-        return False, "direnv not found in PATH; run `direnv allow .` manually"
-    except subprocess.CalledProcessError as exc:
-        detail = (exc.stderr or exc.stdout or str(exc)).strip()
-        if detail:
-            return False, f"direnv allow failed ({detail}); run `direnv allow .` manually"
-        return False, "direnv allow failed; run `direnv allow .` manually"
+class CreateProjectError(RuntimeError):
+    pass
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="create-project",
         description=(
-            "Create an Obsidian project vault surface in the current directory. "
-            "Run it from the target project root directory."
-        ),
-        epilog=(
-            "Mnemonic is derived from the current folder name. "
-            "Instructions and assets are linked via ~/Studio and ~/Dropbox."
+            "Create a project in a Studio vault and register it in "
+            "~/Studio/project_registry.yaml."
         ),
     )
-    parser.add_argument(
-        "path",
-        nargs="?",
-        default=".",
-        help="Target project root directory (default: current directory).",
-    )
+    parser.add_argument("vault_name")
+    parser.add_argument("project_mnemonic")
     return parser.parse_args(argv)
+
+
+def _paths_for(vault_name: str, project_mnemonic: str) -> ProjectPaths:
+    home = Path.home().expanduser().resolve()
+    studio_root = (home / "Studio").resolve()
+    vault_root = studio_root / vault_name
+    project_root = vault_root / project_mnemonic
+    assets_root = (home / "Dropbox" / "Assets" / project_mnemonic).resolve()
+    instructions_root = (studio_root / "instructions" / project_mnemonic).resolve()
+    return ProjectPaths(
+        studio_root=studio_root,
+        registry_path=studio_root / REGISTRY_FILENAME,
+        vault_root=vault_root,
+        common_root=vault_root / "_common",
+        project_root=project_root,
+        assets_root=assets_root,
+        instructions_root=instructions_root,
+        assets_link=project_root / "assets",
+        instructions_link=project_root / "instructions",
+    )
+
+
+def _validate_inputs(vault_name: str, project_mnemonic: str) -> None:
+    if vault_name not in VALID_VAULTS:
+        raise CreateProjectError(
+            f"invalid vault_name '{vault_name}' (expected one of: {', '.join(VALID_VAULTS)})"
+        )
+    if not MNEMONIC_RE.fullmatch(project_mnemonic):
+        raise CreateProjectError(
+            f"invalid project_mnemonic '{project_mnemonic}' "
+            "(must match ^[a-z0-9_]+$)"
+        )
+
+
+def _load_registry(registry_path: Path) -> dict[str, dict[str, str]]:
+    if not registry_path.exists():
+        return {}
+    if not registry_path.is_file():
+        raise CreateProjectError(f"project registry path is not a file: {registry_path}")
+
+    try:
+        payload = yaml.load(registry_path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+    except yaml.YAMLError as exc:
+        raise CreateProjectError(f"invalid YAML in project registry: {registry_path}") from exc
+    except ValueError as exc:
+        raise CreateProjectError(str(exc)) from exc
+
+    if payload is None:
+        return {}
+    if not isinstance(payload, dict):
+        raise CreateProjectError("project registry root must be a mapping")
+
+    validated: dict[str, dict[str, str]] = {}
+    for mnemonic, metadata in payload.items():
+        if not isinstance(mnemonic, str):
+            raise CreateProjectError("project registry keys must be strings")
+        if not MNEMONIC_RE.fullmatch(mnemonic):
+            raise CreateProjectError(f"invalid project mnemonic '{mnemonic}' in registry")
+        if not isinstance(metadata, dict):
+            raise CreateProjectError(f"project '{mnemonic}' metadata must be a mapping")
+        validated[mnemonic] = dict(metadata)
+    return validated
+
+
+def _write_registry(registry_path: Path, registry: dict[str, dict[str, str]]) -> None:
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    yaml_text = yaml.safe_dump(registry, sort_keys=False)
+    registry_path.write_text(yaml_text, encoding="utf-8")
+
+    # Validate post-write deterministically.
+    validated = _load_registry(registry_path)
+    if set(validated.keys()) != set(registry.keys()):
+        raise CreateProjectError("registry validation failed after write")
+
+
+def _ensure_studio_git_ready(studio_root: Path) -> None:
+    if not studio_root.is_dir():
+        raise CreateProjectError(f"Studio directory not found: {studio_root}")
+
+    try:
+        inside = run_git(studio_root, ["rev-parse", "--is-inside-work-tree"], check=True).strip()
+    except (CommandError, RuntimeError) as exc:
+        raise CreateProjectError(f"git is not initialized in {studio_root}") from exc
+
+    if inside.lower() != "true":
+        raise CreateProjectError(f"git is not initialized in {studio_root}")
+
+    try:
+        status = run_git(studio_root, ["status", "--porcelain"], check=True)
+    except (CommandError, RuntimeError) as exc:
+        raise CreateProjectError(f"failed to inspect git working tree in {studio_root}") from exc
+
+    if status.strip():
+        raise CreateProjectError(
+            "Studio git working tree is dirty for unrelated files; aborting auto-commit"
+        )
+
+
+def _preflight(paths: ProjectPaths, project_mnemonic: str) -> dict[str, dict[str, str]]:
+    registry = _load_registry(paths.registry_path)
+    if project_mnemonic in registry:
+        raise CreateProjectError(f"project mnemonic already exists in registry: {project_mnemonic}")
+
+    if paths.vault_root.exists() and not paths.vault_root.is_dir():
+        raise CreateProjectError(f"vault root exists and is not a directory: {paths.vault_root}")
+
+    if paths.common_root.exists() and not paths.common_root.is_dir():
+        raise CreateProjectError(f"_common exists and is not a directory: {paths.common_root}")
+
+    if paths.project_root.exists():
+        if not paths.project_root.is_dir():
+            raise CreateProjectError(
+                f"project root exists and is not a directory: {paths.project_root}"
+            )
+        for link_path, target_path in (
+            (paths.assets_link, paths.assets_root),
+            (paths.instructions_link, paths.instructions_root),
+        ):
+            if link_path.is_symlink():
+                resolved = (link_path.parent / Path(os.readlink(link_path))).resolve()
+                if resolved != target_path.resolve():
+                    raise CreateProjectError(
+                        f"symlink target mismatch for {link_path}: expected {target_path.resolve()}, "
+                        f"found {resolved}"
+                    )
+        if any(paths.project_root.iterdir()):
+            raise CreateProjectError(f"project root already exists and is non-empty: {paths.project_root}")
+
+    for subdir in PROJECT_SUBDIRECTORIES:
+        path = paths.project_root / subdir
+        if path.exists():
+            if not path.is_dir():
+                raise CreateProjectError(f"project path exists and is not a directory: {path}")
+            if any(path.iterdir()):
+                raise CreateProjectError(f"project directory exists and is non-empty: {path}")
+
+    for external_dir in (paths.assets_root, paths.instructions_root):
+        if external_dir.exists() and not external_dir.is_dir():
+            raise CreateProjectError(f"path exists and is not a directory: {external_dir}")
+
+    for link_path in (paths.assets_link, paths.instructions_link):
+        if link_path.exists() and not link_path.is_symlink():
+            raise CreateProjectError(f"path exists and is not a symlink: {link_path}")
+
+    return registry
+
+
+def _timestamp_iso8601() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _entry_for(vault_name: str, project_mnemonic: str, paths: ProjectPaths) -> dict[str, str]:
+    return {
+        "vault": vault_name,
+        "project_root": str(paths.project_root.resolve()),
+        "assets_root": str(paths.assets_root.resolve()),
+        "instructions_root": str(paths.instructions_root.resolve()),
+        "created_at": _timestamp_iso8601(),
+    }
+
+
+def _create_relative_symlink(link_path: Path, target_path: Path) -> None:
+    expected_target = target_path.resolve()
+    if link_path.is_symlink():
+        existing_target = (link_path.parent / Path(os.readlink(link_path))).resolve()
+        if existing_target != expected_target:
+            raise CreateProjectError(
+                f"symlink target mismatch for {link_path}: expected {expected_target}, "
+                f"found {existing_target}"
+            )
+        return
+
+    if link_path.exists():
+        raise CreateProjectError(f"path exists and is not a symlink: {link_path}")
+
+    relative_target = Path(os.path.relpath(expected_target, link_path.parent))
+    link_path.symlink_to(relative_target)
+
+
+def _provision_filesystem(vault_name: str, project_mnemonic: str, paths: ProjectPaths) -> dict[str, str]:
+    paths.vault_root.mkdir(parents=True, exist_ok=True)
+    paths.common_root.mkdir(parents=True, exist_ok=True)
+    paths.project_root.mkdir(parents=True, exist_ok=True)
+
+    for subdir in PROJECT_SUBDIRECTORIES:
+        (paths.project_root / subdir).mkdir(parents=True, exist_ok=True)
+
+    paths.assets_root.mkdir(parents=True, exist_ok=True)
+    paths.instructions_root.mkdir(parents=True, exist_ok=True)
+
+    _create_relative_symlink(paths.assets_link, paths.assets_root)
+    _create_relative_symlink(paths.instructions_link, paths.instructions_root)
+
+    return _entry_for(vault_name, project_mnemonic, paths)
+
+
+def _validate_final_state(
+    *,
+    vault_name: str,
+    project_mnemonic: str,
+    paths: ProjectPaths,
+    expected_entry: dict[str, str],
+) -> None:
+    registry = _load_registry(paths.registry_path)
+    if project_mnemonic not in registry:
+        raise CreateProjectError("registry validation failed: missing project entry")
+    actual_entry = registry[project_mnemonic]
+
+    for key in ("vault", "project_root", "assets_root", "instructions_root"):
+        if actual_entry.get(key) != expected_entry[key]:
+            raise CreateProjectError(
+                f"registry validation failed for '{project_mnemonic}': field '{key}' mismatch"
+            )
+
+    if actual_entry.get("vault") != vault_name:
+        raise CreateProjectError(f"registry validation failed: vault mismatch for '{project_mnemonic}'")
+
+    if not paths.common_root.is_dir():
+        raise CreateProjectError(f"missing vault _common directory: {paths.common_root}")
+
+    if not paths.project_root.is_dir():
+        raise CreateProjectError(f"missing project root directory: {paths.project_root}")
+
+    for subdir in PROJECT_SUBDIRECTORIES:
+        subdir_path = paths.project_root / subdir
+        if not subdir_path.is_dir():
+            raise CreateProjectError(f"missing project directory: {subdir_path}")
+
+    for link_path, target_path in (
+        (paths.assets_link, paths.assets_root),
+        (paths.instructions_link, paths.instructions_root),
+    ):
+        if not link_path.is_symlink():
+            raise CreateProjectError(f"missing symlink: {link_path}")
+        resolved = (link_path.parent / Path(os.readlink(link_path))).resolve()
+        if resolved != target_path.resolve():
+            raise CreateProjectError(
+                f"symlink validation failed for {link_path}: expected {target_path.resolve()}, "
+                f"found {resolved}"
+            )
+
+
+def _create_studio_commit(paths: ProjectPaths, vault_name: str, project_mnemonic: str) -> str:
+    try:
+        registry_rel = paths.registry_path.relative_to(paths.studio_root)
+        project_rel = paths.project_root.relative_to(paths.studio_root)
+        instructions_rel = paths.instructions_root.relative_to(paths.studio_root)
+    except ValueError as exc:
+        raise CreateProjectError("staging paths must be inside Studio root") from exc
+
+    try:
+        run_git(
+            paths.studio_root,
+            ["add", "--", str(registry_rel), str(project_rel), str(instructions_rel)],
+            check=True,
+        )
+    except (CommandError, RuntimeError) as exc:
+        raise CreateProjectError(f"failed to stage Studio changes: {exc}") from exc
+
+    commit_message = (
+        f"PROJECT create: {project_mnemonic} in {vault_name}\n\n"
+        "- registry entry added\n"
+        "- vault structure created\n"
+        "- assets linked\n"
+        "- instructions linked\n"
+    )
+
+    try:
+        run_git(
+            paths.studio_root,
+            [
+                "-c",
+                "user.name=Workbench",
+                "-c",
+                "user.email=workbench@example.invalid",
+                "commit",
+                "-m",
+                commit_message,
+            ],
+            check=True,
+        )
+    except (CommandError, RuntimeError) as exc:
+        raise CreateProjectError(f"failed to create Studio commit: {exc}") from exc
+
+    try:
+        short_hash = run_git(paths.studio_root, ["rev-parse", "--short", "HEAD"], check=True).strip()
+    except (CommandError, RuntimeError) as exc:
+        raise CreateProjectError(f"failed to resolve Studio commit hash: {exc}") from exc
+
+    if not short_hash:
+        raise CreateProjectError("failed to resolve Studio commit hash")
+    return short_hash
+
+
+def _execute(vault_name: str, project_mnemonic: str) -> str:
+    _validate_inputs(vault_name, project_mnemonic)
+    paths = _paths_for(vault_name, project_mnemonic)
+    _ensure_studio_git_ready(paths.studio_root)
+    registry = _preflight(paths, project_mnemonic)
+
+    entry = _provision_filesystem(vault_name, project_mnemonic, paths)
+    registry[project_mnemonic] = entry
+    _write_registry(paths.registry_path, registry)
+
+    _validate_final_state(
+        vault_name=vault_name,
+        project_mnemonic=project_mnemonic,
+        paths=paths,
+        expected_entry=entry,
+    )
+
+    return _create_studio_commit(paths, vault_name, project_mnemonic)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-
-    home_dir = Path.home()
-    requested_root = Path(args.path).expanduser()
-    project_root = requested_root.resolve() if requested_root.is_absolute() else (Path.cwd() / requested_root).resolve()
-    project_root.mkdir(parents=True, exist_ok=True)
-    mnemonic = sanitize_mnemonic(project_root.name)
-    if not mnemonic:
-        die(f"invalid project mnemonic derived from folder name '{project_root.name}'")
-    if not project_root.exists() or not project_root.is_dir():
-        die(f"current working directory does not exist or is not a directory: {project_root}")
-
-    project_vault_name = mnemonic
-    project_vault = project_root / project_vault_name
-
-    default_workbench_root = Path(__file__).resolve().parents[2]
-    workbench_root = Path(os.environ.get("WORKBENCH_ROOT", str(default_workbench_root))).expanduser()
-    workbench_common = Path(
-        os.environ.get("WORKBENCH_COMMON", str(workbench_root / "assets" / "obsidian"))
-    ).expanduser()
-    workbench_obsidian = Path(
-        os.environ.get("WORKBENCH_OBSIDIAN", str(workbench_root / "assets" / "obsidian"))
-    ).expanduser()
-    workbench_plugins = workbench_obsidian / "plugins"
-
-    studio_root = (home_dir / "Studio").expanduser().resolve()
-
-    plugins_root = project_vault / ".obsidian/plugins"
-
-    if not workbench_common.is_dir():
-        die(f"shared obsidian assets not found: {workbench_common}")
-    if not workbench_plugins.is_dir():
-        die(f"workbench obsidian plugins directory not found: {workbench_plugins}")
-    if project_vault.exists():
-        die(f"vault directory already exists: {project_vault}")
-
-    (project_vault / ".obsidian").mkdir(parents=True, exist_ok=True)
-    (project_root / "bin").mkdir(parents=True, exist_ok=True)
-    common_rel = os.path.relpath(workbench_common, project_vault)
-    # Symlinks are for editor convenience only. They are not semantic inputs.
-    ensure_symlink(project_vault / "_common", common_rel)
-
-    instructions_project_dir, workspace_path = ensure_studio_workspace(
-        studio_root=studio_root,
-        project_root=project_root,
-        mnemonic=mnemonic,
-    )
-    ensure_project_instructions_link(project_root, instructions_project_dir)
-    assets_target = (home_dir / "Dropbox" / "Assets" / mnemonic).expanduser()
-    assets_target.mkdir(parents=True, exist_ok=True)
-    ensure_symlink(project_root / "assets", assets_target)
-
-    env_local_lines = [
-        "# Project scope (generated by create-project: vault surface attachment)\n",
-        f'AUTOSCRIBE_PROJECT_ROOT="{project_root}"\n',
-        f'AUTOSCRIBE_PROJECT_VAULT="{project_vault}"\n',
-        f'AUTOSCRIBE_PROJECT_MNEMONIC="{mnemonic}"\n',
-        f'AUTOSCRIBE_PROJECT_INSTRUCTIONS_ROOT="{instructions_project_dir}"\n',
-        'DEVHOOK_SCOPE="project"\n',
-    ]
-    write_text(project_root / ".env.local", "".join(env_local_lines))
-
-    write_text(
-        project_root / ".envrc",
-        (
-            "dotenv_if_exists .env.local\n"
-            "PATH_add bin\n\n"
-            "watch_file .env.local\n\n"
-            'echo "[direnv] $(basename "$PWD") project scope loaded"\n'
-        ),
-    )
-    direnv_allowed, direnv_status = try_direnv_allow(project_root)
-
-    write_json(project_vault / ".obsidian/app.json", APP_JSON)
-    write_json(project_vault / ".obsidian/core-plugins.json", CORE_PLUGINS_JSON)
-    write_json(project_vault / ".obsidian/community-plugins.json", COMMUNITY_PLUGINS_JSON)
-    write_json(project_vault / ".obsidian/templates.json", TEMPLATES_JSON)
-    write_json(project_vault / ".obsidian/hotkeys.json", HOTKEYS_JSON)
-
-    copied_plugins = seed_plugins(plugins_root, workbench_plugins)
-
-    (plugins_root / "dataview").mkdir(parents=True, exist_ok=True)
-    (plugins_root / "quickadd").mkdir(parents=True, exist_ok=True)
-    (plugins_root / "templater-obsidian").mkdir(parents=True, exist_ok=True)
-
-    write_json(plugins_root / "dataview/data.json", DATAVIEW_DATA_JSON)
-    write_json(plugins_root / "quickadd/data.json", QUICKADD_DATA_JSON)
-    write_json(plugins_root / "templater-obsidian/data.json", TEMPLATER_DATA_JSON)
-
-    write_text(project_root / ".gitignore", GITIGNORE_TEXT)
-    try:
-        run_git(project_root, ["init"], check=True)
-    except CommandError as exc:
-        die(f"git init failed: {exc}")
-    except RuntimeError as exc:
-        die(str(exc))
+    vault_name = str(args.vault_name)
+    project_mnemonic = str(args.project_mnemonic)
 
     try:
-        subprocess.run(["git", "add", "-A"], cwd=project_root, check=True)
-    except subprocess.CalledProcessError as exc:
-        die(f"git add -A failed: {exc}")
+        short_hash = _execute(vault_name, project_mnemonic)
+    except CreateProjectError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except subprocess.SubprocessError as exc:
+        print(f"Error: subprocess failure: {exc}", file=sys.stderr)
+        return 1
 
-    staged_check = subprocess.run(
-        ["git", "diff", "--cached", "--quiet"],
-        cwd=project_root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if staged_check.returncode not in (0, 1):
-        die(
-            "git diff --cached --quiet failed: "
-            f"{(staged_check.stderr or '').strip() or f'exit code {staged_check.returncode}'}"
-        )
-    if staged_check.returncode == 1:
-        try:
-            run_git(project_root, ["commit", "-m", "INIT: project scaffold"], check=True)
-        except CommandError as exc:
-            die(f"git commit failed: {exc}")
-        except RuntimeError as exc:
-            die(str(exc))
-
-    if copied_plugins < len(REQUIRED_PLUGINS):
-        print(
-            f"WARNING: Plugin binaries not fully seeded ({copied_plugins}/{len(REQUIRED_PLUGINS)}).",
-            file=sys.stderr,
-        )
-        print(
-            "Open Obsidian -> Community Plugins and install missing plugins listed in "
-            ".obsidian/community-plugins.json.",
-            file=sys.stderr,
-        )
-
-    print("Vault surface attached")
-    print(f"   Mnemonic:                      {mnemonic}")
-    print(f"   Project content (source truth): {project_root}")
-    print(f"   Vault surface:                 {project_vault}")
-    print(f"   Env authority:                 {project_root / '.env.local'}")
-    print("   Symlink (editor convenience only):")
-    print(f"     {project_vault / '_common'} -> {common_rel}")
-    print("   Plugins:                       dataview, quickadd, templater-obsidian")
-    print("   Git:                           initialized at project root")
-    print("   Tracking:                      markdown + project config (.env.local, yaml, scripts)")
-    print("   Ignoring:                      obsidian workspace + runtime artifacts")
-    print("   Remote:                        none configured")
-    print(f"   Studio instructions:           {instructions_project_dir}")
-    print(f"   Project assets:                {project_root / 'assets'} -> {assets_target}")
-    print(f"   VSCode workspace:              {workspace_path}")
-    if direnv_allowed:
-        print("   Direnv:                        .envrc allowed")
-    else:
-        print("   Direnv:                        .envrc not auto-allowed")
-        print(f"   Direnv next step:              {direnv_status}")
+    paths = _paths_for(vault_name, project_mnemonic)
+    print("Project created:")
+    print(f"  Vault: {vault_name}")
+    print(f"  Mnemonic: {project_mnemonic}")
+    print(f"  Root: {paths.project_root}")
+    print("  Assets: linked")
+    print("  Instructions: linked")
+    print(f"Studio commit created: {short_hash}")
     return 0
 
 

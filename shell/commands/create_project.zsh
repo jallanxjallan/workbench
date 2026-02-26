@@ -9,5 +9,5 @@ workbench_create_project() {
     echo "wkb not found in PATH and WORKBENCH_ROOT/bin/wkb is unavailable" >&2
     return 1
   fi
-  "$wkb_bin" project create "$@"
+  "$wkb_bin" create-project "$@"
 }

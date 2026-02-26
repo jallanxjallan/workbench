@@ -17,11 +17,18 @@ Namespaces:
 - `wkb project`
 - `wkb backup`
 
-Top-level write commands:
+Top-level commands:
 
 - `wkb writenew --target-dir <path>`
 - `wkb writeback`
 - `wkb writestream`
+- `wkb slug <target_dir> <source_name>`
+- `wkb create-project <vault_name> <project_mnemonic>`
+
+`create-project` requirements:
+
+- `vault_name` must be `RealRiting` or `HackWork`
+- `project_mnemonic` must match `^[a-z0-9_]+$`
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
 
