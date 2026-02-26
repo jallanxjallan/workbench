@@ -13,6 +13,8 @@ import yaml
 
 REGISTRY_FILENAME = "registry.yaml"
 VAULT_SUBDIRECTORIES = ("_common", "projects")
+SUCCESS_MESSAGE = "create-vault: completed"
+FAILURE_MESSAGE = "create-vault: failed"
 
 NOT_GIT_ERROR = (
     "ERROR: Studio root is not a git repository. Vault creation requires version control."
@@ -160,12 +162,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         vault_path = create_vault(str(args.vault_name))
     except CreateVaultError as exc:
+        print(FAILURE_MESSAGE, file=sys.stderr)
         print(str(exc), file=sys.stderr)
         return 1
     except subprocess.SubprocessError as exc:
+        print(FAILURE_MESSAGE, file=sys.stderr)
         print(f"ERROR: subprocess failure: {exc}", file=sys.stderr)
         return 1
 
+    print(SUCCESS_MESSAGE)
     print("Vault created:")
     print(f"  Name: {vault_path.name}")
     print(f"  Root: {vault_path.resolve()}")

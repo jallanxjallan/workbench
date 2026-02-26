@@ -111,3 +111,32 @@ def test_does_not_mutate_registry_if_preflight_fails(tmp_path: Path, monkeypatch
         pass
 
     assert (studio_root / "registry.yaml").read_text(encoding="utf-8") == original
+
+
+def test_main_prints_completed_message_on_success(tmp_path: Path, monkeypatch, capsys) -> None:
+    expected_path = tmp_path / "Studio" / "RealWriting"
+
+    def fake_create_vault(_name: str) -> Path:
+        return expected_path
+
+    monkeypatch.setattr(module_under_test, "create_vault", fake_create_vault)
+
+    exit_code = module_under_test.main(["RealWriting"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert module_under_test.SUCCESS_MESSAGE in captured.out
+
+
+def test_main_prints_failed_message_on_error(monkeypatch, capsys) -> None:
+    def fake_create_vault(_name: str) -> Path:
+        raise module_under_test.CreateVaultError("ERROR: boom")
+
+    monkeypatch.setattr(module_under_test, "create_vault", fake_create_vault)
+
+    exit_code = module_under_test.main(["RealWriting"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert module_under_test.FAILURE_MESSAGE in captured.err
+    assert "ERROR: boom" in captured.err
