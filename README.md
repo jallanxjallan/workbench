@@ -23,12 +23,12 @@ Top-level commands:
 - `wkb writeback`
 - `wkb writestream`
 - `wkb slug <target_dir> <source_name>`
-- `wkb create-project <vault_name> <project_mnemonic>`
+- `wkb create-project --vault <vault_name> --project "<Title Case Name>"`
 
 `create-project` requirements:
 
 - `vault_name` must be `RealRiting` or `HackWork`
-- `project_mnemonic` must match `^[a-z0-9_]+$`
+- `project` must be non-empty; mnemonic is auto-derived from title initials
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
 
