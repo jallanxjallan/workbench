@@ -1,536 +1,257 @@
 from __future__ import annotations
 
 import argparse
-import os
 import re
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from workbench.lib.git import run_git
-from workbench.lib.subprocess import CommandError
+REGISTRY_FILENAME = "registry.yaml"
 
-VALID_VAULTS = ("RealRiting", "HackWork")
-MNEMONIC_RE = re.compile(r"^[a-z0-9]+$")
-REGISTRY_FILENAME = "project_registry.yaml"
-PROJECT_SUBDIRECTORIES = ("01-drafts", "02-reference", "03-output")
-
-
-class _UniqueKeyLoader(yaml.SafeLoader):
-    """YAML loader that rejects duplicate mapping keys."""
-
-
-def _construct_mapping_with_unique_keys(
-    loader: _UniqueKeyLoader,
-    node: yaml.nodes.MappingNode,
-    deep: bool = False,
-) -> dict[Any, Any]:
-    loader.flatten_mapping(node)
-    mapping: dict[Any, Any] = {}
-    for key_node, value_node in node.value:
-        key = loader.construct_object(key_node, deep=deep)
-        if key in mapping:
-            raise ValueError(f"duplicate key '{key}' in project registry YAML")
-        mapping[key] = loader.construct_object(value_node, deep=deep)
-    return mapping
-
-
-_UniqueKeyLoader.add_constructor(
-    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
-    _construct_mapping_with_unique_keys,
+NOT_GIT_ERROR = (
+    "ERROR: Studio root is not a git repository. Project creation requires version control."
 )
-
-
-@dataclass(frozen=True)
-class ProjectPaths:
-    studio_root: Path
-    registry_path: Path
-    vault_root: Path
-    common_root: Path
-    project_root: Path
-    assets_root: Path
-    instructions_root: Path
-    assets_link: Path
-    instructions_link: Path
+DIRTY_TREE_ERROR = (
+    "ERROR: Studio working tree is not clean. Commit or stash changes before creating a project."
+)
 
 
 class CreateProjectError(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class VaultRecord:
+    vault_id: str
+    name: str
+    path: Path
+
+
+@dataclass(frozen=True)
+class CreateProjectResult:
+    mnemonic: str
+    project_path: Path
+    vault_id: str
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="create-project",
-        description=(
-            "Create a project in a Studio vault and register it in "
-            "~/Studio/project_registry.yaml."
-        ),
+        description="Create a Studio project in an existing vault and commit it.",
     )
-    parser.add_argument("--vault", required=True, dest="vault_name")
-    parser.add_argument("--project", required=True, dest="project_title")
+    parser.add_argument("vault_id")
+    parser.add_argument("--name", required=True, dest="project_name")
     return parser.parse_args(argv)
 
 
-def _normalize_project_title(project_title: str) -> str:
-    normalized = project_title.strip()
+def _run_git(studio_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(studio_root), *args],
+        capture_output=True,
+        text=True,
+    )
+
+
+def _git_error(action: str, result: subprocess.CompletedProcess[str]) -> str:
+    detail = (result.stderr or "").strip() or (result.stdout or "").strip() or "Unknown git error."
+    return f"ERROR: git {action} failed.\n{detail}"
+
+
+def _validate_project_name(project_name: str) -> str:
+    normalized = project_name.strip()
     if not normalized:
-        raise CreateProjectError("invalid project name: value must not be empty")
+        raise CreateProjectError("ERROR: Project name must be non-empty.")
     if "/" in normalized or "\\" in normalized:
-        raise CreateProjectError("invalid project name: path separators are not allowed")
+        raise CreateProjectError("ERROR: Project name must not contain path separators.")
     return normalized
 
 
-def _derive_mnemonic(project_title: str) -> str:
-    initials: list[str] = []
-    for word in project_title.split():
-        cleaned = re.sub(r"[^A-Za-z0-9]", "", word)
-        if cleaned:
-            initials.append(cleaned[0].lower())
-    mnemonic = "".join(initials)
-    if len(mnemonic) < 2 or not MNEMONIC_RE.fullmatch(mnemonic):
-        raise CreateProjectError(
-            f"invalid project name '{project_title}': derived mnemonic '{mnemonic}' "
-            "must match ^[a-z0-9]+$ with minimum length 2"
-        )
+def _preflight_studio(studio_root: Path, registry_path: Path) -> None:
+    if not studio_root.exists():
+        raise CreateProjectError(f"ERROR: Studio root does not exist: {studio_root}")
+    if not registry_path.exists():
+        raise CreateProjectError("ERROR: registry.yaml is required at Studio root.")
+    if not (studio_root / ".git").exists():
+        raise CreateProjectError(NOT_GIT_ERROR)
+
+    status = _run_git(studio_root, "status", "--porcelain")
+    if status.returncode != 0:
+        raise CreateProjectError(_git_error("status --porcelain", status))
+    if status.stdout.strip():
+        raise CreateProjectError(DIRTY_TREE_ERROR)
+
+
+def _load_registry(registry_path: Path) -> dict[str, Any]:
+    payload = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        raise CreateProjectError("ERROR: registry.yaml must contain a top-level mapping.")
+
+    vaults = payload.get("vaults")
+    projects = payload.get("projects")
+    if not isinstance(vaults, list):
+        raise CreateProjectError("ERROR: registry.yaml key 'vaults' must be a list.")
+    if not isinstance(projects, list):
+        raise CreateProjectError("ERROR: registry.yaml key 'projects' must be a list.")
+
+    return payload
+
+
+def _resolve_vault(registry: dict[str, Any], vault_ref: str) -> VaultRecord:
+    id_matches: list[VaultRecord] = []
+    name_matches: list[VaultRecord] = []
+
+    for entry in registry["vaults"]:
+        if not isinstance(entry, dict):
+            continue
+        vault_id = entry.get("id")
+        vault_name = entry.get("name")
+        vault_path = entry.get("path")
+        if not isinstance(vault_id, str) or not isinstance(vault_name, str) or not isinstance(vault_path, str):
+            continue
+        record = VaultRecord(vault_id=vault_id, name=vault_name, path=Path(vault_path))
+        if vault_id == vault_ref:
+            id_matches.append(record)
+        if vault_name == vault_ref:
+            name_matches.append(record)
+
+    selected: VaultRecord | None = None
+    if len(id_matches) == 1:
+        selected = id_matches[0]
+    elif len(id_matches) > 1:
+        raise CreateProjectError(f"ERROR: Duplicate vault id in registry: {vault_ref}")
+    elif len(name_matches) == 1:
+        selected = name_matches[0]
+    elif len(name_matches) > 1:
+        raise CreateProjectError(f"ERROR: Ambiguous vault name in registry: {vault_ref}")
+
+    if selected is None:
+        raise CreateProjectError(f"ERROR: Vault not found in registry: {vault_ref}")
+
+    if not selected.path.is_absolute():
+        raise CreateProjectError(f"ERROR: Vault path must be absolute for '{selected.vault_id}': {selected.path}")
+    if not selected.path.exists() or not selected.path.is_dir():
+        raise CreateProjectError(f"ERROR: Vault path does not exist: {selected.path}")
+
+    return selected
+
+
+def _derive_base_mnemonic(project_name: str) -> str:
+    words = re.findall(r"[A-Za-z0-9]+", project_name)
+    mnemonic = "".join(word[0].lower() for word in words)
+    if not mnemonic:
+        raise CreateProjectError("ERROR: Could not derive mnemonic from project name.")
     return mnemonic
 
 
-def _paths_for(vault_name: str, project_title: str, project_mnemonic: str) -> ProjectPaths:
-    home = Path.home().expanduser().resolve()
-    studio_root = (home / "Studio").resolve()
-    vault_root = studio_root / vault_name
-    project_root = vault_root / project_title
-    assets_root = (home / "Dropbox" / "Assets" / project_mnemonic).resolve()
-    instructions_root = (studio_root / "instructions" / project_mnemonic).resolve()
-    return ProjectPaths(
-        studio_root=studio_root,
-        registry_path=studio_root / REGISTRY_FILENAME,
-        vault_root=vault_root,
-        common_root=vault_root / "_common",
-        project_root=project_root,
-        assets_root=assets_root,
-        instructions_root=instructions_root,
-        assets_link=project_root / "assets",
-        instructions_link=project_root / "instructions",
-    )
-
-
-def _validate_inputs(vault_name: str, project_mnemonic: str) -> None:
-    if vault_name not in VALID_VAULTS:
-        raise CreateProjectError(
-            f"invalid vault_name '{vault_name}' (expected one of: {', '.join(VALID_VAULTS)})"
-        )
-    if len(project_mnemonic) < 2 or not MNEMONIC_RE.fullmatch(project_mnemonic):
-        raise CreateProjectError(
-            f"invalid project_mnemonic '{project_mnemonic}' "
-            "(must match ^[a-z0-9]+$ with minimum length 2)"
-        )
-
-
-def _load_registry(registry_path: Path) -> dict[str, dict[str, str]]:
-    if not registry_path.exists():
-        return {}
-    if not registry_path.is_file():
-        raise CreateProjectError(f"project registry path is not a file: {registry_path}")
-
-    try:
-        payload = yaml.load(registry_path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
-    except yaml.YAMLError as exc:
-        raise CreateProjectError(f"invalid YAML in project registry: {registry_path}") from exc
-    except ValueError as exc:
-        raise CreateProjectError(str(exc)) from exc
-
-    if payload is None:
-        return {}
-    if not isinstance(payload, dict):
-        raise CreateProjectError("project registry root must be a mapping")
-
-    validated: dict[str, dict[str, str]] = {}
-    for mnemonic, metadata in payload.items():
-        if not isinstance(mnemonic, str):
-            raise CreateProjectError("project registry keys must be strings")
-        if len(mnemonic) < 2 or not MNEMONIC_RE.fullmatch(mnemonic):
-            raise CreateProjectError(f"invalid project mnemonic '{mnemonic}' in registry")
-        if not isinstance(metadata, dict):
-            raise CreateProjectError(f"project '{mnemonic}' metadata must be a mapping")
-        validated[mnemonic] = dict(metadata)
-    return validated
-
-
-def _write_registry(registry_path: Path, registry: dict[str, dict[str, str]]) -> None:
-    registry_path.parent.mkdir(parents=True, exist_ok=True)
-    yaml_text = yaml.safe_dump(registry, sort_keys=False)
-    registry_path.write_text(yaml_text, encoding="utf-8")
-
-    # Validate post-write deterministically.
-    validated = _load_registry(registry_path)
-    if validated != registry:
-        raise CreateProjectError("registry validation failed after write")
-
-
-def _ensure_studio_git_ready(studio_root: Path) -> None:
-    if not studio_root.is_dir():
-        raise CreateProjectError(f"Studio directory not found: {studio_root}")
-
-    try:
-        inside = run_git(studio_root, ["rev-parse", "--is-inside-work-tree"], check=True).strip()
-    except (CommandError, RuntimeError) as exc:
-        raise CreateProjectError(f"git is not initialized in {studio_root}") from exc
-
-    if inside.lower() != "true":
-        raise CreateProjectError(f"git is not initialized in {studio_root}")
-
-    try:
-        status = run_git(studio_root, ["status", "--porcelain"], check=True)
-    except (CommandError, RuntimeError) as exc:
-        raise CreateProjectError(f"failed to inspect git working tree in {studio_root}") from exc
-
-    if status.strip():
-        raise CreateProjectError(
-            "Studio git working tree is dirty for unrelated files; aborting auto-commit"
-        )
-
-
-def _resolve_symlink(link_path: Path) -> Path:
-    return (link_path.parent / Path(os.readlink(link_path))).resolve()
-
-
-def _preflight(paths: ProjectPaths, vault_name: str, project_mnemonic: str) -> dict[str, dict[str, str]]:
-    registry = _load_registry(paths.registry_path)
-    if project_mnemonic in registry:
-        existing = registry[project_mnemonic]
-        existing_vault = existing.get("vault") if isinstance(existing, dict) else None
-        if isinstance(existing_vault, str) and existing_vault == vault_name:
-            raise CreateProjectError(
-                f"project mnemonic already exists in vault '{vault_name}': {project_mnemonic}"
-            )
-        if isinstance(existing_vault, str) and existing_vault:
-            raise CreateProjectError(
-                f"project mnemonic collision for '{project_mnemonic}': already used in "
-                f"vault '{existing_vault}' (global uniqueness enforced)"
-            )
-        raise CreateProjectError(f"project mnemonic already exists in registry: {project_mnemonic}")
-
-    if paths.vault_root.exists() and not paths.vault_root.is_dir():
-        raise CreateProjectError(f"vault root exists and is not a directory: {paths.vault_root}")
-
-    if paths.common_root.exists() and not paths.common_root.is_dir():
-        raise CreateProjectError(f"_common exists and is not a directory: {paths.common_root}")
-
-    if paths.project_root.exists():
-        if not paths.project_root.is_dir():
-            raise CreateProjectError(
-                f"project root exists and is not a directory: {paths.project_root}"
-            )
-        for link_path, target_path in (
-            (paths.assets_link, paths.assets_root),
-            (paths.instructions_link, paths.instructions_root),
-        ):
-            if link_path.is_symlink():
-                resolved = _resolve_symlink(link_path)
-                if resolved != target_path.resolve():
-                    raise CreateProjectError(
-                        f"symlink target mismatch for {link_path}: expected {target_path.resolve()}, "
-                        f"found {resolved}"
-                    )
-            elif link_path.exists():
-                raise CreateProjectError(f"path exists and is not a symlink: {link_path}")
-        if any(paths.project_root.iterdir()):
-            raise CreateProjectError(
-                f"project title folder already exists and is non-empty: {paths.project_root}"
-            )
-        raise CreateProjectError(f"project title folder already exists in vault: {paths.project_root}")
-
-    for subdir in PROJECT_SUBDIRECTORIES:
-        path = paths.project_root / subdir
-        if path.exists():
-            if not path.is_dir():
-                raise CreateProjectError(f"project path exists and is not a directory: {path}")
-            if any(path.iterdir()):
-                raise CreateProjectError(f"project directory exists and is non-empty: {path}")
-
-    for external_dir in (paths.assets_root, paths.instructions_root):
-        if external_dir.exists() and not external_dir.is_dir():
-            raise CreateProjectError(f"path exists and is not a directory: {external_dir}")
-
-    for link_path in (paths.assets_link, paths.instructions_link):
-        if link_path.exists() and not link_path.is_symlink():
-            raise CreateProjectError(f"path exists and is not a symlink: {link_path}")
-
-    return registry
-
-
-def _timestamp_iso8601() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def _entry_for(vault_name: str, project_mnemonic: str, paths: ProjectPaths) -> dict[str, str]:
-    return {
-        "title": paths.project_root.name,
-        "vault": vault_name,
-        "project_root": str(paths.project_root.resolve()),
-        "assets_root": str(paths.assets_root.resolve()),
-        "instructions_root": str(paths.instructions_root.resolve()),
-        "created_at": _timestamp_iso8601(),
+def _next_mnemonic(registry: dict[str, Any], project_name: str) -> str:
+    base = _derive_base_mnemonic(project_name)
+    used = {
+        entry.get("mnemonic")
+        for entry in registry["projects"]
+        if isinstance(entry, dict) and isinstance(entry.get("mnemonic"), str)
     }
 
+    if base not in used:
+        return base
 
-def _create_relative_symlink(link_path: Path, target_path: Path) -> None:
-    expected_target = target_path.resolve()
-    if link_path.is_symlink():
-        existing_target = _resolve_symlink(link_path)
-        if existing_target != expected_target:
-            raise CreateProjectError(
-                f"symlink target mismatch for {link_path}: expected {expected_target}, "
-                f"found {existing_target}"
-            )
-        return
-
-    if link_path.exists():
-        raise CreateProjectError(f"path exists and is not a symlink: {link_path}")
-
-    relative_target = Path(os.path.relpath(expected_target, link_path.parent))
-    link_path.symlink_to(relative_target)
+    suffix = 2
+    while f"{base}{suffix}" in used:
+        suffix += 1
+    return f"{base}{suffix}"
 
 
-def _provision_filesystem(vault_name: str, project_mnemonic: str, paths: ProjectPaths) -> dict[str, str]:
-    paths.vault_root.mkdir(parents=True, exist_ok=True)
-    paths.common_root.mkdir(parents=True, exist_ok=True)
-    paths.project_root.mkdir(parents=False, exist_ok=False)
-
-    for subdir in PROJECT_SUBDIRECTORIES:
-        (paths.project_root / subdir).mkdir(parents=True, exist_ok=True)
-
-    paths.assets_root.mkdir(parents=True, exist_ok=True)
-    paths.instructions_root.mkdir(parents=True, exist_ok=True)
-
-    _create_relative_symlink(paths.assets_link, paths.assets_root)
-    _create_relative_symlink(paths.instructions_link, paths.instructions_root)
-
-    return _entry_for(vault_name, project_mnemonic, paths)
+def _write_registry_atomic(path: Path, registry: dict[str, Any]) -> None:
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=path.parent,
+        delete=False,
+    ) as handle:
+        yaml.safe_dump(registry, handle, sort_keys=False)
+        temp_path = Path(handle.name)
+    temp_path.replace(path)
 
 
-def _validate_final_state(
-    *,
-    vault_name: str,
-    project_mnemonic: str,
-    paths: ProjectPaths,
-    expected_entry: dict[str, str],
-) -> None:
-    registry = _load_registry(paths.registry_path)
-    if project_mnemonic not in registry:
-        raise CreateProjectError("registry validation failed: missing project entry")
-    actual_entry = registry[project_mnemonic]
+def create_project(
+    vault_ref: str,
+    project_name: str,
+    studio_root: Path | None = None,
+) -> CreateProjectResult:
+    studio_root = studio_root or (Path.home() / "Studio")
+    registry_path = studio_root / REGISTRY_FILENAME
+    normalized_name = _validate_project_name(project_name)
 
-    for key in ("title", "vault", "project_root", "assets_root", "instructions_root"):
-        if actual_entry.get(key) != expected_entry[key]:
-            raise CreateProjectError(
-                f"registry validation failed for '{project_mnemonic}': field '{key}' mismatch"
-            )
+    _preflight_studio(studio_root, registry_path)
+    registry = _load_registry(registry_path)
+    vault = _resolve_vault(registry, vault_ref)
 
-    if actual_entry.get("vault") != vault_name:
-        raise CreateProjectError(f"registry validation failed: vault mismatch for '{project_mnemonic}'")
+    projects_root = vault.path / "projects"
+    if not projects_root.exists() or not projects_root.is_dir():
+        raise CreateProjectError(f"ERROR: Vault projects directory missing: {projects_root}")
 
-    if not paths.common_root.is_dir():
-        raise CreateProjectError(f"missing vault _common directory: {paths.common_root}")
+    project_path = projects_root / normalized_name
+    if project_path.exists():
+        raise CreateProjectError(f"ERROR: Project path already exists: {project_path}")
 
-    if not paths.project_root.is_dir():
-        raise CreateProjectError(f"missing project root directory: {paths.project_root}")
+    mnemonic = _next_mnemonic(registry, normalized_name)
 
-    for subdir in PROJECT_SUBDIRECTORIES:
-        subdir_path = paths.project_root / subdir
-        if not subdir_path.is_dir():
-            raise CreateProjectError(f"missing project directory: {subdir_path}")
-
-    for link_path, target_path in (
-        (paths.assets_link, paths.assets_root),
-        (paths.instructions_link, paths.instructions_root),
-    ):
-        if not link_path.is_symlink():
-            raise CreateProjectError(f"missing symlink: {link_path}")
-        resolved = _resolve_symlink(link_path)
-        if resolved != target_path.resolve():
-            raise CreateProjectError(
-                f"symlink validation failed for {link_path}: expected {target_path.resolve()}, "
-                f"found {resolved}"
-            )
-
-    for key in ("project_root", "assets_root", "instructions_root"):
-        value = actual_entry.get(key)
-        if not isinstance(value, str) or not Path(value).is_absolute():
-            raise CreateProjectError(
-                f"registry validation failed for '{project_mnemonic}': '{key}' must be absolute"
-            )
-
-
-def _is_allowed_status_path(path: str, *, exact_paths: set[str], prefix_paths: set[str]) -> bool:
-    normalized = path.strip().lstrip("./")
-    if normalized in exact_paths:
-        return True
-    return any(
-        normalized == prefix or normalized.startswith(f"{prefix}/")
-        for prefix in prefix_paths
+    project_path.mkdir(parents=False, exist_ok=False)
+    registry["projects"].append(
+        {
+            "mnemonic": mnemonic,
+            "name": normalized_name,
+            "vault": vault.vault_id,
+        }
     )
+    _write_registry_atomic(registry_path, registry)
 
-
-def _ensure_only_expected_git_changes(
-    paths: ProjectPaths,
-    registry_rel: Path,
-    project_rel: Path,
-    instructions_rel: Path,
-) -> None:
     try:
-        status = run_git(paths.studio_root, ["status", "--porcelain", "-z"], check=True)
-    except (CommandError, RuntimeError) as exc:
-        raise CreateProjectError(f"failed to inspect staged Studio changes: {exc}") from exc
-
-    if not status:
-        raise CreateProjectError("no staged changes detected for Studio commit")
-
-    exact_paths = {str(registry_rel)}
-    prefix_paths = {str(project_rel), str(instructions_rel)}
-
-    entries = status.split("\x00")
-    index = 0
-    while index < len(entries):
-        entry = entries[index]
-        if not entry:
-            index += 1
-            continue
-        if len(entry) < 4:
-            raise CreateProjectError(f"unexpected git status entry: {entry!r}")
-
-        status_code = entry[:2]
-        entry_path = entry[3:]
-        changed_paths = [entry_path]
-        if "R" in status_code or "C" in status_code:
-            index += 1
-            if index >= len(entries) or not entries[index]:
-                raise CreateProjectError("unexpected git status rename/copy entry")
-            changed_paths.append(entries[index])
-
-        for changed_path in changed_paths:
-            if not _is_allowed_status_path(
-                changed_path,
-                exact_paths=exact_paths,
-                prefix_paths=prefix_paths,
-            ):
-                raise CreateProjectError(
-                    f"Studio git working tree has unrelated changes: {changed_path}"
-                )
-        index += 1
-
-
-def _create_studio_commit(
-    paths: ProjectPaths,
-    vault_name: str,
-    project_title: str,
-    project_mnemonic: str,
-) -> str:
-    try:
-        registry_rel = paths.registry_path.relative_to(paths.studio_root)
-        project_rel = paths.project_root.relative_to(paths.studio_root)
-        instructions_rel = paths.instructions_root.relative_to(paths.studio_root)
+        registry_rel = registry_path.relative_to(studio_root)
+        project_rel = project_path.relative_to(studio_root)
     except ValueError as exc:
-        raise CreateProjectError("staging paths must be inside Studio root") from exc
+        raise CreateProjectError("ERROR: Project path must be inside Studio root.") from exc
 
-    try:
-        run_git(
-            paths.studio_root,
-            ["add", "--", str(registry_rel), str(project_rel), str(instructions_rel)],
-            check=True,
-        )
-    except (CommandError, RuntimeError) as exc:
-        raise CreateProjectError(f"failed to stage Studio changes: {exc}") from exc
+    add_result = _run_git(studio_root, "add", str(registry_rel), str(project_rel))
+    if add_result.returncode != 0:
+        raise CreateProjectError(_git_error("add registry.yaml <ProjectPath>", add_result))
 
-    _ensure_only_expected_git_changes(paths, registry_rel, project_rel, instructions_rel)
-
-    commit_message = (
-        f"PROJECT create: {project_mnemonic} — {project_title} in {vault_name}\n\n"
-        "- mnemonic auto-derived\n"
-        "- registry entry added\n"
-        "- vault structure created\n"
-        "- assets linked\n"
-        "- instructions linked\n"
+    commit_result = _run_git(
+        studio_root,
+        "commit",
+        "-m",
+        f"ADD project {mnemonic} ({normalized_name}) in {vault.vault_id}",
     )
+    if commit_result.returncode != 0:
+        raise CreateProjectError(_git_error("commit -m 'ADD project ...'", commit_result))
 
-    try:
-        run_git(
-            paths.studio_root,
-            [
-                "-c",
-                "user.name=Workbench",
-                "-c",
-                "user.email=workbench@example.invalid",
-                "commit",
-                "-m",
-                commit_message,
-            ],
-            check=True,
-        )
-    except (CommandError, RuntimeError) as exc:
-        raise CreateProjectError(f"failed to create Studio commit: {exc}") from exc
-
-    try:
-        short_hash = run_git(paths.studio_root, ["rev-parse", "--short", "HEAD"], check=True).strip()
-    except (CommandError, RuntimeError) as exc:
-        raise CreateProjectError(f"failed to resolve Studio commit hash: {exc}") from exc
-
-    if not short_hash:
-        raise CreateProjectError("failed to resolve Studio commit hash")
-    return short_hash
-
-
-def _execute(vault_name: str, project_title: str) -> tuple[str, str, ProjectPaths]:
-    project_title = _normalize_project_title(project_title)
-    project_mnemonic = _derive_mnemonic(project_title)
-    _validate_inputs(vault_name, project_mnemonic)
-    paths = _paths_for(vault_name, project_title, project_mnemonic)
-    _ensure_studio_git_ready(paths.studio_root)
-    registry = _preflight(paths, vault_name, project_mnemonic)
-
-    entry = _provision_filesystem(vault_name, project_mnemonic, paths)
-    registry[project_mnemonic] = entry
-    _write_registry(paths.registry_path, registry)
-
-    _validate_final_state(
-        vault_name=vault_name,
-        project_mnemonic=project_mnemonic,
-        paths=paths,
-        expected_entry=entry,
+    return CreateProjectResult(
+        mnemonic=mnemonic,
+        project_path=project_path,
+        vault_id=vault.vault_id,
     )
-
-    short_hash = _create_studio_commit(paths, vault_name, project_title, project_mnemonic)
-    return short_hash, project_mnemonic, paths
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    vault_name = str(args.vault_name)
-    project_title = str(args.project_title)
-
     try:
-        short_hash, project_mnemonic, paths = _execute(vault_name, project_title)
+        result = create_project(str(args.vault_id), str(args.project_name))
     except CreateProjectError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        print(str(exc), file=sys.stderr)
         return 1
     except subprocess.SubprocessError as exc:
-        print(f"Error: subprocess failure: {exc}", file=sys.stderr)
+        print(f"ERROR: subprocess failure: {exc}", file=sys.stderr)
         return 1
 
     print("Project created:")
-    print(f"  Vault: {vault_name}")
-    print(f"  Title: {paths.project_root.name}")
-    print(f"  Mnemonic: {project_mnemonic}")
-    print(f"  Root: {paths.project_root}")
-    print("  Assets: linked")
-    print("  Instructions: linked")
-    print(f"Studio commit created: {short_hash}")
+    print(f"  Vault: {result.vault_id}")
+    print(f"  Name: {result.project_path.name}")
+    print(f"  Mnemonic: {result.mnemonic}")
+    print(f"  Root: {result.project_path}")
     return 0
 
 

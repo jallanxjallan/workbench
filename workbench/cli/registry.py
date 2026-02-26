@@ -23,7 +23,7 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
     "writestream": CommandEntry("workbench.write.writestream", "Pass markdown batch through unchanged to stdout."),
     "slug": CommandEntry("workbench.identity.slug_cmd", "Generate immutable vault slug."),
     "create-vault": CommandEntry("workbench.cli.create_vault", "Create a Studio vault with git-enforced commit workflow."),
-    "create-project": CommandEntry("workbench.project.create", "Create vault project scaffolding in Studio."),
+    "create-project": CommandEntry("workbench.project.create", "Create a Studio project in an existing vault with git-enforced commit workflow."),
 }
 
 
@@ -47,7 +47,7 @@ REGISTRY: dict[str, NamespaceEntry] = {
     "project": NamespaceEntry(
         summary="Project bootstrap and namespace setup.",
         commands={
-            "create": CommandEntry("workbench.project.create", "Create project vault/workspace scaffold in cwd."),
+            "create": CommandEntry("workbench.project.create", "Create a Studio project in an existing vault."),
         },
     ),
     "backup": NamespaceEntry(

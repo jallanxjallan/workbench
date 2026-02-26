@@ -5,197 +5,231 @@ from pathlib import Path
 
 import yaml
 
-from workbench.project.create import main as create_project_main
+from workbench.project import create as module_under_test
 
 
-def _run_git(repo: Path, args: list[str]) -> str:
-    proc = subprocess.run(
-        ["git", *args],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=False,
+def _cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(args=["git"], returncode=returncode, stdout=stdout, stderr=stderr)
+
+
+def _make_studio(tmp_path: Path) -> tuple[Path, Path, Path]:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir()
+    (studio_root / ".git").mkdir()
+    vault_path = studio_root / "RealWriting"
+    (vault_path / "projects").mkdir(parents=True)
+    return studio_root, vault_path, studio_root / "registry.yaml"
+
+
+def _write_registry(
+    registry_path: Path,
+    vault_path: Path,
+    *,
+    projects: list[dict[str, str]] | None = None,
+) -> None:
+    payload = {
+        "vaults": [
+            {
+                "id": "realwriting",
+                "name": "RealWriting",
+                "path": str(vault_path),
+            }
+        ],
+        "projects": projects or [],
+    }
+    registry_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def test_fails_if_studio_root_missing(tmp_path: Path) -> None:
+    missing_root = tmp_path / "MissingStudio"
+
+    try:
+        module_under_test.create_project("realwriting", "One Man Air Force", studio_root=missing_root)
+        assert False, "Expected CreateProjectError"
+    except module_under_test.CreateProjectError as exc:
+        assert "Studio root does not exist" in str(exc)
+
+
+def test_fails_if_registry_missing(tmp_path: Path) -> None:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir()
+    (studio_root / ".git").mkdir()
+
+    try:
+        module_under_test.create_project("realwriting", "One Man Air Force", studio_root=studio_root)
+        assert False, "Expected CreateProjectError"
+    except module_under_test.CreateProjectError as exc:
+        assert "registry.yaml is required" in str(exc)
+
+
+def test_fails_if_git_missing(tmp_path: Path) -> None:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir()
+    vault_path = studio_root / "RealWriting"
+    (vault_path / "projects").mkdir(parents=True)
+    registry_path = studio_root / "registry.yaml"
+    _write_registry(registry_path, vault_path)
+
+    try:
+        module_under_test.create_project("realwriting", "One Man Air Force", studio_root=studio_root)
+        assert False, "Expected CreateProjectError"
+    except module_under_test.CreateProjectError as exc:
+        assert str(exc) == module_under_test.NOT_GIT_ERROR
+
+
+def test_fails_if_working_tree_dirty(tmp_path: Path, monkeypatch) -> None:
+    studio_root, vault_path, registry_path = _make_studio(tmp_path)
+    _write_registry(registry_path, vault_path)
+
+    def fake_run(cmd, capture_output, text):
+        return _cp(stdout=" M README.md\n")
+
+    monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
+    before = registry_path.read_text(encoding="utf-8")
+
+    try:
+        module_under_test.create_project("realwriting", "One Man Air Force", studio_root=studio_root)
+        assert False, "Expected CreateProjectError"
+    except module_under_test.CreateProjectError as exc:
+        assert str(exc) == module_under_test.DIRTY_TREE_ERROR
+
+    assert not (vault_path / "projects" / "One Man Air Force").exists()
+    assert registry_path.read_text(encoding="utf-8") == before
+
+
+def test_fails_if_vault_id_not_found(tmp_path: Path, monkeypatch) -> None:
+    studio_root, vault_path, registry_path = _make_studio(tmp_path)
+    _write_registry(registry_path, vault_path)
+
+    def fake_run(cmd, capture_output, text):
+        return _cp()
+
+    monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
+
+    try:
+        module_under_test.create_project("hackwork", "One Man Air Force", studio_root=studio_root)
+        assert False, "Expected CreateProjectError"
+    except module_under_test.CreateProjectError as exc:
+        assert "Vault not found in registry" in str(exc)
+
+
+def test_creates_project_directory_correctly(tmp_path: Path, monkeypatch) -> None:
+    studio_root, vault_path, registry_path = _make_studio(tmp_path)
+    _write_registry(registry_path, vault_path)
+
+    calls: list[list[str]] = []
+    responses = [_cp(), _cp(), _cp()]
+
+    def fake_run(cmd, capture_output, text):
+        calls.append(cmd)
+        return responses.pop(0)
+
+    monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
+
+    result = module_under_test.create_project(
+        "realwriting",
+        "One Man Air Force",
+        studio_root=studio_root,
     )
-    if proc.returncode != 0:
-        raise AssertionError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
-    return proc.stdout
+
+    project_path = vault_path / "projects" / "One Man Air Force"
+    assert project_path.is_dir()
+    assert result.project_path == project_path
+    assert calls[0] == ["git", "-C", str(studio_root), "status", "--porcelain"]
 
 
-def _prepare_home(monkeypatch, tmp_path: Path) -> tuple[Path, Path]:
-    home = tmp_path / "home"
-    studio = home / "Studio"
-    studio.mkdir(parents=True, exist_ok=True)
-    _run_git(studio, ["init"])
-    monkeypatch.setenv("HOME", str(home))
-    return home, studio
+def test_generates_correct_mnemonic(tmp_path: Path, monkeypatch) -> None:
+    studio_root, vault_path, registry_path = _make_studio(tmp_path)
+    _write_registry(registry_path, vault_path)
+
+    responses = [_cp(), _cp(), _cp()]
+
+    def fake_run(cmd, capture_output, text):
+        return responses.pop(0)
+
+    monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
+
+    result = module_under_test.create_project(
+        "realwriting",
+        "One Man Air Force",
+        studio_root=studio_root,
+    )
+
+    assert result.mnemonic == "omaf"
 
 
-def _commit_all(repo: Path, message: str) -> None:
-    _run_git(repo, ["add", "-A"])
-    _run_git(
-        repo,
-        [
-            "-c",
-            "user.name=Workbench",
-            "-c",
-            "user.email=workbench@example.invalid",
-            "commit",
-            "-m",
-            message,
+def test_handles_mnemonic_collision_deterministically(tmp_path: Path, monkeypatch) -> None:
+    studio_root, vault_path, registry_path = _make_studio(tmp_path)
+    _write_registry(
+        registry_path,
+        vault_path,
+        projects=[
+            {"mnemonic": "omaf", "name": "Old A", "vault": "realwriting"},
+            {"mnemonic": "omaf2", "name": "Old B", "vault": "realwriting"},
         ],
     )
 
+    responses = [_cp(), _cp(), _cp()]
 
-def _create(vault: str, title: str) -> int:
-    return create_project_main(["--vault", vault, "--project", title])
+    def fake_run(cmd, capture_output, text):
+        return responses.pop(0)
 
+    monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
 
-def test_create_project_success(tmp_path: Path, monkeypatch, capsys) -> None:
-    home, studio = _prepare_home(monkeypatch, tmp_path)
-
-    exit_code = _create("RealRiting", "One Man Air Force")
-    captured = capsys.readouterr()
-
-    assert exit_code == 0
-    assert "Project created:" in captured.out
-    assert "Mnemonic: omaf" in captured.out
-    assert "Studio commit created:" in captured.out
-
-    vault_root = studio / "RealRiting"
-    project_root = vault_root / "One Man Air Force"
-    registry_path = studio / "project_registry.yaml"
-    assets_root = home / "Dropbox" / "Assets" / "omaf"
-    instructions_root = studio / "instructions" / "omaf"
-
-    assert (vault_root / "_common").is_dir()
-    assert project_root.is_dir()
-    assert not (project_root / "_common").exists()
-    assert (project_root / "01-drafts").is_dir()
-    assert (project_root / "02-reference").is_dir()
-    assert (project_root / "03-output").is_dir()
-    assert assets_root.is_dir()
-    assert instructions_root.is_dir()
-
-    assets_link = project_root / "assets"
-    instructions_link = project_root / "instructions"
-    assert assets_link.is_symlink()
-    assert instructions_link.is_symlink()
-    assert assets_link.resolve() == assets_root.resolve()
-    assert instructions_link.resolve() == instructions_root.resolve()
-
-    registry = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
-    entry = registry["omaf"]
-    assert entry["title"] == "One Man Air Force"
-    assert entry["vault"] == "RealRiting"
-    assert entry["project_root"] == str(project_root.resolve())
-    assert entry["assets_root"] == str(assets_root.resolve())
-    assert entry["instructions_root"] == str(instructions_root.resolve())
-    assert entry["created_at"].endswith("Z")
-
-    commit_message = _run_git(studio, ["log", "-1", "--pretty=format:%B"])
-    assert (
-        commit_message.strip()
-        == "PROJECT create: omaf — One Man Air Force in RealRiting\n\n"
-        "- mnemonic auto-derived\n"
-        "- registry entry added\n"
-        "- vault structure created\n"
-        "- assets linked\n"
-        "- instructions linked"
+    result = module_under_test.create_project(
+        "realwriting",
+        "Orca Media Arts Festival",
+        studio_root=studio_root,
     )
 
-
-def test_create_project_rejects_duplicate_title(tmp_path: Path, monkeypatch, capsys) -> None:
-    _, studio = _prepare_home(monkeypatch, tmp_path)
-    existing_root = studio / "RealRiting" / "Batavia Triptych"
-    existing_root.mkdir(parents=True, exist_ok=True)
-    (existing_root / "seed.txt").write_text("existing\n", encoding="utf-8")
-    _commit_all(studio, "seed existing title folder")
-
-    exit_code = _create("RealRiting", "Batavia Triptych")
-    captured = capsys.readouterr()
-
-    assert exit_code == 1
-    assert "project title folder already exists" in captured.err
+    assert result.mnemonic == "omaf3"
 
 
-def test_create_project_rejects_duplicate_mnemonic_in_same_vault(
-    tmp_path: Path,
-    monkeypatch,
-    capsys,
-) -> None:
-    _prepare_home(monkeypatch, tmp_path)
+def test_updates_registry_correctly(tmp_path: Path, monkeypatch) -> None:
+    studio_root, vault_path, registry_path = _make_studio(tmp_path)
+    existing_project = {"mnemonic": "abc", "name": "Alpha Beta", "vault": "realwriting"}
+    _write_registry(registry_path, vault_path, projects=[existing_project])
 
-    first_exit = _create("RealRiting", "One Man Air Force")
-    capsys.readouterr()
-    second_exit = _create("RealRiting", "Orca Media Arts Festival")
-    captured = capsys.readouterr()
+    responses = [_cp(), _cp(), _cp()]
 
-    assert first_exit == 0
-    assert second_exit == 1
-    assert "project mnemonic already exists in vault 'RealRiting': omaf" in captured.err
+    def fake_run(cmd, capture_output, text):
+        return responses.pop(0)
 
+    monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
 
-def test_create_project_rejects_cross_vault_mnemonic_collision(
-    tmp_path: Path,
-    monkeypatch,
-    capsys,
-) -> None:
-    _prepare_home(monkeypatch, tmp_path)
+    module_under_test.create_project(
+        "realwriting",
+        "One Man Air Force",
+        studio_root=studio_root,
+    )
 
-    first_exit = _create("RealRiting", "One Man Air Force")
-    capsys.readouterr()
-    second_exit = _create("HackWork", "Orca Media Arts Festival")
-    captured = capsys.readouterr()
-
-    assert first_exit == 0
-    assert second_exit == 1
-    assert "project mnemonic collision for 'omaf'" in captured.err
-    assert "global uniqueness enforced" in captured.err
+    payload = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    assert payload["projects"][0] == existing_project
+    assert payload["projects"][1] == {
+        "mnemonic": "omaf",
+        "name": "One Man Air Force",
+        "vault": "realwriting",
+    }
 
 
-def test_create_project_rejects_invalid_vault_name(capsys) -> None:
-    exit_code = _create("NotAVault", "One Man Air Force")
-    captured = capsys.readouterr()
+def test_produces_exactly_one_commit(tmp_path: Path, monkeypatch) -> None:
+    studio_root, vault_path, registry_path = _make_studio(tmp_path)
+    _write_registry(registry_path, vault_path)
 
-    assert exit_code == 1
-    assert "invalid vault_name 'NotAVault'" in captured.err
+    calls: list[list[str]] = []
+    responses = [_cp(), _cp(), _cp()]
 
+    def fake_run(cmd, capture_output, text):
+        calls.append(cmd)
+        return responses.pop(0)
 
-def test_create_project_rejects_invalid_project_name(capsys) -> None:
-    exit_code = _create("RealRiting", "   ")
-    captured = capsys.readouterr()
+    monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
 
-    assert exit_code == 1
-    assert "invalid project name" in captured.err
+    module_under_test.create_project(
+        "realwriting",
+        "One Man Air Force",
+        studio_root=studio_root,
+    )
 
-
-def test_create_project_aborts_when_studio_tree_is_dirty(
-    tmp_path: Path,
-    monkeypatch,
-    capsys,
-) -> None:
-    _, studio = _prepare_home(monkeypatch, tmp_path)
-    (studio / "unrelated.txt").write_text("dirty\n", encoding="utf-8")
-
-    exit_code = _create("HackWork", "Client Beta")
-    captured = capsys.readouterr()
-
-    assert exit_code == 1
-    assert "Studio git working tree is dirty for unrelated files" in captured.err
-    assert not (studio / "HackWork" / "Client Beta").exists()
-
-
-def test_create_project_detects_broken_symlink(tmp_path: Path, monkeypatch, capsys) -> None:
-    home, studio = _prepare_home(monkeypatch, tmp_path)
-    project_root = studio / "RealRiting" / "Broken Link Project"
-    wrong_target = home / "Dropbox" / "Assets" / "wrong-target"
-    wrong_target.mkdir(parents=True, exist_ok=True)
-    project_root.mkdir(parents=True, exist_ok=True)
-    (project_root / "assets").symlink_to(wrong_target)
-    _commit_all(studio, "seed malformed project")
-
-    exit_code = _create("RealRiting", "Broken Link Project")
-    captured = capsys.readouterr()
-
-    assert exit_code == 1
-    assert "symlink target mismatch" in captured.err
+    commit_calls = [call for call in calls if "commit" in call]
+    assert len(commit_calls) == 1
