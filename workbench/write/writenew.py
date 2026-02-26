@@ -1,4 +1,4 @@
-"""Write markdown batch documents into new files."""
+"""Write AutoScribe batch records into new files."""
 
 from __future__ import annotations
 
@@ -6,10 +6,14 @@ import argparse
 import sys
 from pathlib import Path
 
-from workbench.interop.identity import create_slug
-from workbench.io.streams import read_stdin_text
-from workbench.tools.markdown_document import Document
-from workbench.write.common import atomic_write_text, parse_documents, serialize_document
+from workbench.config.vault_registry import load_vault_registry
+from workbench.write.common import (
+    atomic_write_text,
+    fetch_batch_records,
+    normalize_batch_slug,
+    resolve_target_path,
+    serialize_record,
+)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -18,43 +22,61 @@ def _parser() -> argparse.ArgumentParser:
         description=__doc__,
     )
     parser.add_argument(
-        "--target-dir",
-        required=True,
-        help="Directory where new markdown files are created.",
+        "batch_slug",
+        help="Opaque AutoScribe batch slug.",
+    )
+    parser.add_argument(
+        "--vault-registry",
+        help="Path to Workbench vault registry YAML (default: workbench/config/vaults.yaml).",
+    )
+    parser.add_argument(
+        "--asc-bin",
+        default="asc",
+        help="AutoScribe CLI executable used for fetching records (default: asc).",
+    )
+    parser.add_argument(
+        "--debug-routing",
+        action="store_true",
+        help="Print resolved routing targets for each record to stderr.",
     )
     return parser
 
 
-def _filename_hint(doc: Document, index: int) -> str:
-    title = doc.metadata.get("title")
-    if isinstance(title, str) and title.strip():
-        return title.strip()
-    return f"doc-{index:03d}"
+def write_new_batch(
+    batch_slug: str,
+    *,
+    vault_registry_path: str | None,
+    asc_bin: str,
+    debug_routing: bool,
+) -> None:
+    normalized_batch_slug = normalize_batch_slug(batch_slug)
+    registry = load_vault_registry(Path(vault_registry_path) if vault_registry_path else None)
+    records = fetch_batch_records(normalized_batch_slug, asc_bin=asc_bin)
 
-
-def writenew_markdown_batch(text: str, target_dir: Path) -> None:
-    docs = parse_documents(text)
-    generated_slugs: set[str] = set()
-
-    for index, doc in enumerate(docs, start=1):
-        slug = create_slug(target_dir, _filename_hint(doc, index))
-        while slug in generated_slugs:
-            slug = create_slug(target_dir, _filename_hint(doc, index))
-        generated_slugs.add(slug)
-        doc.metadata["slug"] = slug
-
-        target_path = target_dir / f"{slug}.md"
+    for index, record in enumerate(records, start=1):
+        target_path = resolve_target_path(
+            metadata=record.metadata,
+            registry=registry,
+            record_index=index,
+        )
         if target_path.exists():
             raise FileExistsError(f"writenew: target already exists: {target_path}")
-        atomic_write_text(target_path, serialize_document(doc))
+        if debug_routing:
+            print(f"[writenew] record {index} -> {target_path}", file=sys.stderr)
+        atomic_write_text(
+            target_path,
+            serialize_record(record, batch_slug=normalized_batch_slug),
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        writenew_markdown_batch(
-            read_stdin_text(),
-            Path(args.target_dir).expanduser().resolve(),
+        write_new_batch(
+            args.batch_slug,
+            vault_registry_path=args.vault_registry,
+            asc_bin=args.asc_bin,
+            debug_routing=args.debug_routing,
         )
         return 0
     except Exception as exc:  # noqa: BLE001

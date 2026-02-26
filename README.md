@@ -19,8 +19,8 @@ Namespaces:
 
 Top-level commands:
 
-- `wkb writenew --target-dir <path>`
-- `wkb writeback`
+- `wkb writenew <batch-slug>`
+- `wkb writeback <batch-slug>`
 - `wkb writestream`
 - `wkb slug <target_dir> <source_name>`
 - `wkb create-project --vault <vault_name> --project "<Title Case Name>"`
@@ -61,10 +61,26 @@ The `framing` namespace is internal and may change without notice.
 Canonical composition:
 
 ```bash
-asc emit <batch> | wkb emit export | wkb writenew --target-dir notes/output
-asc emit <batch> | wkb emit export | wkb writeback
+wkb writenew <batch-slug>
+wkb writeback <batch-slug>
 asc emit <batch> | wkb emit export | wkb writestream
 ```
+
+`writenew` and `writeback` resolve record routing from metadata:
+
+1. `target_path`
+2. `prompt_slug` prefix (before first `.`)
+3. `instruction_slug` prefix (before first `.`)
+
+Vault prefixes map through `workbench/config/vaults.yaml`:
+
+```yaml
+hhp: ~/Vaults/HHP
+omaf: ~/Vaults/OneManAirForce
+websites: ~/Vaults/Websites
+```
+
+Batch slugs are treated as opaque timestamp-based execution identifiers.
 
 Layer responsibilities:
 
@@ -72,7 +88,8 @@ Layer responsibilities:
 | --- | --- |
 | `asc emit` | Produce records |
 | `wkb emit` | Convert records -> markdown |
-| `wkb write*` | Persist or stream markdown |
+| `wkb writenew` / `wkb writeback` | Fetch records, resolve vault routing, persist files |
+| `wkb writestream` | Pass markdown through unchanged |
 
 ## Pandoc Integration Policy
 

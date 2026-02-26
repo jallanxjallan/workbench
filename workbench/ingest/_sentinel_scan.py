@@ -17,7 +17,7 @@ _BATCH_SENTINEL_LINE_RE = re.compile(
 )
 
 _RG_BATCH_SENTINEL_REGEX = (
-    r"^\s*---\s*ASC\s+BATCH:\s*[a-z0-9]+(?:-[a-z0-9]+)*\s*---\s*$"
+    r"^\s*---\s*ASC\s+BATCH:\s*.+\s*---\s*$"
 )
 
 
