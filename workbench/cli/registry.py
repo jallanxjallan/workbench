@@ -18,13 +18,28 @@ class NamespaceEntry:
 
 
 ROOT_COMMANDS: dict[str, CommandEntry] = {
-    "writenew": CommandEntry("workbench.write.writenew", "Write AutoScribe batch records to new vault files."),
-    "writeback": CommandEntry("workbench.write.writeback", "Write AutoScribe batch records back to existing files."),
-    "writestream": CommandEntry("workbench.write.writestream", "Pass markdown batch through unchanged to stdout."),
-    "slug": CommandEntry("workbench.cli.slug", "Generate semantic slug with random suffix."),
-    "create-vault": CommandEntry("workbench.cli.create_vault", "Create a vault scaffold in a selected location."),
-    "create-project": CommandEntry("workbench.cli.create_project", "Create project directory scaffolding inside a vault."),
-    "import-project": CommandEntry("workbench.cli.import_project", "Import a draft vault into a target vault project."),
+    "writenew": CommandEntry(
+        "workbench.write.writenew", "Write AutoScribe batch records to new vault files."
+    ),
+    "writeback": CommandEntry(
+        "workbench.write.writeback",
+        "Write AutoScribe batch records back to existing files.",
+    ),
+    "writestream": CommandEntry(
+        "workbench.write.writestream",
+        "Pass markdown batch through unchanged to stdout.",
+    ),
+    "slug": CommandEntry(
+        "workbench.cli.slug", "Generate semantic slug with random suffix."
+    ),
+    "create-vault": CommandEntry(
+        "workbench.cli.create_vault",
+        "Provision a deterministic Obsidian vault under ~/Studio.",
+    ),
+    "import-project": CommandEntry(
+        "workbench.cli.import_project",
+        "Import a draft vault into a target vault project.",
+    ),
 }
 
 
@@ -32,24 +47,43 @@ REGISTRY: dict[str, NamespaceEntry] = {
     "ingest": NamespaceEntry(
         summary="Inward data-flow pipelines.",
         commands={
-            "split": CommandEntry("workbench.ingest.split", "Split NDJSON content by section markers."),
-            "inject-metadata": CommandEntry("workbench.ingest.inject_metadata", "Inject selected frontmatter metadata into records."),
-            "normalize-path": CommandEntry("workbench.ingest.normalize_path", "Normalize path rows from stdin."),
-            "select": CommandEntry("workbench.ingest.select", "Select sentinel files and resolve content records."),
+            "split": CommandEntry(
+                "workbench.ingest.split", "Split NDJSON content by section markers."
+            ),
+            "inject-metadata": CommandEntry(
+                "workbench.ingest.inject_metadata",
+                "Inject selected frontmatter metadata into records.",
+            ),
+            "normalize-path": CommandEntry(
+                "workbench.ingest.normalize_path", "Normalize path rows from stdin."
+            ),
+            "select": CommandEntry(
+                "workbench.ingest.select",
+                "Select sentinel files and resolve content records.",
+            ),
         },
     ),
     "emit": NamespaceEntry(
         summary="Outward data-flow pipelines.",
         commands={
-            "export": CommandEntry("workbench.emit.export", "Export namespace surface."),
-            "assemble": CommandEntry("workbench.emit.assemble", "Assembly namespace surface."),
+            "export": CommandEntry(
+                "workbench.emit.export", "Export namespace surface."
+            ),
+            "assemble": CommandEntry(
+                "workbench.emit.assemble", "Assembly namespace surface."
+            ),
         },
     ),
     "backup": NamespaceEntry(
         summary="Backup and recovery operations.",
         commands={
-            "run": CommandEntry("workbench.cli.backup_run", "Create git-tracked project backup archive."),
-            "secrets": CommandEntry("workbench.cli.backup_secrets", "Create encrypted secrets backup archive."),
+            "run": CommandEntry(
+                "workbench.cli.backup_run", "Create git-tracked project backup archive."
+            ),
+            "secrets": CommandEntry(
+                "workbench.cli.backup_secrets",
+                "Create encrypted secrets backup archive.",
+            ),
         },
     ),
 }

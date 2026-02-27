@@ -8,7 +8,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from workbench.cli.create_project import CreateProjectError, create_project
 from workbench.config.roots import RootResolutionError, resolve_content_root
 
 PROJECT_SUBDIRECTORIES = ("manuscript", "assets", "notes", "instructions")
@@ -66,7 +65,9 @@ def _normalize_project_name(project_name: str) -> str:
     if not normalized:
         raise ImportProjectError("ERROR: Project name must be non-empty.")
     if "/" in normalized or "\\" in normalized:
-        raise ImportProjectError("ERROR: Project name must not contain path separators.")
+        raise ImportProjectError(
+            "ERROR: Project name must not contain path separators."
+        )
     return normalized
 
 
@@ -121,7 +122,9 @@ def _import_assets(*, draft_path: Path, assets_dir: Path, move: bool) -> int:
     if not source_assets_root.exists():
         return 0
     if not source_assets_root.is_dir():
-        raise ImportProjectError(f"ERROR: Draft assets path is not a directory: {source_assets_root}")
+        raise ImportProjectError(
+            f"ERROR: Draft assets path is not a directory: {source_assets_root}"
+        )
 
     transferred = 0
     for source in _iter_asset_files(source_assets_root):
@@ -132,7 +135,9 @@ def _import_assets(*, draft_path: Path, assets_dir: Path, move: bool) -> int:
     return transferred
 
 
-def _write_instruction_placeholder(*, vault_path: Path, project_name: str, project_path: Path) -> None:
+def _write_instruction_placeholder(
+    *, vault_path: Path, project_name: str, project_path: Path
+) -> None:
     instruction_dir = vault_path / "instructions" / "project"
     instruction_dir.mkdir(parents=True, exist_ok=True)
     instruction_path = instruction_dir / f"{project_name}.md"
@@ -150,8 +155,21 @@ def _write_instruction_placeholder(*, vault_path: Path, project_name: str, proje
     instruction_path.write_text(content, encoding="utf-8")
 
 
+def _create_project_directory(*, vault_path: Path, project_name: str) -> Path:
+    projects_root = vault_path / "projects"
+    projects_root.mkdir(parents=True, exist_ok=True)
+
+    project_path = projects_root / project_name
+    if project_path.exists():
+        raise ImportProjectError(f"ERROR: Project path already exists: {project_path}")
+    project_path.mkdir(parents=False, exist_ok=False)
+    return project_path
+
+
 def _write_asset_index(*, assets_dir: Path) -> None:
-    asset_files = [path.relative_to(assets_dir) for path in assets_dir.rglob("*") if path.is_file()]
+    asset_files = [
+        path.relative_to(assets_dir) for path in assets_dir.rglob("*") if path.is_file()
+    ]
     asset_files.sort()
     lines = ["# Asset Index", ""]
     if not asset_files:
@@ -185,16 +203,10 @@ def import_project(
     resolved_draft = _resolve_draft_path(draft_path)
     selected_project_name = _normalize_project_name(project_name or resolved_draft.name)
 
-    try:
-        project_result = create_project(
-            vault_root=str(resolved_root),
-            vault_name=normalized_vault,
-            project_name=selected_project_name,
-        )
-    except CreateProjectError as exc:
-        raise ImportProjectError(str(exc)) from exc
-
-    project_path = project_result.project_path
+    project_path = _create_project_directory(
+        vault_path=vault_path,
+        project_name=selected_project_name,
+    )
     manuscript_dir = project_path / "manuscript"
     assets_dir = project_path / "assets"
     notes_dir = project_path / "notes"
@@ -214,7 +226,7 @@ def import_project(
     )
     _write_asset_index(assets_dir=assets_dir)
     _write_instruction_placeholder(
-        vault_path=project_result.vault_path,
+        vault_path=vault_path,
         project_name=selected_project_name,
         project_path=project_path,
     )
@@ -235,7 +247,9 @@ def main(argv: list[str] | None = None) -> int:
             vault_root=args.vault_root,
             vault_name=str(args.vault_name),
             draft_path=str(args.draft_path),
-            project_name=str(args.project_name) if args.project_name is not None else None,
+            project_name=str(args.project_name)
+            if args.project_name is not None
+            else None,
             move=bool(args.move),
         )
     except ImportProjectError as exc:

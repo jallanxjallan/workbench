@@ -1,0 +1,9 @@
+{
+  "id": "wkb-project",
+  "name": "WKB Project",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Sets and exposes the active /projects scope for a vault.",
+  "author": "Workbench",
+  "isDesktopOnly": false
+}

@@ -22,7 +22,7 @@ Top-level commands:
 - `wkb writeback <batch-slug>`
 - `wkb writestream`
 - `wkb slug <target_dir> <source_name>`
-- `wkb create-project --vault-root <root> --value <vault_name> --project "<Title Case Name>"`
+- `wkb create-vault <VaultName> [--force] [--no-assets]`
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
 
@@ -69,9 +69,9 @@ asc emit <batch> | wkb emit export | wkb writestream
 Vault prefixes map through `workbench/config/vaults.yaml`:
 
 ```yaml
-hhp: ~/Vaults/HHP
-omaf: ~/Vaults/OneManAirForce
-websites: ~/Vaults/Websites
+hhp: ~/Projects/HHP_Law_Firm/hhp
+omaf: ~/Projects/One-Man-Air-Force/one_man_air_force
+websites: ~/Projects/Websites
 ```
 
 Batch slugs are treated as opaque timestamp-based execution identifiers.
@@ -84,7 +84,7 @@ Layer responsibilities:
 | `wkb emit` | Convert records -> markdown |
 | `wkb writenew` / `wkb writeback` | Fetch records, resolve vault routing, persist files |
 | `wkb writestream` | Pass markdown through unchanged |
-| `wkb create-project` | Create project folder scaffolding under `<vault>/projects/` |
+| `wkb create-vault` | Provision vault structure, identity mnemonic, and optional Dropbox assets link |
 
 ## Pandoc Integration Policy
 
