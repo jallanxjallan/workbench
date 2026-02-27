@@ -22,8 +22,9 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
     "writeback": CommandEntry("workbench.write.writeback", "Write AutoScribe batch records back to existing files."),
     "writestream": CommandEntry("workbench.write.writestream", "Pass markdown batch through unchanged to stdout."),
     "slug": CommandEntry("workbench.cli.slug", "Generate semantic slug with random suffix."),
-    "create-vault": CommandEntry("workbench.cli.create_vault", "Create a vault in the selected content root."),
+    "create-vault": CommandEntry("workbench.cli.create_vault", "Create a vault scaffold in a selected location."),
     "create-project": CommandEntry("workbench.cli.create_project", "Create project directory scaffolding inside a vault."),
+    "import-project": CommandEntry("workbench.cli.import_project", "Import a draft vault into a target vault project."),
 }
 
 
