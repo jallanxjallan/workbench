@@ -9,7 +9,7 @@ from typing import Any
 
 from workbench.emit.common import DEFAULT_BOUNDARY
 from workbench.framing.markdown import MULTI_DOCUMENT_ERROR
-from workbench.io.streams import read_stdin_text, write_stdout_text
+from workbench.lib.streams import read_stdin_text, write_stdout_text
 from workbench.lib.ndjson import StreamError
 
 

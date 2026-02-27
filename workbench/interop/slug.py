@@ -32,14 +32,11 @@ def generate_suffix(length: int = 5) -> str:
     return "".join(secrets.choice(_BASE36_ALPHABET) for _ in range(length))
 
 
-def compose_slug(project_code: str, semantic_base: str, suffix: str) -> str:
-    clean_project_code = str(project_code).strip()
+def compose_slug(semantic_base: str, suffix: str) -> str:
     clean_semantic_base = str(semantic_base).strip()
     clean_suffix = str(suffix).strip()
-    if not clean_project_code:
-        raise ValueError("project_code must not be empty")
     if not clean_semantic_base:
         raise ValueError("semantic_base must not be empty")
     if not clean_suffix:
         raise ValueError("suffix must not be empty")
-    return f"{clean_project_code}-{clean_semantic_base}-{clean_suffix}"
+    return f"{clean_semantic_base}-{clean_suffix}"

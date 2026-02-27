@@ -4,7 +4,7 @@ set -euo pipefail
 TIMESTAMP=$(date +"%Y-%m-%dT%H-%M-%S")
 AUTOSCRIBE="$HOME/Autoscribe"
 WORKBENCH="$HOME/Workbench"
-STUDIO="$HOME/Studio"
+CONTENT_ROOT="${WORKBENCH_CONTENT_ROOT:-}"
 PROJECTS_ROOT="$HOME/Projects"
 AUTOSCRIBE_DB="$HOME/.local/share/autoscribe/db"
 DROPBOX_ROOT="$HOME/Dropbox/Backups"
@@ -54,16 +54,17 @@ create_archive() {
 }
 
 log_section "Validating required paths"
+[ -n "$CONTENT_ROOT" ] || die "WORKBENCH_CONTENT_ROOT is not set"
 check_required_dir "$AUTOSCRIBE"
 check_required_dir "$WORKBENCH"
-check_required_dir "$STUDIO"
+check_required_dir "$CONTENT_ROOT"
 check_required_dir "$PROJECTS_ROOT"
 check_required_dir "$DROPBOX_PARENT"
 
 log_section "Ensuring Dropbox backup directories"
 mkdir -p "$DROPBOX_ROOT/autoscribe"
 mkdir -p "$DROPBOX_ROOT/workbench"
-mkdir -p "$DROPBOX_ROOT/studio"
+mkdir -p "$DROPBOX_ROOT/content-root"
 mkdir -p "$DROPBOX_ROOT/projects"
 mkdir -p "$DROPBOX_ROOT/autoscribe-db"
 
@@ -73,8 +74,8 @@ create_archive "$AUTOSCRIBE" "$DROPBOX_ROOT/autoscribe/autoscribe-$TIMESTAMP.tar
 log_section "Backing up Workbench"
 create_archive "$WORKBENCH" "$DROPBOX_ROOT/workbench/workbench-$TIMESTAMP.tar.gz"
 
-log_section "Backing up Studio"
-create_archive "$STUDIO" "$DROPBOX_ROOT/studio/studio-$TIMESTAMP.tar.gz"
+log_section "Backing up content root"
+create_archive "$CONTENT_ROOT" "$DROPBOX_ROOT/content-root/content-root-$TIMESTAMP.tar.gz"
 
 log_section "Backing up Git projects"
 project_count=0

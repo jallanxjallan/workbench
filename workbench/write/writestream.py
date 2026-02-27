@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from workbench.framing.markdown import parse_markdown_batch
-from workbench.io.streams import read_stdin_text, write_stdout_text
+from workbench.lib.streams import read_stdin_text, write_stdout_text
 
 
 def _parser() -> argparse.ArgumentParser:

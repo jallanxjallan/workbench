@@ -1,4 +1,4 @@
-"""Generate immutable vault slug."""
+"""Generate slug from filename semantics and random suffix."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="slug",
         description=__doc__,
     )
-    parser.add_argument("target_dir", help="Directory where the new identity will live.")
+    parser.add_argument("target_dir", help="Directory where slug collision checks will run.")
     parser.add_argument("filename", help="Filename hint used to build semantic slug base.")
     return parser
 

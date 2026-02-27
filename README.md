@@ -1,6 +1,6 @@
 # Workbench
 
-Runtime toolchain repository for CLI stream adapters, shell integration, vault workflows, and backup orchestration.
+Runtime toolchain repository for CLI stream flows, shell integration, vault workflows, and backup orchestration.
 
 ## CLI Surface
 
@@ -14,7 +14,6 @@ Namespaces:
 
 - `wkb ingest`
 - `wkb emit`
-- `wkb project`
 - `wkb backup`
 
 Top-level commands:
@@ -23,12 +22,7 @@ Top-level commands:
 - `wkb writeback <batch-slug>`
 - `wkb writestream`
 - `wkb slug <target_dir> <source_name>`
-- `wkb create-project --vault <vault_name> --project "<Title Case Name>"`
-
-`create-project` requirements:
-
-- `vault_name` must be `RealRiting` or `HackWork`
-- `project` must be non-empty; mnemonic is auto-derived from title initials
+- `wkb create-project --vault-root <root> --value <vault_name> --project "<Title Case Name>"`
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
 
@@ -90,6 +84,7 @@ Layer responsibilities:
 | `wkb emit` | Convert records -> markdown |
 | `wkb writenew` / `wkb writeback` | Fetch records, resolve vault routing, persist files |
 | `wkb writestream` | Pass markdown through unchanged |
+| `wkb create-project` | Create project folder scaffolding under `<vault>/projects/` |
 
 ## Pandoc Integration Policy
 
@@ -132,7 +127,7 @@ wb-pandoc() {
 
 ## Ownership Boundaries
 
-- In scope: CLI orchestration, stream adapters, shell lifecycle, vault logic, backups.
+- In scope: CLI orchestration, stream flows, shell lifecycle, vault logic, backups.
 - Out of scope: Pandoc filter/template/reference implementation.
 
 ## Pre-Commit Enforcement
@@ -151,3 +146,13 @@ The configured hooks enforce:
 - `ruff format`
 - trailing whitespace cleanup
 - end-of-file newline normalization
+
+## Architectural Boundary Rule
+
+Workbench must never import from the Autoscribe engine (`asc.*`).
+
+The only contract between Workbench and Autoscribe is the NDJSON stream over stdout/stdin.
+
+No shared Python modules.
+No shared IO layers.
+No cross-imports.

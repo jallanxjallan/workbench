@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import re
 from typing import Any
 
-from workbench.tools.markdown_document import Document
+from workbench.interop.document import Document
 
 
 @dataclass(frozen=True)

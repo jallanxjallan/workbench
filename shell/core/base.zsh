@@ -3,8 +3,8 @@
 # ------------------------------------------------------------
 # Workbench shell core
 # ------------------------------------------------------------
-# Owns shell lifecycle wiring and delegates project context
-# behavior to devhook.
+# Owns shell lifecycle wiring and delegates runtime
+# environment behavior to devhook.
 
 : "${WORKBENCH_ROOT:=$HOME/Workbench}"
 

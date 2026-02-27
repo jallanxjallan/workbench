@@ -1,4 +1,4 @@
-"""Shared markdown document assembly helpers for emit adapters."""
+"""Shared markdown document assembly helpers for emit flows."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 from workbench.framing.markdown import emit_markdown_batch
 from workbench.interop import from_ndjson
 from workbench.lib.ndjson import StreamError
-from workbench.tools.markdown_document import Document
+from workbench.interop.document import Document
 
 DEFAULT_BOUNDARY = "\n\n"
 

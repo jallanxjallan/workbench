@@ -1,15 +1,19 @@
-"""Create a Studio vault under git-enforced discipline."""
+"""Create a vault scaffold under a selected content root."""
 
 from __future__ import annotations
 
 import argparse
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
-import yaml
+from workbench.config.vault_registry import (
+    VaultRegistryError,
+    load_content_registry,
+    write_content_registry_atomic,
+)
+from workbench.config.roots import RootResolutionError, resolve_content_root
 
 REGISTRY_FILENAME = "registry.yaml"
 VAULT_SUBDIRECTORIES = ("_common", "projects")
@@ -17,10 +21,10 @@ SUCCESS_MESSAGE = "create-vault: completed"
 FAILURE_MESSAGE = "create-vault: failed"
 
 NOT_GIT_ERROR = (
-    "ERROR: Studio root is not a git repository. Vault creation requires version control."
+    "ERROR: content root is not a git repository. Vault creation requires version control."
 )
 DIRTY_TREE_ERROR = (
-    "ERROR: Studio working tree is not clean. Commit or stash changes before creating a vault."
+    "ERROR: content root working tree is not clean. Commit or stash changes before creating a vault."
 )
 
 
@@ -31,7 +35,11 @@ class CreateVaultError(RuntimeError):
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="create-vault",
-        description="Create a Studio vault and commit it.",
+        description="Create a vault and commit it in the selected content root.",
+    )
+    parser.add_argument(
+        "--vault-root",
+        help="Content root path (or set WORKBENCH_CONTENT_ROOT).",
     )
     parser.add_argument("vault_name")
     return parser.parse_args(argv)
@@ -46,9 +54,9 @@ def _normalize_vault_name(vault_name: str) -> str:
     return normalized
 
 
-def _run_git(studio_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def _run_git(content_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["git", "-C", str(studio_root), *args],
+        ["git", "-C", str(content_root), *args],
         capture_output=True,
         text=True,
     )
@@ -57,27 +65,6 @@ def _run_git(studio_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def _git_error(action: str, result: subprocess.CompletedProcess[str]) -> str:
     detail = (result.stderr or "").strip() or (result.stdout or "").strip() or "Unknown git error."
     return f"ERROR: git {action} failed.\n{detail}"
-
-
-def _load_registry(path: Path) -> dict[str, Any]:
-    try:
-        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except yaml.YAMLError as exc:
-        raise CreateVaultError(f"ERROR: invalid YAML in registry: {path}") from exc
-
-    if payload is None:
-        registry: dict[str, Any] = {}
-    elif isinstance(payload, dict):
-        registry = dict(payload)
-    else:
-        raise CreateVaultError("ERROR: registry.yaml must contain a top-level mapping.")
-
-    registry.setdefault("vaults", [])
-    registry.setdefault("projects", [])
-    if not isinstance(registry["vaults"], list) or not isinstance(registry["projects"], list):
-        raise CreateVaultError("ERROR: registry.yaml keys 'vaults' and 'projects' must be lists.")
-
-    return registry
 
 
 def _ensure_registry_unique(
@@ -100,41 +87,35 @@ def _ensure_registry_unique(
             raise CreateVaultError(f"ERROR: Vault path already exists in registry: {expected_path}")
 
 
-def _write_registry_atomic(path: Path, registry: dict[str, Any]) -> None:
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        dir=path.parent,
-        delete=False,
-    ) as handle:
-        yaml.safe_dump(registry, handle, sort_keys=False)
-        tmp_path = Path(handle.name)
-    tmp_path.replace(path)
-
-
-def create_vault(vault_name: str, studio_root: Path | None = None) -> Path:
+def create_vault(vault_name: str, vault_root: str | None = None) -> Path:
     normalized = _normalize_vault_name(vault_name)
-    studio_root = studio_root or (Path.home() / "Studio")
-    registry_path = studio_root / REGISTRY_FILENAME
+    try:
+        content_root = resolve_content_root(vault_root)
+    except RootResolutionError as exc:
+        raise CreateVaultError(f"ERROR: {exc}") from exc
+    registry_path = content_root / REGISTRY_FILENAME
 
-    if not studio_root.exists():
-        raise CreateVaultError(f"ERROR: Studio root does not exist: {studio_root}")
+    if not content_root.exists():
+        raise CreateVaultError(f"ERROR: content root does not exist: {content_root}")
     if not registry_path.exists():
-        raise CreateVaultError("ERROR: registry.yaml is required at Studio root.")
-    if not (studio_root / ".git").exists():
+        raise CreateVaultError("ERROR: registry.yaml is required at content root.")
+    if not (content_root / ".git").exists():
         raise CreateVaultError(NOT_GIT_ERROR)
 
-    status_result = _run_git(studio_root, "status", "--porcelain")
+    status_result = _run_git(content_root, "status", "--porcelain")
     if status_result.returncode != 0:
         raise CreateVaultError(_git_error("status --porcelain", status_result))
     if status_result.stdout.strip():
         raise CreateVaultError(DIRTY_TREE_ERROR)
 
-    vault_path = studio_root / normalized
+    vault_path = content_root / normalized
     if vault_path.exists():
         raise CreateVaultError(f"ERROR: Vault path already exists: {vault_path}")
 
-    registry = _load_registry(registry_path)
+    try:
+        registry = load_content_registry(registry_path)
+    except VaultRegistryError as exc:
+        raise CreateVaultError(f"ERROR: {exc}") from exc
     _ensure_registry_unique(registry, vault_name=normalized, vault_path=vault_path)
 
     for subdir in VAULT_SUBDIRECTORIES:
@@ -144,13 +125,16 @@ def create_vault(vault_name: str, studio_root: Path | None = None) -> Path:
     if not isinstance(vaults, list):
         raise CreateVaultError("ERROR: registry.yaml keys 'vaults' and 'projects' must be lists.")
     vaults.append({"name": normalized, "path": str(vault_path.resolve())})
-    _write_registry_atomic(registry_path, registry)
+    try:
+        write_content_registry_atomic(registry_path, registry)
+    except VaultRegistryError as exc:
+        raise CreateVaultError(f"ERROR: {exc}") from exc
 
-    add_result = _run_git(studio_root, "add", REGISTRY_FILENAME, normalized)
+    add_result = _run_git(content_root, "add", REGISTRY_FILENAME, normalized)
     if add_result.returncode != 0:
         raise CreateVaultError(_git_error("add registry.yaml <VaultName>", add_result))
 
-    commit_result = _run_git(studio_root, "commit", "-m", f"ADD vault {normalized}")
+    commit_result = _run_git(content_root, "commit", "-m", f"ADD vault {normalized}")
     if commit_result.returncode != 0:
         raise CreateVaultError(_git_error('commit -m "ADD vault <VaultName>"', commit_result))
 
@@ -160,7 +144,7 @@ def create_vault(vault_name: str, studio_root: Path | None = None) -> Path:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        vault_path = create_vault(str(args.vault_name))
+        vault_path = create_vault(str(args.vault_name), args.vault_root)
     except CreateVaultError as exc:
         print(FAILURE_MESSAGE, file=sys.stderr)
         print(str(exc), file=sys.stderr)

@@ -12,7 +12,7 @@ from typing import Any
 from workbench.config.vault_registry import VaultRegistry, VaultRegistryError
 from workbench.lib.ndjson import StreamError, parse_ndjson
 from workbench.lib.subprocess import CommandError, run_text
-from workbench.tools.markdown_document import Document
+from workbench.interop.document import Document
 
 _BATCH_SENTINEL_TEMPLATE = "--- ASC BATCH: {batch_slug} ---"
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")

@@ -4,7 +4,7 @@ import io
 from typing import Iterable, List
 
 from workbench.lib.ndjson import StreamError, emit_ndjson, parse_ndjson
-from workbench.tools.markdown_document import Document
+from .document import Document
 
 __all__ = [
     "Document",

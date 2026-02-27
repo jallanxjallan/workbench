@@ -82,7 +82,7 @@ def scan_batch_sentinel_records(
     """Discover eligible files using `rg`.
 
     Batch slug parsing is intentionally ignored in output. Sentinel discovery is
-    used only for path selection in Workbench adapters.
+    used only for path selection in Workbench ingest flows.
     """
 
     query_paths = _normalize_query_paths(cwd=cwd, raw_paths=raw_paths)

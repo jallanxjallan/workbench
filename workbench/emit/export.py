@@ -12,7 +12,7 @@ from workbench.emit.common import (
     ndjson_to_markdown_documents,
     records_to_markdown_documents,
 )
-from workbench.io.streams import read_stdin_text, write_stdout_text
+from workbench.lib.streams import read_stdin_text, write_stdout_text
 from workbench.lib.ndjson import StreamError
 
 

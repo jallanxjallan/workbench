@@ -1,10 +1,10 @@
-"""Single-document markdown framing adapter."""
+"""Single-document markdown framing helper."""
 
 from __future__ import annotations
 
 import re
 
-from workbench.tools.markdown_document import Document
+from workbench.interop.document import Document
 
 MULTI_DOCUMENT_ERROR = "Multi-document markdown streams are not supported. Use NDJSON."
 _MULTI_DOCUMENT_CANDIDATE_RE = re.compile(r"(?:\r?\n){2}(?P<start>---[ \t]*\r?\n)")

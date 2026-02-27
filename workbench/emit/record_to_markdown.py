@@ -1,11 +1,11 @@
-"""Single-record conversion primitive for emit adapters."""
+"""Single-record conversion primitive for emit flows."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
 
-from workbench.tools.markdown_document import Document
+from workbench.interop.document import Document
 
 
 def _record_metadata(record: Mapping[str, Any]) -> dict[str, Any]:

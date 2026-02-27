@@ -16,7 +16,7 @@ def _parser() -> argparse.ArgumentParser:
 
     sentinel = sub.add_parser(
         "sentinel",
-        help="Select files by ASC batch sentinel and optionally snapshot boundary.",
+        help="Select files by ASC batch sentinel.",
     )
     sentinel.add_argument("args", nargs=argparse.REMAINDER)
 

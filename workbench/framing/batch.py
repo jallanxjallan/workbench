@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from workbench.framing.markdown import emit_markdown_batch, parse_markdown_batch
 from workbench.interop import from_ndjson, to_ndjson
-from workbench.tools.markdown_document import Document
+from workbench.interop.document import Document
 
 
 def records_to_ndjson(docs: list[Document]) -> str:

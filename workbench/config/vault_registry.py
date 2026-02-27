@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import tempfile
+from typing import Any, Mapping
 
 import yaml
 
@@ -64,3 +66,45 @@ def load_vault_registry(path: Path | None = None) -> VaultRegistry:
 
     return VaultRegistry(_mapping=mapping, source=registry_path)
 
+
+def load_content_registry(path: Path) -> dict[str, Any]:
+    registry_path = Path(path).expanduser().resolve()
+    if not registry_path.is_file():
+        raise VaultRegistryError(f"registry.yaml not found: {registry_path}")
+
+    try:
+        payload = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise VaultRegistryError(f"invalid YAML in registry: {registry_path}") from exc
+
+    if payload is None:
+        registry: dict[str, Any] = {}
+    elif isinstance(payload, dict):
+        registry = dict(payload)
+    else:
+        raise VaultRegistryError("registry.yaml must contain a top-level mapping.")
+
+    registry.setdefault("vaults", [])
+    registry.setdefault("projects", [])
+    if not isinstance(registry["vaults"], list) or not isinstance(registry["projects"], list):
+        raise VaultRegistryError("registry.yaml keys 'vaults' and 'projects' must be lists.")
+
+    return registry
+
+
+def write_content_registry_atomic(path: Path, registry: Mapping[str, Any]) -> None:
+    registry_path = Path(path).expanduser().resolve()
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=registry_path.parent,
+            delete=False,
+        ) as handle:
+            yaml.safe_dump(dict(registry), handle, sort_keys=False)
+            tmp_path = Path(handle.name)
+        tmp_path.replace(registry_path)
+    except yaml.YAMLError as exc:
+        raise VaultRegistryError(f"invalid YAML payload for registry: {registry_path}") from exc
+    except OSError as exc:
+        raise VaultRegistryError(f"failed to write registry: {registry_path}") from exc
