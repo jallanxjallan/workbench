@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,6 +30,10 @@ APPEARANCE_SOURCE = COMMON_INDEX_ROOT / "appearance.json"
 DROPBOX_ASSET_ROOT = Path.home().resolve() / "Dropbox" / "Assets"
 PLUGIN_DISTRIBUTION_ROOT = WORKBENCH_ROOT / "assets" / "plugins"
 OBSIDIAN_TEMPLATE_ROOT = WORKBENCH_ROOT / "assets" / "obsidian-template"
+OBSIDIAN_MANAGER_CANDIDATES = (
+    Path.home().resolve() / ".config" / "obsidian" / "obsidian.json",
+    Path.home().resolve() / ".config" / "Obsidian" / "obsidian.json",
+)
 
 _PASCAL_TOKEN_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|$)|[A-Z][a-z0-9]*")
 
@@ -164,19 +172,18 @@ def _provision_assets(
     elif not assets_root.is_dir():
         raise CreateVaultError(f"ERROR: Asset path is not a directory: {assets_root}")
 
-    for link_name in ("assets", "_assets"):
-        vault_assets_link = vault_path / link_name
-        if vault_assets_link.exists() or vault_assets_link.is_symlink():
-            if not force:
-                raise CreateVaultError(
-                    f"ERROR: Vault assets link already exists: {vault_assets_link} (use --force to overwrite)"
-                )
-            if not vault_assets_link.is_symlink():
-                raise CreateVaultError(
-                    f"ERROR: Unsafe --force target (not symlink): {vault_assets_link}"
-                )
-            vault_assets_link.unlink()
-        vault_assets_link.symlink_to(assets_root)
+    vault_assets_link = vault_path / "assets"
+    if vault_assets_link.exists() or vault_assets_link.is_symlink():
+        if not force:
+            raise CreateVaultError(
+                f"ERROR: Vault assets link already exists: {vault_assets_link} (use --force to overwrite)"
+            )
+        if not vault_assets_link.is_symlink():
+            raise CreateVaultError(
+                f"ERROR: Unsafe --force target (not symlink): {vault_assets_link}"
+            )
+        vault_assets_link.unlink()
+    vault_assets_link.symlink_to(assets_root)
 
     return assets_root, created_assets_dir
 
@@ -222,6 +229,102 @@ def _provision_obsidian(vault_path: Path) -> None:
     _link_behavioral_config(obsidian_dir)
 
 
+def _resolve_obsidian_manager_path() -> Path:
+    for candidate in OBSIDIAN_MANAGER_CANDIDATES:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    return OBSIDIAN_MANAGER_CANDIDATES[0]
+
+
+def _load_obsidian_manager(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+
+    raw = path.read_text(encoding="utf-8").strip()
+    if raw == "":
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise CreateVaultError(
+            f"ERROR: Obsidian vault manager file is invalid JSON: {path}"
+        ) from exc
+
+    if not isinstance(parsed, dict):
+        raise CreateVaultError(
+            f"ERROR: Obsidian vault manager root must be an object: {path}"
+        )
+    return parsed
+
+
+def _normalize_path_string(path_value: str) -> str:
+    return os.path.normpath(str(Path(path_value).expanduser().resolve()))
+
+
+def _next_vault_manager_id(existing: set[str]) -> str:
+    for _ in range(100):
+        candidate = secrets.token_hex(8)
+        if candidate not in existing:
+            return candidate
+    raise CreateVaultError("ERROR: Failed to allocate Obsidian vault manager id.")
+
+
+def _write_json_atomic(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_raw = tempfile.mkstemp(prefix=".obsidian-manager.", dir=str(path.parent))
+    tmp_path = Path(tmp_raw)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, separators=(",", ":"))
+        os.replace(tmp_path, path)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def _register_vault_in_obsidian_manager(vault_path: Path) -> None:
+    manager_path = _resolve_obsidian_manager_path()
+    data = _load_obsidian_manager(manager_path)
+
+    raw_vaults = data.get("vaults")
+    if raw_vaults is None:
+        vaults: dict[str, object] = {}
+    elif isinstance(raw_vaults, dict):
+        vaults = dict(raw_vaults)
+    else:
+        raise CreateVaultError(
+            f"ERROR: Obsidian vault manager 'vaults' must be an object: {manager_path}"
+        )
+
+    normalized_target = _normalize_path_string(str(vault_path))
+    target_id: str | None = None
+    for key, value in vaults.items():
+        if not isinstance(value, dict):
+            continue
+        existing_path = value.get("path")
+        if not isinstance(existing_path, str):
+            continue
+        if _normalize_path_string(existing_path) == normalized_target:
+            target_id = str(key)
+            break
+
+    timestamp_ms = int(time.time() * 1000)
+    if target_id is None:
+        target_id = _next_vault_manager_id(set(vaults.keys()))
+        vaults[target_id] = {"path": str(vault_path), "ts": timestamp_ms}
+    else:
+        current = vaults.get(target_id)
+        if not isinstance(current, dict):
+            current = {}
+        updated = dict(current)
+        updated["path"] = str(vault_path)
+        updated["ts"] = timestamp_ms
+        vaults[target_id] = updated
+
+    data["vaults"] = vaults
+    _write_json_atomic(manager_path, data)
+
+
 def create_vault(
     vault_name: str,
     *,
@@ -251,6 +354,7 @@ def create_vault(
             )
 
         _provision_obsidian(vault_path)
+        _register_vault_in_obsidian_manager(vault_path)
     except Exception as exc:
         if vault_path.exists():
             shutil.rmtree(vault_path, ignore_errors=True)

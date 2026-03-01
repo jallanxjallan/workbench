@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -45,6 +46,9 @@ def _configure_canonical_roots(
     if create_dropbox:
         dropbox_assets_root.mkdir(parents=True, exist_ok=True)
 
+    obsidian_manager = tmp_path / ".config" / "obsidian" / "obsidian.json"
+    _write_file(obsidian_manager, content='{"vaults":{},"openSchemes":{}}\n')
+
     monkeypatch.setattr(create_vault_module, "STUDIO_ROOT", studio_root)
     monkeypatch.setattr(
         create_vault_module, "CANONICAL_COMMON_ROOT", canonical_common_root
@@ -62,6 +66,11 @@ def _configure_canonical_roots(
     monkeypatch.setattr(create_vault_module, "PLUGIN_DISTRIBUTION_ROOT", plugin_root)
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_TEMPLATE_ROOT", template_root)
     monkeypatch.setattr(create_vault_module, "DROPBOX_ASSET_ROOT", dropbox_assets_root)
+    monkeypatch.setattr(
+        create_vault_module,
+        "OBSIDIAN_MANAGER_CANDIDATES",
+        (obsidian_manager,),
+    )
 
     return studio_root, canonical_common_root, workbench_root, dropbox_assets_root
 
@@ -92,7 +101,7 @@ def test_create_vault_provisions_expected_layout(
     assert result.installed_plugins == len(create_vault_module.REQUIRED_PLUGINS)
 
     root_entries = {entry.name for entry in vault_path.iterdir()}
-    assert root_entries == {".obsidian", ".git", "_common", "assets", "_assets"}
+    assert root_entries == {".obsidian", ".git", "_common", "assets"}
     assert (vault_path / ".git").is_dir()
     git_config_text = (vault_path / ".git" / "config").read_text(encoding="utf-8")
     assert "[remote " not in git_config_text
@@ -102,8 +111,6 @@ def test_create_vault_provisions_expected_layout(
 
     assert (vault_path / "assets").is_symlink()
     assert os.readlink(vault_path / "assets") == str(dropbox_assets_root / "hlf")
-    assert (vault_path / "_assets").is_symlink()
-    assert os.readlink(vault_path / "_assets") == str(dropbox_assets_root / "hlf")
 
     plugin_entries = {
         entry.name for entry in (vault_path / ".obsidian" / "plugins").iterdir()
@@ -122,6 +129,14 @@ def test_create_vault_provisions_expected_layout(
         == "../_common/index/appearance.json"
     )
 
+    manager_path = tmp_path / ".config" / "obsidian" / "obsidian.json"
+    manager_data = json.loads(manager_path.read_text(encoding="utf-8"))
+    assert "vaults" in manager_data
+    vault_entries = list(manager_data["vaults"].values())
+    assert len(vault_entries) == 1
+    assert vault_entries[0]["path"] == str(vault_path)
+    assert isinstance(vault_entries[0]["ts"], int)
+
 
 def test_create_vault_no_assets_skips_dropbox_precondition(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -139,8 +154,34 @@ def test_create_vault_no_assets_skips_dropbox_precondition(
     assert result.mnemonic == "mem"
     assert result.assets_path is None
     assert not (studio_root / "Memoir" / "assets").exists()
-    assert not (studio_root / "Memoir" / "_assets").exists()
     assert dropbox_assets_root.exists() is False
+
+
+def test_create_vault_updates_existing_obsidian_manager_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    studio_root, _, _, _ = _configure_canonical_roots(tmp_path, monkeypatch)
+    manager_path = tmp_path / ".config" / "obsidian" / "obsidian.json"
+    existing = {
+        "vaults": {
+            "abc123": {
+                "path": str(studio_root / "HPPLawFirm"),
+                "ts": 1000,
+                "open": True,
+            }
+        },
+        "openSchemes": {"scenes": True},
+    }
+    manager_path.write_text(json.dumps(existing), encoding="utf-8")
+
+    create_vault_module.create_vault("HPPLawFirm")
+
+    updated = json.loads(manager_path.read_text(encoding="utf-8"))
+    assert set(updated["vaults"].keys()) == {"abc123"}
+    assert updated["vaults"]["abc123"]["path"] == str(studio_root / "HPPLawFirm")
+    assert isinstance(updated["vaults"]["abc123"]["ts"], int)
+    assert updated["vaults"]["abc123"]["ts"] >= 1000
+    assert updated["vaults"]["abc123"]["open"] is True
 
 
 def test_create_vault_rolls_back_on_post_create_failure(
@@ -231,6 +272,11 @@ def test_create_vault_validates_preconditions_before_existing_path_check(
         create_vault_module,
         "DROPBOX_ASSET_ROOT",
         tmp_path / "Dropbox" / "Assets",
+    )
+    monkeypatch.setattr(
+        create_vault_module,
+        "OBSIDIAN_MANAGER_CANDIDATES",
+        (tmp_path / ".config" / "obsidian" / "obsidian.json",),
     )
 
     with pytest.raises(
