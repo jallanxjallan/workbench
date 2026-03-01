@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
-from workbench.config.vault_registry import load_vault_registry
 from workbench.write.common import (
     atomic_write_text,
     fetch_batch_records,
     normalize_batch_slug,
-    resolve_target_path,
+    resolve_writeback_target_path,
     serialize_record,
 )
 
@@ -24,10 +22,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "batch_slug",
         help="Opaque AutoScribe batch slug.",
-    )
-    parser.add_argument(
-        "--vault-registry",
-        help="Path to Workbench vault registry YAML (default: workbench/config/vaults.yaml).",
     )
     parser.add_argument(
         "--asc-bin",
@@ -45,18 +39,15 @@ def _parser() -> argparse.ArgumentParser:
 def write_back_batch(
     batch_slug: str,
     *,
-    vault_registry_path: str | None,
     asc_bin: str,
     debug_routing: bool,
 ) -> None:
     normalized_batch_slug = normalize_batch_slug(batch_slug)
-    registry = load_vault_registry(Path(vault_registry_path) if vault_registry_path else None)
     records = fetch_batch_records(normalized_batch_slug, asc_bin=asc_bin)
 
     for index, record in enumerate(records, start=1):
-        target_path = resolve_target_path(
-            metadata=record.metadata,
-            registry=registry,
+        target_path = resolve_writeback_target_path(
+            record=record,
             record_index=index,
         )
         if not target_path.exists():
@@ -76,7 +67,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         write_back_batch(
             args.batch_slug,
-            vault_registry_path=args.vault_registry,
             asc_bin=args.asc_bin,
             debug_routing=args.debug_routing,
         )

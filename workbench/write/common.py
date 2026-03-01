@@ -9,10 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from workbench.config.vault_registry import VaultRegistry, VaultRegistryError
+from workbench.interop.document import Document
 from workbench.lib.ndjson import StreamError, parse_ndjson
 from workbench.lib.subprocess import CommandError, run_text
-from workbench.interop.document import Document
 
 _BATCH_SENTINEL_TEMPLATE = "--- ASC BATCH: {batch_slug} ---"
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
@@ -26,6 +25,7 @@ class WriteError(RuntimeError):
 class WriteRecord:
     metadata: dict[str, Any]
     content: str
+    input_record: dict[str, Any] | None
 
 
 def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None:
@@ -80,89 +80,81 @@ def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:
     if isinstance(from_metadata, dict):
         metadata.update(from_metadata)
 
-    input_record = record.get("input_record")
-    if isinstance(input_record, dict):
+    input_record_raw = record.get("input_record")
+    input_record: dict[str, Any] | None = None
+    if isinstance(input_record_raw, dict):
+        input_record = dict(input_record_raw)
         for key, value in input_record.items():
             metadata.setdefault(str(key), value)
 
     for key in (
         "target_path",
+        "target_dir",
         "source_path",
         "filepath",
         "path",
-        "prompt_slug",
-        "instruction_slug",
         "title",
         "slug",
     ):
         if key in record:
             metadata.setdefault(key, record[key])
 
-    return WriteRecord(metadata=metadata, content=content)
+    return WriteRecord(
+        metadata=metadata,
+        content=content,
+        input_record=input_record,
+    )
 
 
-def derive_routing_prefix(metadata: dict[str, Any]) -> str | None:
-    for key in ("prompt_slug", "instruction_slug"):
-        value = metadata.get(key)
-        if not isinstance(value, str):
-            continue
-        raw = value.strip()
-        if not raw:
-            continue
-        head = raw.split(".", 1)[0].strip()
-        if head:
-            return head
-    return None
-
-
-def resolve_target_path(
+def resolve_writenew_target_path(
     *,
     metadata: dict[str, Any],
-    registry: VaultRegistry,
     record_index: int,
 ) -> Path:
-    target = _first_string(metadata, "target_path")
-    if target:
-        candidate = Path(target).expanduser()
-        if candidate.is_absolute():
-            return candidate.resolve()
-        prefix = derive_routing_prefix(metadata)
-        if not prefix:
-            raise WriteError(
-                f"record {record_index} uses relative target_path but has no prompt_slug/instruction_slug prefix"
-            )
-        base = _resolve_base_path(registry=registry, prefix=prefix)
-        return (base / candidate).resolve()
-
-    base_prefix = derive_routing_prefix(metadata)
-    if not base_prefix:
+    target_dir = _first_string(metadata, "target_dir")
+    if target_dir is None:
         raise WriteError(
-            f"record {record_index} missing routing metadata; provide target_path, prompt_slug, or instruction_slug"
+            f"record {record_index} missing target_dir; writenew requires explicit target directory (legacy routing removed)"
         )
-    base = _resolve_base_path(registry=registry, prefix=base_prefix)
 
-    relative = _first_string(metadata, "source_path", "filepath", "path")
-    if relative:
-        candidate = Path(relative).expanduser()
-        if candidate.is_absolute():
-            return candidate.resolve()
-        return (base / candidate).resolve()
+    directory = Path(target_dir).expanduser()
+    if not directory.is_absolute():
+        raise WriteError(
+            f"record {record_index} target_dir must be an absolute path: {target_dir!r}"
+        )
 
     filename = _derive_filename(metadata=metadata, record_index=record_index)
-    return base / filename
+    return directory.resolve() / filename
+
+
+def resolve_writeback_target_path(
+    *,
+    record: WriteRecord,
+    record_index: int,
+) -> Path:
+    if not isinstance(record.input_record, dict):
+        raise WriteError(
+            f"record {record_index} missing input_record['path']; writeback requires explicit absolute path"
+        )
+    path_value = record.input_record.get("path")
+    if not isinstance(path_value, str) or not path_value.strip():
+        raise WriteError(
+            f"record {record_index} missing input_record['path']; writeback requires explicit absolute path"
+        )
+    normalized = path_value.strip()
+
+    target_path = Path(normalized).expanduser()
+    if not target_path.is_absolute():
+        raise WriteError(
+            f"record {record_index} path must be an absolute path: {normalized!r}"
+        )
+    return target_path.resolve()
 
 
 def serialize_record(record: WriteRecord, *, batch_slug: str) -> str:
     document = Document(metadata=record.metadata, content=record.content)
     sentinel = _BATCH_SENTINEL_TEMPLATE.format(batch_slug=normalize_batch_slug(batch_slug))
     return f"{sentinel}\n{document.write_text()}"
-
-
-def _resolve_base_path(*, registry: VaultRegistry, prefix: str) -> Path:
-    try:
-        return registry.resolve_base_path(prefix)
-    except VaultRegistryError as exc:
-        raise WriteError(str(exc)) from exc
 
 
 def _first_string(metadata: dict[str, Any], *keys: str) -> str | None:

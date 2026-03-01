@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
@@ -80,8 +79,8 @@ def test_derive_mnemonic_examples() -> None:
 def test_create_vault_provisions_expected_layout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    studio_root, canonical_common_root, _, dropbox_assets_root = (
-        _configure_canonical_roots(tmp_path, monkeypatch)
+    studio_root, _, _, dropbox_assets_root = _configure_canonical_roots(
+        tmp_path, monkeypatch
     )
 
     result = create_vault_module.create_vault("HPPLawFirm")
@@ -93,7 +92,10 @@ def test_create_vault_provisions_expected_layout(
     assert result.installed_plugins == len(create_vault_module.REQUIRED_PLUGINS)
 
     root_entries = {entry.name for entry in vault_path.iterdir()}
-    assert root_entries == {".obsidian", "_common", "assets", "_assets"}
+    assert root_entries == {".obsidian", ".git", "_common", "assets", "_assets"}
+    assert (vault_path / ".git").is_dir()
+    git_config_text = (vault_path / ".git" / "config").read_text(encoding="utf-8")
+    assert "[remote " not in git_config_text
 
     assert (vault_path / "_common").is_symlink()
     assert os.readlink(vault_path / "_common") == "../../Workbench/assets/obsidian"
@@ -102,11 +104,6 @@ def test_create_vault_provisions_expected_layout(
     assert os.readlink(vault_path / "assets") == str(dropbox_assets_root / "hlf")
     assert (vault_path / "_assets").is_symlink()
     assert os.readlink(vault_path / "_assets") == str(dropbox_assets_root / "hlf")
-
-    identity_payload = json.loads(
-        (canonical_common_root / "vault.json").read_text(encoding="utf-8")
-    )
-    assert identity_payload == {"vault_name": "HPPLawFirm", "mnemonic": "hlf"}
 
     plugin_entries = {
         entry.name for entry in (vault_path / ".obsidian" / "plugins").iterdir()
@@ -129,7 +126,7 @@ def test_create_vault_provisions_expected_layout(
 def test_create_vault_no_assets_skips_dropbox_precondition(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    studio_root, canonical_common_root, _, dropbox_assets_root = (
+    studio_root, _, _, dropbox_assets_root = (
         _configure_canonical_roots(
             tmp_path,
             monkeypatch,
@@ -145,43 +142,12 @@ def test_create_vault_no_assets_skips_dropbox_precondition(
     assert not (studio_root / "Memoir" / "_assets").exists()
     assert dropbox_assets_root.exists() is False
 
-    identity_payload = json.loads(
-        (canonical_common_root / "vault.json").read_text(encoding="utf-8")
-    )
-    assert identity_payload == {"vault_name": "Memoir", "mnemonic": "mem"}
-
-
-def test_create_vault_requires_force_for_existing_vault_identity(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    studio_root, canonical_common_root, _, _ = _configure_canonical_roots(
-        tmp_path, monkeypatch
-    )
-    _write_file(
-        canonical_common_root / "vault.json",
-        content='{"vault_name":"Legacy","mnemonic":"lg"}\n',
-    )
-
-    with pytest.raises(
-        create_vault_module.CreateVaultError, match="Vault identity already exists"
-    ):
-        create_vault_module.create_vault("HPPLawFirm")
-
-    assert not (studio_root / "HPPLawFirm").exists()
-
-    result = create_vault_module.create_vault("HPPLawFirm", force=True)
-    assert result.mnemonic == "hlf"
-    identity_payload = json.loads(
-        (canonical_common_root / "vault.json").read_text(encoding="utf-8")
-    )
-    assert identity_payload == {"vault_name": "HPPLawFirm", "mnemonic": "hlf"}
-
 
 def test_create_vault_rolls_back_on_post_create_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    studio_root, canonical_common_root, _, dropbox_assets_root = (
-        _configure_canonical_roots(tmp_path, monkeypatch)
+    studio_root, _, _, dropbox_assets_root = _configure_canonical_roots(
+        tmp_path, monkeypatch
     )
 
     def _boom(_: Path) -> None:
@@ -198,7 +164,27 @@ def test_create_vault_rolls_back_on_post_create_failure(
 
     assert not (studio_root / "OneManAirForce").exists()
     assert not (dropbox_assets_root / "omaf").exists()
-    assert not (canonical_common_root / "vault.json").exists()
+
+
+def test_create_vault_rolls_back_when_git_init_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    studio_root, _, _, dropbox_assets_root = _configure_canonical_roots(
+        tmp_path, monkeypatch
+    )
+
+    def _boom(_: Path) -> None:
+        raise create_vault_module.CreateVaultError("ERROR: Simulated git init failure.")
+
+    monkeypatch.setattr(create_vault_module, "_initialize_local_git_repo", _boom)
+
+    with pytest.raises(
+        create_vault_module.CreateVaultError, match="Simulated git init failure"
+    ):
+        create_vault_module.create_vault("OneManAirForce")
+
+    assert not (studio_root / "OneManAirForce").exists()
+    assert not (dropbox_assets_root / "omaf").exists()
 
 
 def test_create_vault_validates_preconditions_before_existing_path_check(

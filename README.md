@@ -60,19 +60,9 @@ wkb writeback <batch-slug>
 asc emit <batch> | wkb emit export | wkb writestream
 ```
 
-`writenew` and `writeback` resolve record routing from metadata:
+`writeback` uses explicit absolute paths from `input_record["path"]`.
 
-1. `target_path`
-2. `prompt_slug` prefix (before first `.`)
-3. `instruction_slug` prefix (before first `.`)
-
-Vault prefixes map through `workbench/config/vaults.yaml`:
-
-```yaml
-hhp: ~/Projects/HHP_Law_Firm/hhp
-omaf: ~/Projects/One-Man-Air-Force/one_man_air_force
-websites: ~/Projects/Websites
-```
+`writenew` requires an explicit absolute `target_dir` in each emitted record.
 
 Batch slugs are treated as opaque timestamp-based execution identifiers.
 
@@ -82,9 +72,9 @@ Layer responsibilities:
 | --- | --- |
 | `asc emit` | Produce records |
 | `wkb emit` | Convert records -> markdown |
-| `wkb writenew` / `wkb writeback` | Fetch records, resolve vault routing, persist files |
+| `wkb writenew` / `wkb writeback` | Fetch records, resolve explicit paths, persist files |
 | `wkb writestream` | Pass markdown through unchanged |
-| `wkb create-vault` | Provision vault structure, identity mnemonic, and optional Dropbox assets link |
+| `wkb create-vault` | Provision vault structure, initialize local git repo, install required plugins, and optional Dropbox assets link |
 
 ## Pandoc Integration Policy
 

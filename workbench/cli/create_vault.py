@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 SUCCESS_MESSAGE = "create-vault: completed"
 FAILURE_MESSAGE = "create-vault: failed"
-REQUIRED_PLUGINS = ("quickadd", "dataview", "templater")
+REQUIRED_PLUGINS = ("quickadd", "dataview", "templater", "obsidian-git")
 REQUIRED_TEMPLATE_FILES = ("community-plugins.json", "core-plugins.json")
 OPTIONAL_TEMPLATE_FILES = ("app.json",)
 
@@ -42,13 +42,6 @@ class CreateVaultResult:
     installed_plugins: int
 
 
-@dataclass(frozen=True)
-class VaultIdentityState:
-    identity_path: Path
-    existed: bool
-    previous_content: str | None
-
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="create-vault",
@@ -58,7 +51,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Allow safe overwrite of existing vault identity/assets symlink.",
+        help="Allow safe overwrite of existing vault assets symlink.",
     )
     parser.add_argument(
         "--no-assets",
@@ -157,37 +150,6 @@ def _link_common_directory(vault_path: Path) -> None:
     (vault_path / "_common").symlink_to(Path(relative_target), target_is_directory=True)
 
 
-def _write_vault_identity(
-    *,
-    vault_name: str,
-    mnemonic: str,
-    force: bool,
-) -> VaultIdentityState:
-    identity_path = CANONICAL_COMMON_ROOT / "vault.json"
-    existed = identity_path.exists()
-    previous_content: str | None = None
-
-    if existed:
-        if identity_path.is_dir():
-            raise CreateVaultError(
-                f"ERROR: Vault identity path is a directory: {identity_path}"
-            )
-        if not force:
-            raise CreateVaultError(
-                f"ERROR: Vault identity already exists: {identity_path} (use --force to overwrite)"
-            )
-        previous_content = identity_path.read_text(encoding="utf-8")
-
-    payload = {"vault_name": vault_name, "mnemonic": mnemonic}
-    identity_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-
-    return VaultIdentityState(
-        identity_path=identity_path,
-        existed=existed,
-        previous_content=previous_content,
-    )
-
-
 def _provision_assets(
     *,
     vault_path: Path,
@@ -219,16 +181,6 @@ def _provision_assets(
     return assets_root, created_assets_dir
 
 
-def _restore_identity(state: VaultIdentityState) -> None:
-    if state.existed:
-        if state.previous_content is not None:
-            state.identity_path.write_text(state.previous_content, encoding="utf-8")
-        return
-
-    if state.identity_path.exists() and state.identity_path.is_file():
-        state.identity_path.unlink()
-
-
 def _cleanup_created_assets_dir(path: Path) -> None:
     if not path.exists():
         return
@@ -239,6 +191,25 @@ def _cleanup_created_assets_dir(path: Path) -> None:
     except OSError:
         # The directory may no longer be empty; leave user files untouched.
         return
+
+
+def _initialize_local_git_repo(vault_path: Path) -> None:
+    try:
+        subprocess.run(
+            ["git", "init", str(vault_path)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        raise CreateVaultError("ERROR: `git` executable not found in PATH.") from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        detail = f": {stderr}" if stderr else ""
+        raise CreateVaultError(
+            f"ERROR: Failed to initialize local git repo at {vault_path}{detail}"
+        ) from exc
 
 
 def _provision_obsidian(vault_path: Path) -> None:
@@ -263,7 +234,6 @@ def create_vault(
     if vault_path.exists():
         raise CreateVaultError(f"ERROR: Vault path already exists: {vault_path}")
 
-    identity_state: VaultIdentityState | None = None
     assets_path: Path | None = None
     created_assets_dir = False
     mnemonic = _derive_mnemonic(normalized_name)
@@ -271,12 +241,7 @@ def create_vault(
     try:
         vault_path.mkdir(parents=False, exist_ok=False)
         _link_common_directory(vault_path)
-
-        identity_state = _write_vault_identity(
-            vault_name=normalized_name,
-            mnemonic=mnemonic,
-            force=force,
-        )
+        _initialize_local_git_repo(vault_path)
 
         if not no_assets:
             assets_path, created_assets_dir = _provision_assets(
@@ -289,11 +254,6 @@ def create_vault(
     except Exception as exc:
         if vault_path.exists():
             shutil.rmtree(vault_path, ignore_errors=True)
-        if identity_state is not None:
-            try:
-                _restore_identity(identity_state)
-            except OSError:
-                pass
         if created_assets_dir and assets_path is not None:
             _cleanup_created_assets_dir(assets_path)
         if isinstance(exc, CreateVaultError):
