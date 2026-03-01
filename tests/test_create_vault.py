@@ -101,8 +101,12 @@ def test_create_vault_provisions_expected_layout(
     assert result.installed_plugins == len(create_vault_module.REQUIRED_PLUGINS)
 
     root_entries = {entry.name for entry in vault_path.iterdir()}
-    assert root_entries == {".obsidian", ".git", "_common", "assets"}
+    assert root_entries == {".obsidian", ".git", ".gitignore", "_common", "assets"}
     assert (vault_path / ".git").is_dir()
+    assert (
+        (vault_path / ".gitignore").read_text(encoding="utf-8")
+        == create_vault_module.GITIGNORE_TEMPLATE
+    )
     git_config_text = (vault_path / ".git" / "config").read_text(encoding="utf-8")
     assert "[remote " not in git_config_text
 

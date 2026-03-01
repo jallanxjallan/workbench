@@ -20,6 +20,63 @@ FAILURE_MESSAGE = "create-vault: failed"
 REQUIRED_PLUGINS = ("quickadd", "dataview", "templater", "obsidian-git")
 REQUIRED_TEMPLATE_FILES = ("community-plugins.json", "core-plugins.json")
 OPTIONAL_TEMPLATE_FILES = ("app.json",)
+GITIGNORE_TEMPLATE = """# ============================
+# Default: Ignore Everything
+# ============================
+
+*
+
+# Allow directory traversal
+!*/
+
+# ============================
+# Structured Intellectual Assets
+# ============================
+
+# Main text
+!content/**/*.md
+
+# Caption wrappers
+!images/**/*.md
+
+# Instruction documents
+!instructions/**/*.md
+
+# Structural root docs (optional)
+!Table of Contents.md
+!README.md
+
+# ============================
+# Explicitly Ignore Non-Assets
+# ============================
+
+# Scratch / working notes
+notes/
+
+# Shared system scaffolding
+_common/
+
+# External symlinked assets
+assets/
+
+# Obsidian internals
+.obsidian/
+.trash/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Non-markdown files
+*.html
+*.zsh
+*.log
+*.tmp
+*.bak
+*.swp
+*.canvas
+*.excalidraw
+"""
 
 STUDIO_ROOT = Path.home().resolve() / "Studio"
 WORKBENCH_ROOT = Path.home().resolve() / "Workbench"
@@ -219,6 +276,10 @@ def _initialize_local_git_repo(vault_path: Path) -> None:
         ) from exc
 
 
+def _write_gitignore(vault_path: Path) -> None:
+    (vault_path / ".gitignore").write_text(GITIGNORE_TEMPLATE, encoding="utf-8")
+
+
 def _provision_obsidian(vault_path: Path) -> None:
     obsidian_dir = vault_path / ".obsidian"
     plugins_dir = obsidian_dir / "plugins"
@@ -345,6 +406,7 @@ def create_vault(
         vault_path.mkdir(parents=False, exist_ok=False)
         _link_common_directory(vault_path)
         _initialize_local_git_repo(vault_path)
+        _write_gitignore(vault_path)
 
         if not no_assets:
             assets_path, created_assets_dir = _provision_assets(
