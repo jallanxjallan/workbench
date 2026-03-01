@@ -15,6 +15,7 @@ Namespaces:
 - `wkb ingest`
 - `wkb emit`
 - `wkb backup`
+- `wkb vault`
 
 Top-level commands:
 
@@ -23,6 +24,10 @@ Top-level commands:
 - `wkb writestream`
 - `wkb slug <target_dir> <source_name>`
 - `wkb create-vault <VaultName> [--force] [--no-assets]`
+
+Vault template command:
+
+- `wkb vault template apply --template <template_name> --files file1.md file2.md`
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
 
@@ -74,7 +79,7 @@ Layer responsibilities:
 | `wkb emit` | Convert records -> markdown |
 | `wkb writenew` / `wkb writeback` | Fetch records, resolve explicit paths, persist files |
 | `wkb writestream` | Pass markdown through unchanged |
-| `wkb create-vault` | Provision vault structure, initialize local git repo, install required plugins, and optional Dropbox assets link |
+| `wkb create-vault` | Provision vault structure, initialize local git repo, install required plugins, optional Dropbox assets link, and register the vault in Obsidian manager |
 
 ## Pandoc Integration Policy
 

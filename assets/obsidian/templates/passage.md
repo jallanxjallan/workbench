@@ -1,14 +1,12 @@
 ---
-slug: 
+slug: __SLUG__
 type: content
 status: new
-project: 
-stage: 
+stage:
 locked: false
-
 autoscribe:
-  last_batch: null
-  last_step: null
+  last_batch:
+  last_step:
   revision: 0
-  updated: null
+  updated:
 ---

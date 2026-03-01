@@ -86,4 +86,13 @@ REGISTRY: dict[str, NamespaceEntry] = {
             ),
         },
     ),
+    "vault": NamespaceEntry(
+        summary="Vault-focused operations.",
+        commands={
+            "template": CommandEntry(
+                "workbench.cli.vault_template",
+                "Apply templates to one or more vault markdown files.",
+            ),
+        },
+    ),
 }

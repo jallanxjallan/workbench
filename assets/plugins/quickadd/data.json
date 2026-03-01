@@ -59,6 +59,26 @@
           }
         ]
       }
+    },
+    {
+      "id": "f2d729c1-6f49-4ba1-b53c-f5ed7f1851e8",
+      "name": "Dispatch: Apply Template To Files",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "Dispatch: Apply Template To Files",
+        "id": "a55f4f56-671b-480a-ae28-fcfd04261d44",
+        "commands": [
+          {
+            "name": "dispatch_apply_template_to_files",
+            "type": "UserScript",
+            "id": "d1247d55-f42e-423f-83a1-e951fbe1062d",
+            "path": "_common/scripts/dispatch_apply_template_to_files.js",
+            "settings": {}
+          }
+        ]
+      }
     }
   ],
   "inputPrompt": "single-line",
