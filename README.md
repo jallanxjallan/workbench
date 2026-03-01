@@ -1,6 +1,6 @@
 # Workbench
 
-Runtime toolchain repository for CLI stream flows, shell integration, vault workflows, and backup orchestration.
+Runtime toolchain repository for CLI stream flows, shell integration, and vault workflows.
 
 ## CLI Surface
 
@@ -14,7 +14,6 @@ Namespaces:
 
 - `wkb ingest`
 - `wkb emit`
-- `wkb backup`
 - `wkb vault`
 
 Top-level commands:
@@ -122,7 +121,7 @@ wb-pandoc() {
 
 ## Ownership Boundaries
 
-- In scope: CLI orchestration, stream flows, shell lifecycle, vault logic, backups.
+- In scope: CLI orchestration, stream flows, shell lifecycle, and vault logic.
 - Out of scope: Pandoc filter/template/reference implementation.
 
 ## Pre-Commit Enforcement

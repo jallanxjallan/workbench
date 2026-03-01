@@ -74,18 +74,6 @@ REGISTRY: dict[str, NamespaceEntry] = {
             ),
         },
     ),
-    "backup": NamespaceEntry(
-        summary="Backup and recovery operations.",
-        commands={
-            "run": CommandEntry(
-                "workbench.cli.backup_run", "Create git-tracked project backup archive."
-            ),
-            "secrets": CommandEntry(
-                "workbench.cli.backup_secrets",
-                "Create encrypted secrets backup archive.",
-            ),
-        },
-    ),
     "vault": NamespaceEntry(
         summary="Vault-focused operations.",
         commands={
