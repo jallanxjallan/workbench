@@ -9,6 +9,9 @@
 
 const LEGACY_SENTINEL_PREFIX = "<!-- asc:batch=";
 const RAW_SENTINEL_PREFIX = "--- ASC BATCH:";
+const { notice, makeFail } = require("./_shared");
+
+const fail = makeFail("Batch sentinel");
 
 module.exports = async function insertBatchSentinelFromQuery(params = {}) {
   const app = params.app || globalThis.app;
@@ -16,11 +19,6 @@ module.exports = async function insertBatchSentinelFromQuery(params = {}) {
     fail("Obsidian app context not available.");
     return;
   }
-
-  const notify = (message, timeout = 8000) => {
-    if (typeof Notice === "function") new Notice(message, timeout);
-    console.log(message);
-  };
 
   try {
     const rawRefs = collectRawRefs(params, app);
@@ -42,19 +40,19 @@ module.exports = async function insertBatchSentinelFromQuery(params = {}) {
 
     const sentinelInput = await promptForBatchLine(params, app);
     if (sentinelInput == null) {
-      notify("Cancelled. No changes made.");
+      notice("Cancelled. No changes made.");
       return;
     }
 
     const sentinel = normalizeBatchSentinelLine(sentinelInput);
     if (!sentinel) {
-      notify("Invalid batch slug. Expected it to start with 'batch-'. Aborting without changes.");
+      notice("Invalid batch slug. Expected it to start with 'batch-'. Aborting without changes.");
       return;
     }
 
     const confirmed = await confirmRun(params, sentinel, files);
     if (!confirmed) {
-      notify("Cancelled. No changes made.");
+      notice("Cancelled. No changes made.");
       return;
     }
 
@@ -84,7 +82,7 @@ module.exports = async function insertBatchSentinelFromQuery(params = {}) {
 
     let summary = `Batch sentinel complete. Modified: ${plan.length}. Skipped: ${skipped}.`;
     if (unresolved > 0) summary += ` Unresolved: ${unresolved}.`;
-    notify(summary, 10000);
+    notice(summary, 10000);
   } catch (error) {
     fail(error?.message || String(error));
   }
@@ -808,12 +806,6 @@ async function writeWithRollback(app, plan) {
 
     throw new Error(`Write failed and all prior changes were rolled back: ${writeError?.message || String(writeError)}`);
   }
-}
-
-function fail(message) {
-  const text = `Batch sentinel failed: ${message}`;
-  if (typeof Notice === "function") new Notice(text, 10000);
-  console.error(text);
 }
 
 function hasExistingBatchSentinel(firstLine, currentSentinelLine) {

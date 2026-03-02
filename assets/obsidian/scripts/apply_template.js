@@ -4,6 +4,15 @@
 // - Fails only if active file already has a slug property.
 // - Fails if active file is not markdown or contains Dataview code blocks.
 // - Sets slug via `wkb slug` and project.
+const {
+  notice,
+  makeFail,
+  isDataviewQueryNote,
+  getVaultBasePath,
+  buildSlugViaCli,
+} = require("./_shared");
+
+const fail = makeFail("Apply Template");
 
 module.exports = async (params = {}) => {
   const app = params.app || globalThis.app;
@@ -23,7 +32,7 @@ module.exports = async (params = {}) => {
   }
 
   const currentText = await app.vault.read(activeFile);
-  if (containsDataview(currentText)) {
+  if (isDataviewQueryNote(currentText)) {
     return fail("Active note looks like a Dataview query note; aborting.");
   }
 
@@ -214,44 +223,6 @@ function normalizeFrontmatter(fm) {
   return out;
 }
 
-function containsDataview(text) {
-  return /```(?:dataview|dataviewjs)\b/i.test(String(text || ""));
-}
-
-function buildSlugViaCli(app, activeFile) {
-  const { execFileSync } = require("child_process");
-  const path = require("path");
-  const fullPath = resolveFullPath(app, activeFile);
-  const folderPath = path.dirname(fullPath);
-  const filename = path.basename(fullPath);
-  const wkbBin = process.env.WKB_BIN || "wkb";
-
-  try {
-    const output = execFileSync(wkbBin, ["slug", folderPath, filename], {
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const slug = String(output || "").trim();
-    if (!slug) throw new Error("empty slug from CLI");
-    return slug;
-  } catch (error) {
-    const stderr = error && error.stderr ? String(error.stderr).trim() : "";
-    const detail = stderr || (error && error.message ? error.message : "unknown error");
-    throw new Error(`slug generation failed via '${wkbBin} slug': ${detail}`);
-  }
-}
-
-function resolveFullPath(app, activeFile) {
-  const adapter = app.vault && app.vault.adapter;
-  const basePath =
-    (adapter && typeof adapter.getBasePath === "function" && adapter.getBasePath()) ||
-    (adapter && adapter.basePath) ||
-    "";
-  if (!basePath) throw new Error("vault base path is unavailable");
-  const path = require("path");
-  return path.join(basePath, String(activeFile.path || ""));
-}
-
 async function resolveProjectName(app) {
   // Prefer project name from vault-level ingest config when available.
   try {
@@ -268,11 +239,7 @@ async function resolveProjectName(app) {
 
   // For mnemonic vault layouts like <project_name>/<mnemonic>, use parent folder.
   try {
-    const adapter = app.vault?.adapter;
-    const basePath =
-      (typeof adapter?.getBasePath === "function" && adapter.getBasePath()) ||
-      adapter?.basePath ||
-      "";
+    const basePath = getVaultBasePath(app);
     if (basePath) {
       const path = require("path");
       const vaultName = app.vault.getName ? String(app.vault.getName()) : "";
@@ -289,15 +256,4 @@ async function resolveProjectName(app) {
   }
 
   return app.vault.getName ? String(app.vault.getName()) : "project";
-}
-
-function notice(message, timeout = 8000) {
-  if (typeof Notice === "function") new Notice(message, timeout);
-  console.log(message);
-}
-
-function fail(message) {
-  const text = `Apply Template failed: ${message}`;
-  if (typeof Notice === "function") new Notice(text, 10000);
-  console.error(text);
 }

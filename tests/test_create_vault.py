@@ -85,6 +85,12 @@ def test_derive_mnemonic_examples() -> None:
         create_vault_module._derive_mnemonic("A")
 
 
+def test_derive_label_examples() -> None:
+    assert create_vault_module._derive_label("HHPLawFirm") == "HHP Law Firm"
+    assert create_vault_module._derive_label("OneManAirForce") == "One Man Air Force"
+    assert create_vault_module._derive_label("memoir") == "Memoir"
+
+
 def test_create_vault_provisions_expected_layout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -101,7 +107,14 @@ def test_create_vault_provisions_expected_layout(
     assert result.installed_plugins == len(create_vault_module.REQUIRED_PLUGINS)
 
     root_entries = {entry.name for entry in vault_path.iterdir()}
-    assert root_entries == {".obsidian", ".git", ".gitignore", "_common", "assets"}
+    assert root_entries == {
+        ".obsidian",
+        ".git",
+        ".gitignore",
+        "_common",
+        "_vault_registry.json",
+        "assets",
+    }
     assert (vault_path / ".git").is_dir()
     assert (
         (vault_path / ".gitignore").read_text(encoding="utf-8")
@@ -115,6 +128,10 @@ def test_create_vault_provisions_expected_layout(
 
     assert (vault_path / "assets").is_symlink()
     assert os.readlink(vault_path / "assets") == str(dropbox_assets_root / "hlf")
+    vault_registry = json.loads(
+        (vault_path / "_vault_registry.json").read_text(encoding="utf-8")
+    )
+    assert vault_registry == {"label": "HPP Law Firm", "mnemonic": "hlf"}
 
     plugin_entries = {
         entry.name for entry in (vault_path / ".obsidian" / "plugins").iterdir()

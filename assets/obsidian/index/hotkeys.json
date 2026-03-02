@@ -2,28 +2,10 @@
   "quickadd:choice:5c4b5b1a-89cb-47f2-83da-c78d3f9f5370": [
     {
       "modifiers": [
-        "Mod",
-        "Meta"
+        "Alt",
+        "Mod"
       ],
       "key": "Q"
-    }
-  ],
-  "quickadd:choice:ef1a248d-6d77-4b72-88c2-f7cc5198bb36": [
-    {
-      "modifiers": [
-        "Mod",
-        "Meta"
-      ],
-      "key": "S"
-    }
-  ],
-  "quickadd:choice:b3e9de39-5258-46fc-bf40-ac2fa35f7fd5": [
-    {
-      "modifiers": [
-        "Mod",
-        "Meta"
-      ],
-      "key": "T"
     }
   ]
 }

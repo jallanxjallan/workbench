@@ -41,26 +41,6 @@
       }
     },
     {
-      "id": "b3e9de39-5258-46fc-bf40-ac2fa35f7fd5",
-      "name": "List Dataview Queries",
-      "type": "Macro",
-      "command": true,
-      "runOnStartup": false,
-      "macro": {
-        "name": "List Dataview Queries",
-        "id": "af06a6ea-53d8-4c56-97ac-f355f4ed6d9c",
-        "commands": [
-          {
-            "name": "list_common_dataview_queries",
-            "type": "UserScript",
-            "id": "0ec09faa-cf26-4e7f-9a29-1758a8947db5",
-            "path": "_common/scripts/list_common_dataview_queries.js",
-            "settings": {}
-          }
-        ]
-      }
-    },
-    {
       "id": "f2d729c1-6f49-4ba1-b53c-f5ed7f1851e8",
       "name": "Dispatch: Apply Template To Files",
       "type": "Macro",

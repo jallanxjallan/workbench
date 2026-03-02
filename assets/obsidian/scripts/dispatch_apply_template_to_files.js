@@ -2,6 +2,9 @@
 // - Accept filepaths from DataviewJS/QuickAdd variables.
 // - Prompt for a template.
 // - Delegate all file mutation to `wkb vault template apply`.
+const { notice, makeFail } = require("./_shared");
+
+const fail = makeFail("Dispatch Apply Template");
 
 module.exports = async function dispatchApplyTemplateToFiles(params = {}) {
   const app = params.app || globalThis.app;
@@ -212,15 +215,4 @@ function uniqueStrings(values) {
     out.push(text);
   }
   return out;
-}
-
-function notice(message, timeout = 8000) {
-  if (typeof Notice === "function") new Notice(message, timeout);
-  console.log(message);
-}
-
-function fail(message) {
-  const text = `Dispatch Apply Template failed: ${message}`;
-  if (typeof Notice === "function") new Notice(text, 10000);
-  console.error(text);
 }

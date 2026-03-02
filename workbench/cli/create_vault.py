@@ -93,6 +93,7 @@ OBSIDIAN_MANAGER_CANDIDATES = (
 )
 
 _PASCAL_TOKEN_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|$)|[A-Z][a-z0-9]*")
+_TOKEN_SPLIT_RE = re.compile(r"[\s_-]+")
 
 
 class CreateVaultError(RuntimeError):
@@ -148,6 +149,44 @@ def _derive_mnemonic(vault_name: str) -> str:
             f"ERROR: Derived mnemonic is too short for vault '{vault_name}'."
         )
     return mnemonic
+
+
+def _derive_label(vault_name: str) -> str:
+    parts = [part for part in _TOKEN_SPLIT_RE.split(vault_name.strip()) if part]
+    if not parts:
+        raise CreateVaultError("ERROR: Vault name must be non-empty.")
+
+    tokens: list[str] = []
+    for part in parts:
+        pascal_tokens = _PASCAL_TOKEN_RE.findall(part)
+        if pascal_tokens:
+            tokens.extend(pascal_tokens)
+        else:
+            tokens.append(part)
+
+    if not tokens:
+        raise CreateVaultError(
+            f"ERROR: Could not derive label for vault '{vault_name}'."
+        )
+
+    normalized_tokens: list[str] = []
+    for token in tokens:
+        normalized = str(token).strip()
+        if not normalized:
+            continue
+        if normalized.isupper():
+            normalized_tokens.append(normalized)
+        else:
+            normalized_tokens.append(
+                normalized[0].upper() + normalized[1:].lower()
+            )
+
+    if not normalized_tokens:
+        raise CreateVaultError(
+            f"ERROR: Could not derive label for vault '{vault_name}'."
+        )
+
+    return " ".join(normalized_tokens)
 
 
 def _resolve_vault_path(vault_name: str) -> Path:
@@ -280,6 +319,20 @@ def _write_gitignore(vault_path: Path) -> None:
     (vault_path / ".gitignore").write_text(GITIGNORE_TEMPLATE, encoding="utf-8")
 
 
+def _write_vault_registry(
+    *,
+    vault_path: Path,
+    vault_name: str,
+    mnemonic: str,
+) -> None:
+    registry_path = vault_path / "_vault_registry.json"
+    payload: dict[str, object] = {
+        "label": _derive_label(vault_name),
+        "mnemonic": mnemonic,
+    }
+    _write_json_atomic(registry_path, payload)
+
+
 def _provision_obsidian(vault_path: Path) -> None:
     obsidian_dir = vault_path / ".obsidian"
     plugins_dir = obsidian_dir / "plugins"
@@ -407,6 +460,11 @@ def create_vault(
         _link_common_directory(vault_path)
         _initialize_local_git_repo(vault_path)
         _write_gitignore(vault_path)
+        _write_vault_registry(
+            vault_path=vault_path,
+            vault_name=normalized_name,
+            mnemonic=mnemonic,
+        )
 
         if not no_assets:
             assets_path, created_assets_dir = _provision_assets(

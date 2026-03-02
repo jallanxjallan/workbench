@@ -1,5 +1,6 @@
-// Obsidian macro: open the shared Draft Status query note.
+// Obsidian macro: open the shared Content Stage query note.
 // Designed for QuickAdd macro use.
+const fail = makeFail("Open Draft Status");
 
 module.exports = async function openDraftStatusQuery(params = {}) {
   const app = params.app || globalThis.app;
@@ -8,12 +9,10 @@ module.exports = async function openDraftStatusQuery(params = {}) {
     return;
   }
 
-  const notify = (message, timeout = 8000) => {
-    if (typeof Notice === "function") new Notice(message, timeout);
-    console.log(message);
-  };
-
   const candidatePaths = [
+    "_common/queries/Content Stage.md",
+    "_system/queries/Content Stage.md",
+    "queries/Content Stage.md",
     "_common/queries/Draft Status.md",
     "_system/queries/Draft Status.md",
     "queries/Draft Status.md",
@@ -29,19 +28,19 @@ module.exports = async function openDraftStatusQuery(params = {}) {
   }
 
   if (!targetFile) {
-    fail("Could not locate Draft Status query note.");
+    fail("Could not locate Content Stage query note.");
     return;
   }
 
   const leaf = app.workspace.getLeaf?.(true) || app.workspace.activeLeaf;
   if (!leaf || typeof leaf.openFile !== "function") {
-    fail("No workspace leaf available to open Draft Status.");
+    fail("No workspace leaf available to open Content Stage.");
     return;
   }
 
   await leaf.openFile(targetFile);
   await forceLeafPreview(leaf, app);
-  notify(`Opened: ${targetFile.path}`, 4000);
+  notice(`Opened: ${targetFile.path}`, 4000);
 };
 
 async function forceLeafPreview(leaf, app) {
@@ -57,8 +56,16 @@ async function forceLeafPreview(leaf, app) {
   }
 }
 
-function fail(message) {
-  const text = `Open Draft Status failed: ${message}`;
-  if (typeof Notice === "function") new Notice(text, 10000);
-  console.error(text);
+function notice(message, timeout = 8000) {
+  if (typeof Notice === "function") new Notice(message, timeout);
+  console.log(message);
+}
+
+function makeFail(prefix) {
+  const tag = String(prefix || "Script").trim() || "Script";
+  return function fail(message) {
+    const text = `${tag} failed: ${message}`;
+    if (typeof Notice === "function") new Notice(text, 10000);
+    console.error(text);
+  };
 }
