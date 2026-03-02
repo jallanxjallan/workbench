@@ -59,6 +59,26 @@
           }
         ]
       }
+    },
+    {
+      "id": "a3f7f72f-5f31-4daa-9f42-8dfdb3fdd5d8",
+      "name": "Toggle Image Visibility",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "Toggle Image Visibility",
+        "id": "63f3f3ae-ef11-4cae-8827-e7c207c3c2c8",
+        "commands": [
+          {
+            "name": "toggle_image_visibility",
+            "type": "UserScript",
+            "id": "f50da57a-8856-4bb7-9ecc-6d6f5facf7d1",
+            "path": "_common/scripts/toggle_image_visibility.js",
+            "settings": {}
+          }
+        ]
+      }
     }
   ],
   "inputPrompt": "single-line",
