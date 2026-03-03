@@ -1,112 +1,197 @@
 
 ```dataviewjs
-const SCENES_ROOT = "_project";            // folder containing your scene notes
-const ENTRY_INDEX = "_project/content_index.md";  // the single index to inspect
+(() => {
+  const current = dv.current?.() ?? {};
+  const normalizePath = (value) =>
+    String(value ?? "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+  const stripExt = (value) => String(value ?? "").replace(/\.md$/i, "");
+  const isMarkdownPath = (value) => /\.md$/i.test(String(value ?? "").trim());
+  const INDEX_NOTE = String(current.index_note ?? "Table of Contents.md").trim();
+  const CONTENT_ROOT = normalizeFolder(String(current.content_root ?? "content/").trim());
 
-// ---------- helpers ----------
-async function loadText(path) { return await dv.io.load(path); }
+  const container = dv?.container ?? this?.container;
+  if (container) container.empty();
 
-function extractWikilinks(text) {
-  const out = [];
-  const re = /\!?(\[\[)([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
-  let m; while ((m = re.exec(text)) !== null) out.push(m[2].trim());
-  return out;
-}
+  const toc = resolveIndexFile(INDEX_NOTE, dv.current().file.path);
 
-function resolvePage(target, fromPath) {
-  const p = dv.page(target);
-  if (p?.file?.path) return p;
-  if (fromPath) {
-    const baseDir = fromPath.split("/").slice(0, -1).join("/");
-    const candidate = baseDir ? `${baseDir}/${target}` : target;
-    const p2 = dv.page(candidate);
-    if (p2?.file?.path) return p2;
+  // 1) Files with unresolved internal links (broken links)
+  dv.header(2, "Files with broken links");
+  const brokenByFile = collectBrokenLinks(app);
+  if (brokenByFile.length === 0) {
+    dv.paragraph("No files with broken links.");
+  } else {
+    dv.table(
+      ["File", "Broken targets", "Total"],
+      brokenByFile.map((row) => [
+        dv.fileLink(row.path),
+        row.targets.join(", "),
+        row.totalCount,
+      ]),
+    );
   }
-  return null;
-}
 
-const isScenePath = p => typeof p === "string" && p.startsWith(SCENES_ROOT + "/");
-
-// ---------- main ----------
-(async () => {
-  const indexPage = dv.page(ENTRY_INDEX);
-  if (!indexPage) {
-    dv.paragraph(`❌ Index not found: **${ENTRY_INDEX}**`);
+  // 2) content/ files not linked from the Table of Contents note
+  dv.header(2, `Files in ${CONTENT_ROOT || "content/"} not linked from the Table of Contents`);
+  if (!CONTENT_ROOT) {
+    dv.paragraph("Set frontmatter content_root to a folder, for example: content/");
     return;
   }
 
-  // Ground truth: every scene file in the vault
-  const allScenes = dv.pages(`"${SCENES_ROOT}"`).array().map(p => p.file.path);
-  const allScenesSet = new Set(allScenes);
-
-  const indexText = await loadText(indexPage.file.path);
-  const rawTargets = extractWikilinks(indexText);
-
-  // Resolve links and gather counts
-  const sceneCounts = new Map();  // scenePath -> count in this index
-  const missing = [];             // { targetRaw }
-  for (const raw of rawTargets) {
-    const resolved = resolvePage(raw, indexPage.file.path);
-    if (!resolved) {
-      missing.push({ targetRaw: raw });
-      continue;
-    }
-    const rp = resolved.file.path;
-    if (isScenePath(rp)) {
-      sceneCounts.set(rp, (sceneCounts.get(rp) ?? 0) + 1);
-    }
+  if (!toc.file) {
+    dv.paragraph(toc.error || `Could not resolve index note "${INDEX_NOTE}".`);
+    return;
   }
 
-  // Compute sets
-const linkedScenes = new Set(sceneCounts.keys());
+  const contentPaths = app.vault
+    .getMarkdownFiles()
+    .map((file) => normalizePath(file.path))
+    .filter((path) => path.startsWith(CONTENT_ROOT))
+    .filter((path) => normalizePath(toc.file.path) !== path);
 
-const unlinkedScenes = [...allScenesSet]
-  .filter(s => !linkedScenes.has(s)) // not linked
-  .filter(s => {
-    const page = dv.page(s);
-    const status = (page?.status ?? "").toString().trim();
-    return status !== "❌";           // exclude scenes marked not in use
+  const linkedContent = collectLinkedContentFromToc({
+    app,
+    tocPath: toc.file.path,
+    contentRoot: CONTENT_ROOT,
+    normalizePath,
+    stripExt,
   });
 
-const duplicates = [...sceneCounts.entries()]
-  .filter(([, n]) => n > 1)
-  .map(([scenePath, count]) => ({ scenePath, count }))
-  .sort((a, b) => b.count - a.count || a.scenePath.localeCompare(b.scenePath));
+  const unlinked = contentPaths
+    .filter((path) => !linkedContent.has(path))
+    .sort((a, b) => a.localeCompare(b));
 
+  dv.paragraph(
+    [
+      `Table of Contents: ${dv.fileLink(toc.file.path)}`,
+      `content/ files: ${contentPaths.length}`,
+      `linked from TOC: ${contentPaths.length - unlinked.length}`,
+      `not linked from TOC: ${unlinked.length}`,
+    ].join(" | "),
+  );
 
-  // Summary
-  dv.header(2, "🔎 Single-Index Link Health (content_index.md)");
-  dv.paragraph([
-    `**Scenes in vault:** ${allScenesSet.size}`,
-    `**Linked by this index:** ${linkedScenes.size}`,
-    `**Unlinked (not in this index):** ${unlinkedScenes.length}`,
-    `**Duplicates (same scene linked >1×):** ${duplicates.length}`,
-    `**Missing targets in index:** ${missing.length}`
-  ].join(" • "));
-
-  // Duplicates
-  dv.header(3, "🔁 Scenes linked more than once");
-  if (duplicates.length) {
-    dv.table(["Scene", "Count"], duplicates.map(d => [dv.fileLink(d.scenePath), d.count]));
-  } else {
-    dv.paragraph("✅ No duplicates.");
+  if (unlinked.length === 0) {
+    dv.paragraph("All files in the content folder are linked from the Table of Contents.");
+    return;
   }
 
-  // Unlinked scenes
-  dv.header(3, "🧭 Scenes not referenced by this index");
-  if (unlinkedScenes.length) {
-    dv.table(["Scene"], unlinkedScenes.map(p => [dv.fileLink(p)]));
-  } else {
-    dv.paragraph("✅ All scenes are referenced by this index.");
+  dv.table(["File"], unlinked.map((path) => [dv.fileLink(path)]));
+
+  function resolveIndexFile(indexNote, fromPath) {
+    const base = normalizePath(indexNote);
+    const baseNoExt = stripExt(base);
+    const baseNameNoExt = stripExt(baseNoExt.split("/").pop() ?? "");
+
+    let sourceFile = null;
+
+    const pathCandidates = base.endsWith(".md") ? [base] : [`${base}.md`, base];
+    for (const candidate of pathCandidates) {
+      const file = app.vault.getFileByPath(candidate);
+      if (file) {
+        sourceFile = file;
+        break;
+      }
+    }
+
+    if (!sourceFile) {
+      const linkCandidates = [baseNoExt, baseNameNoExt].filter(Boolean);
+      for (const candidate of linkCandidates) {
+        const file = app.metadataCache.getFirstLinkpathDest(candidate, fromPath);
+        if (file) {
+          sourceFile = file;
+          break;
+        }
+      }
+    }
+
+    if (!sourceFile && baseNameNoExt) {
+      const matches = app.vault
+        .getMarkdownFiles()
+        .filter(
+          (file) =>
+            String(file.basename ?? "").toLowerCase() === baseNameNoExt.toLowerCase(),
+        );
+      if (matches.length === 1) {
+        sourceFile = matches[0];
+      } else if (matches.length > 1) {
+        return {
+          file: null,
+          error: `Multiple files named "${baseNameNoExt}.md" found. Set frontmatter index_note to an exact vault path.`,
+        };
+      }
+    }
+
+    if (!sourceFile) {
+      return {
+        file: null,
+        error: `Could not resolve "${indexNote}". Set frontmatter index_note to an exact path, e.g. "Table of Contents.md".`,
+      };
+    }
+
+    return { file: sourceFile };
   }
 
-  // Missing targets
-  dv.header(3, "❌ Links in index that don’t resolve");
-  if (missing.length) {
-    dv.table(["Raw link text"], missing.map(m => [m.targetRaw]));
-  } else {
-    dv.paragraph("✅ No missing targets.");
+  function collectBrokenLinks(appRef) {
+    const unresolved = appRef?.metadataCache?.unresolvedLinks ?? {};
+    const rows = [];
+
+    for (const [sourcePathRaw, targetMapRaw] of Object.entries(unresolved)) {
+      const sourcePath = normalizePath(sourcePathRaw);
+      if (!isMarkdownPath(sourcePath)) continue;
+
+      const targetEntries = Object.entries(targetMapRaw ?? {})
+        .filter(([target]) => String(target ?? "").trim().length > 0)
+        .map(([target, count]) => ({
+          target: String(target).trim(),
+          count: Number(count ?? 0),
+        }))
+        .filter((entry) => entry.count > 0)
+        .sort((a, b) => b.count - a.count || a.target.localeCompare(b.target));
+
+      if (targetEntries.length === 0) continue;
+
+      rows.push({
+        path: sourcePath,
+        targets: targetEntries.map((entry) =>
+          entry.count > 1 ? `${entry.target} (${entry.count}x)` : entry.target,
+        ),
+        totalCount: targetEntries.reduce((sum, entry) => sum + entry.count, 0),
+      });
+    }
+
+    rows.sort((a, b) => b.totalCount - a.totalCount || a.path.localeCompare(b.path));
+    return rows;
+  }
+
+  function collectLinkedContentFromToc(args) {
+    const { app: appRef, tocPath, contentRoot, normalizePath, stripExt } = args;
+    const file = appRef.vault.getFileByPath(tocPath);
+    if (!file) return new Set();
+
+    const cache = appRef.metadataCache.getFileCache(file) ?? {};
+    const links = Array.isArray(cache.links) ? cache.links : [];
+    const linked = new Set();
+
+    for (const linkEntry of links) {
+      const raw = String(linkEntry?.link ?? "").trim();
+      if (!raw) continue;
+
+      const withoutSubpath = raw.split("#")[0].split("^")[0].trim();
+      const candidate = stripExt(withoutSubpath);
+      if (!candidate) continue;
+
+      const resolved = appRef.metadataCache.getFirstLinkpathDest(candidate, tocPath);
+      if (!resolved?.path) continue;
+
+      const path = normalizePath(resolved.path);
+      if (path.startsWith(contentRoot)) linked.add(path);
+    }
+
+    return linked;
+  }
+
+  function normalizeFolder(folder) {
+    const clean = normalizePath(folder).replace(/\/+$/, "");
+    return clean ? `${clean}/` : "";
   }
 })();
 ```
-
