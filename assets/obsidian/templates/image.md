@@ -2,6 +2,7 @@
 slug: __SLUG__
 class: image
 stage:
+state: active
 locked: false
 image:
   source:
