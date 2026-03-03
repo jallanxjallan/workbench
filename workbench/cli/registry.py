@@ -30,7 +30,7 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "Pass markdown batch through unchanged to stdout.",
     ),
     "slug": CommandEntry(
-        "workbench.cli.slug", "Generate semantic slug with random suffix."
+        "workbench.cli.slug", "Build, ensure, and validate deterministic slugs."
     ),
     "create-vault": CommandEntry(
         "workbench.cli.create_vault",

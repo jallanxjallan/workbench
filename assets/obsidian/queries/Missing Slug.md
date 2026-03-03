@@ -1,6 +1,7 @@
 ```dataviewjs
 (() => {
   const DEFAULT_DISPATCH_MACRO = "Dispatch: Apply Template To Files";
+  const DEFAULT_GENERATE_SLUG_MACRO = "generate_slug";
 
   const container = dv?.container ?? this?.container;
   if (!container) {
@@ -12,6 +13,9 @@
   const current = dv.current?.() || {};
   const dispatchMacro = String(
     current.dispatch_macro || DEFAULT_DISPATCH_MACRO,
+  ).trim();
+  const generateSlugMacro = String(
+    current.generate_slug_macro || DEFAULT_GENERATE_SLUG_MACRO,
   ).trim();
 
   const selectedFiles = new Set();
@@ -56,7 +60,7 @@
     text: "Apply Template To Selected",
   });
   const makeSlugBtn = actionBar.createEl("button", {
-    text: "Make Slug For Selected",
+    text: "Generate Slug For Selected",
   });
 
   selectAllBtn.addEventListener("click", () => {
@@ -77,7 +81,7 @@
   });
 
   applyTemplateBtn.addEventListener("click", applyTemplateToSelected);
-  makeSlugBtn.addEventListener("click", makeSlugForSelected);
+  makeSlugBtn.addEventListener("click", generateSlugForSelected);
 
   renderRows();
 
@@ -176,53 +180,40 @@
     }
   }
 
-  async function makeSlugForSelected() {
+  async function generateSlugForSelected() {
     const selectedRelativePaths = Array.from(selectedFiles.values());
     if (selectedRelativePaths.length === 0) {
       if (typeof Notice === "function") new Notice("No files selected.");
       return;
     }
 
-    let updated = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    for (const relPath of selectedRelativePaths) {
-      const file = app.vault.getAbstractFileByPath(relPath);
-      if (!file || file.extension !== "md") {
-        skipped += 1;
-        continue;
+    const filepaths = toAbsolutePaths(selectedRelativePaths, app);
+    if (filepaths.length === 0) {
+      if (typeof Notice === "function") {
+        new Notice("Could not resolve absolute paths for selected files.");
       }
-
-      try {
-        const slug = buildSlugViaCli(app, relPath);
-        const text = await app.vault.read(file);
-        const out = String(text || "").replace(
-          /^(\s*slug:\s*)__SLUG__(\s*)$/m,
-          (_, prefix, suffix) => `${prefix}${slug}${suffix}`,
-        );
-
-        if (out === text) {
-          skipped += 1;
-          continue;
-        }
-
-        await app.vault.modify(file, out);
-        updated += 1;
-      } catch (error) {
-        failed += 1;
-        console.error(error);
-      }
+      return;
     }
 
-    if (typeof Notice === "function") {
-      new Notice(
-        `make_slug complete. Updated: ${updated}. Skipped: ${skipped}. Failed: ${failed}.`,
-        10000,
-      );
+    const quickAddApi = app?.plugins?.plugins?.quickadd?.api;
+    if (!quickAddApi || typeof quickAddApi.executeChoice !== "function") {
+      if (typeof Notice === "function") {
+        new Notice("QuickAdd API not available for slug generation.");
+      }
+      return;
     }
 
-    renderRows();
+    globalThis.__wkbSlugFilepaths = filepaths;
+    try {
+      await quickAddApi.executeChoice(generateSlugMacro, { filepaths });
+      renderRows();
+    } catch (error) {
+      const message = error?.message || String(error);
+      if (typeof Notice === "function") {
+        new Notice(`generate_slug failed: ${message}`);
+      }
+      console.error(error);
+    }
   }
 })();
 
@@ -279,32 +270,5 @@ function toAbsolutePaths(relativePaths, app) {
     .map((item) => String(item || "").trim())
     .filter(Boolean)
     .map((item) => path.resolve(basePath, item));
-}
-
-function buildSlugViaCli(app, relativePath) {
-  const { execFileSync } = require("child_process");
-  const path = require("path");
-
-  const adapter = app?.vault?.adapter;
-  const basePath =
-    (adapter &&
-      typeof adapter.getBasePath === "function" &&
-      adapter.getBasePath()) ||
-    (adapter && adapter.basePath) ||
-    "";
-  if (!basePath) throw new Error("vault base path is unavailable");
-
-  const fullPath = path.resolve(basePath, String(relativePath || ""));
-  const folderPath = path.dirname(fullPath);
-  const filename = path.basename(fullPath);
-  const wkbBin = process.env.WKB_BIN || "wkb";
-
-  const output = execFileSync(wkbBin, ["slug", folderPath, filename], {
-    encoding: "utf-8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  const slug = String(output || "").trim();
-  if (!slug) throw new Error("empty slug from CLI");
-  return slug;
 }
 ```

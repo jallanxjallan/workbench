@@ -1,11 +1,8 @@
 ---
-slug:
-type: content
-status: new
-project:
+slug: __SLUG__
+class: image
 stage:
 locked: false
-
 image:
   source:
   show: false
@@ -16,10 +13,9 @@ image:
   technical:
     filesize:
     dimensions:
-
 autoscribe:
-  last_batch: null
-  last_step: null
+  last_batch:
+  last_step:
   revision: 0
   updated: <% tp.date.now("YYYY-MM-DD") %>
 ---

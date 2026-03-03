@@ -26,9 +26,9 @@ module.exports = async function toggleImageVisibility(params = {}) {
 
   const fileCache = app.metadataCache.getFileCache(activeFile) || {};
   const frontmatter = normalizeFrontmatter(fileCache.frontmatter);
-  const type = String(frontmatter.type || "").trim().toLowerCase();
-  if (type !== "image") {
-    return fail("Active file is not type: image.");
+  const noteClass = String(frontmatter.class || frontmatter.type || "").trim().toLowerCase();
+  if (noteClass !== "image") {
+    return fail("Active file is not class: image.");
   }
 
   const raw = await app.vault.read(activeFile);

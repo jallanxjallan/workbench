@@ -1,8 +1,7 @@
 ---
 slug: __SLUG__
-type: content
-status: new
-stage:
+class: passage
+stage: draft
 locked: false
 autoscribe:
   last_batch:

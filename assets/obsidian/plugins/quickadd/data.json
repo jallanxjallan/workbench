@@ -61,6 +61,26 @@
       }
     },
     {
+      "id": "13d2b57a-9df2-440c-a37c-c5ebc53b8c72",
+      "name": "generate_slug",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "generate_slug",
+        "id": "b3d3e4be-4829-4fbf-a45f-7fd0c66d084f",
+        "commands": [
+          {
+            "name": "generate_slug",
+            "type": "UserScript",
+            "id": "7e37e57c-a3c1-4fe8-8925-6e01c3f50874",
+            "path": "_common/scripts/generate_slug.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
       "id": "a3f7f72f-5f31-4daa-9f42-8dfdb3fdd5d8",
       "name": "Toggle Image Visibility",
       "type": "Macro",
