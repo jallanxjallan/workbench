@@ -1,5 +1,5 @@
 ---
-type: topic
+class: topic
 status: new
 tags:
   - 

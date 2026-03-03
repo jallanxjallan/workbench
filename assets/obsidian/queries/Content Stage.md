@@ -14,7 +14,7 @@
       return {
         path: file.path,
         title: String(page.title || file.basename || file.name || file.path),
-        type: normalizeValue(page.type),
+        class: normalizeValue(page.class),
         stage: normalizeValue(page.stage),
       };
     })
@@ -25,11 +25,11 @@
     return;
   }
 
-  const typeValues = uniqueSorted(rows.map((row) => row.type).filter(Boolean));
+  const classValues = uniqueSorted(rows.map((row) => row.class).filter(Boolean));
   const stageValues = uniqueSorted(rows.map((row) => row.stage).filter(Boolean));
 
-  if (typeValues.length === 0) {
-    container.createDiv({ text: "No 'type' values found in content/ frontmatter." });
+  if (classValues.length === 0) {
+    container.createDiv({ text: "No 'class' values found in content/ frontmatter." });
     return;
   }
   if (stageValues.length === 0) {
@@ -37,8 +37,8 @@
     return;
   }
 
-  const selectedTypes = new Set();
-  const selectedStages = new Set();
+  const selectedClasses = new Set();
+  const selectedStages  = new Set();
 
   const title = container.createEl("h2", { text: "Content Stage" });
   Object.assign(title.style, { margin: "0 0 0.5rem 0" });
@@ -53,9 +53,9 @@
 
   renderFacetSection({
     parent: controls,
-    label: "Type",
-    values: typeValues,
-    selected: selectedTypes,
+    label: "Class",
+    values: classValues,
+    selected: selectedClasses,
     onChange: renderResults,
   });
 
@@ -82,17 +82,17 @@
   function renderResults() {
     list.empty();
 
-    const selectedTypeValues = typeValues.filter((value) => selectedTypes.has(value));
+    const selectedClassValues = classValues.filter((value) => selectedClasses.has(value));
     const selectedStageValues = stageValues.filter((value) => selectedStages.has(value));
 
-    if (selectedTypeValues.length === 0 || selectedStageValues.length === 0) {
-      summary.setText("Select one or more values in both Type and Stage.");
+    if (selectedClassValues.length === 0 || selectedStageValues.length === 0) {
+      summary.setText("Select one or more values in both Class and Stage.");
       return;
     }
 
     const matches = rows.filter(
       (row) =>
-        selectedTypes.has(row.type) &&
+        selectedClasses.has(row.class) &&
         selectedStages.has(row.stage),
     );
 
@@ -161,7 +161,10 @@ function renderFacetSection({ parent, label, values, selected, onChange }) {
       gap: "0.3rem",
     });
 
-    const checkbox = optionLabel.createEl("input", { type: "checkbox" });
+    const checkbox = optionLabel.createEl("input", {
+      type: "checkbox",
+      class: "checkbox",
+    });
     checkbox.setAttr("data-value", value);
     checkbox.checked = selected.has(value);
     checkbox.addEventListener("change", () => {
