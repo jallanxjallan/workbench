@@ -4,6 +4,7 @@
 | Path | Purpose |
 |------|----------|
 | `_common/` | Holds all shared operational assets (symlinked into each vault) |
+| `_vault_registry.yaml` | Editable vault metadata (mnemonic, label, and vault identity) |
 | `_common/templates/` | Templater templates for new notes (**Ctrl+Alt+M/P/I/T**) |
 | `_common/queries/` | DataviewJS query notes (open via QuickAdd picker) |
 | `_common/scripts/` | QuickAdd and helper scripts, run manually via **Ctrl+P** |

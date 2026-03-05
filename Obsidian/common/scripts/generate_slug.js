@@ -172,15 +172,21 @@ function resolveVaultNamespace(app) {
     "";
   if (!basePath) return "";
 
-  const registryPath = path.join(basePath, "_vault_registry.json");
-  if (!fs.existsSync(registryPath)) return "";
+  const registryCandidates = [
+    path.join(basePath, "_vault_registry.yaml"),
+    path.join(basePath, "_vault_registry.json"),
+  ];
 
-  try {
-    const parsed = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
-    return normalizeValue(parsed && parsed.mnemonic);
-  } catch (_) {
-    return "";
+  for (const registryPath of registryCandidates) {
+    if (!fs.existsSync(registryPath)) continue;
+    try {
+      const parsed = parseVaultRegistry(fs.readFileSync(registryPath, "utf-8"));
+      return normalizeValue(parsed && parsed.mnemonic);
+    } catch (_) {
+      continue;
+    }
   }
+  return "";
 }
 
 function deriveSlugArgs(app, absolutePath, vaultNamespace) {
@@ -285,6 +291,76 @@ function parseCountValue(value) {
 
 function normalizeValue(value) {
   return String(value == null ? "" : value).trim().toLowerCase();
+}
+
+function parseVaultRegistry(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return {};
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (_) {
+    // Fall back to simple YAML mapping parsing.
+  }
+
+  return parseSimpleYamlMap(text);
+}
+
+function parseSimpleYamlMap(text) {
+  const out = {};
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const trimmed = String(line || "").trim();
+    if (!trimmed || trimmed === "---" || trimmed === "...") continue;
+    if (trimmed.startsWith("#")) continue;
+    if (/^\s/.test(String(line || ""))) continue;
+
+    const sep = trimmed.indexOf(":");
+    if (sep <= 0) continue;
+
+    const key = trimmed.slice(0, sep).trim();
+    const rawValue = trimmed.slice(sep + 1).trim();
+    if (!key) continue;
+    out[key] = parseYamlScalar(rawValue);
+  }
+  return out;
+}
+
+function parseYamlScalar(text) {
+  const value = String(text || "").trim();
+  if (!value) return "";
+  if (value === "null" || value === "~") return null;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (/^-?\d+$/.test(value)) return Number.parseInt(value, 10);
+  if (/^-?\d+\.\d+$/.test(value)) return Number.parseFloat(value);
+
+  if (value.startsWith("{") || value.startsWith("[")) {
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return value;
+    }
+  }
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    const unquoted = value.slice(1, -1);
+    if (value.startsWith('"')) {
+      try {
+        return JSON.parse(value);
+      } catch (_) {
+        return unquoted;
+      }
+    }
+    return unquoted.replace(/\\'/g, "'");
+  }
+
+  return value;
 }
 
 function firstNonEmpty(...values) {

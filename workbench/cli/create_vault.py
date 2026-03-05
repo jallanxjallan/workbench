@@ -12,7 +12,10 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
+
+import yaml
 
 from workbench.lib.paths import normalize_vault_name
 from workbench.write.common import atomic_write_text
@@ -79,9 +82,9 @@ Thumbs.db
 """
 
 STUDIO_ROOT = Path.home().resolve() / "Studio"
-WORKBENCH_ROOT = Path.home().resolve() / "Workbench"
-VAULT_TEMPLATE_ROOT = WORKBENCH_ROOT / "assets" / "vault_template"
-OBSIDIAN_COMMON_ROOT = WORKBENCH_ROOT / "assets" / "obsidian_common"
+OBSIDIAN_ROOT = STUDIO_ROOT / "Obsidian"
+VAULT_TEMPLATE_ROOT = OBSIDIAN_ROOT / "vault"
+OBSIDIAN_COMMON_ROOT = OBSIDIAN_ROOT / "common"
 DROPBOX_ASSET_ROOT = Path.home().resolve() / "Dropbox" / "Assets"
 OBSIDIAN_MANAGER_CANDIDATES = (
     Path.home().resolve() / ".config" / "obsidian" / "obsidian.json",
@@ -276,12 +279,36 @@ def _write_vault_registry(
     vault_name: str,
     mnemonic: str,
 ) -> None:
-    registry_path = vault_path / "_vault_registry.json"
+    registry_path = vault_path / "_vault_registry.yaml"
     payload: dict[str, object] = {
+        "vault": vault_path.name,
+        "created": date.today().isoformat(),
+        "path": str(vault_path),
+        "common_link": "_common",
         "label": _derive_label(vault_name),
         "mnemonic": mnemonic,
     }
-    atomic_write_text(registry_path, json.dumps(payload, separators=(",", ":")))
+    atomic_write_text(registry_path, yaml.safe_dump(payload, sort_keys=False))
+
+
+def load_registry(path: Path) -> dict[str, object]:
+    suffix = path.suffix.lower()
+    raw = path.read_text(encoding="utf-8").strip()
+    if raw == "":
+        return {}
+
+    if suffix in {".yaml", ".yml"}:
+        parsed = yaml.safe_load(raw)
+    elif suffix == ".json":
+        parsed = json.loads(raw)
+    else:
+        raise CreateVaultError(f"ERROR: Unsupported vault registry format: {path}")
+
+    if parsed is None:
+        return {}
+    if not isinstance(parsed, dict):
+        raise CreateVaultError(f"ERROR: Vault registry root must be a mapping: {path}")
+    return parsed
 
 
 def _resolve_obsidian_manager_path() -> Path:

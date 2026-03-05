@@ -24,6 +24,13 @@ Top-level commands:
 - `wkb slug <target_dir> <source_name>`
 - `wkb create-vault <VaultName> [--force] [--no-assets]`
 
+Obsidian scaffolding roots used by `create-vault`:
+
+- `~/Studio/Obsidian/vault` (template copied into each new vault)
+- `~/Studio/Obsidian/common` (symlinked as `_common`)
+- New vault registry file: `_vault_registry.yaml`
+- Migration helper: `bin/migrate_studio_obsidian_layout [<studio_root>]`
+
 Vault template command:
 
 - `wkb vault template apply --template <template_name> --files file1.md file2.md`

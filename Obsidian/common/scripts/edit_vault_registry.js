@@ -1,4 +1,4 @@
-// Obsidian macro: manually edit _vault_registry.json via prompts.
+// Obsidian macro: manually edit _vault_registry.yaml via prompts.
 // Exposed through QuickAdd so it appears in the command palette.
 
 module.exports = async function editVaultRegistry(params = {}) {
@@ -12,20 +12,23 @@ module.exports = async function editVaultRegistry(params = {}) {
     return fail("Obsidian app context not available.");
   }
 
-  const registryPath = "_vault_registry.json";
+  const registryPath = "_vault_registry.yaml";
+  const legacyRegistryPath = "_vault_registry.json";
   const vaultName = String(app.vault.getName?.() || "").trim() || "Vault";
   const defaultLabel = deriveLabel(vaultName);
   const defaultMnemonic = deriveMnemonic(vaultName);
 
   let existing = {};
-  const currentFile = app.vault.getAbstractFileByPath(registryPath);
+  const currentFile =
+    app.vault.getAbstractFileByPath(registryPath) ||
+    app.vault.getAbstractFileByPath(legacyRegistryPath);
   if (currentFile && typeof currentFile.path === "string") {
     try {
       const raw = await app.vault.cachedRead(currentFile);
-      const parsed = JSON.parse(String(raw || "{}"));
+      const parsed = parseVaultRegistry(raw);
       if (parsed && typeof parsed === "object") existing = parsed;
     } catch (_) {
-      // Ignore parse errors; user can overwrite with valid JSON through this macro.
+      // Ignore parse errors; user can overwrite with valid YAML through this macro.
     }
   }
 
@@ -76,12 +79,13 @@ module.exports = async function editVaultRegistry(params = {}) {
     payload[fieldName] = parseLooseValue(valueInput);
   }
 
-  const content = `${JSON.stringify(payload, null, 2)}\n`;
+  const content = `${serializeSimpleYamlMap(payload)}\n`;
+  const yamlFile = app.vault.getAbstractFileByPath(registryPath);
 
-  if (!currentFile) {
+  if (!yamlFile) {
     await app.vault.create(registryPath, content);
   } else {
-    await app.vault.modify(currentFile, content);
+    await app.vault.modify(yamlFile, content);
   }
 
   const opened = app.vault.getAbstractFileByPath(registryPath);
@@ -92,7 +96,7 @@ module.exports = async function editVaultRegistry(params = {}) {
     }
   }
 
-  notice("Updated _vault_registry.json.");
+  notice("Updated _vault_registry.yaml.");
 };
 
 async function promptValue({ qa, title, defaultValue, useDefaultOnBlank = true }) {
@@ -150,6 +154,108 @@ function parseLooseValue(input) {
     }
   }
 
+  return text;
+}
+
+function parseVaultRegistry(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return {};
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (_) {
+    // Fall back to simple YAML mapping parsing.
+  }
+
+  return parseSimpleYamlMap(text);
+}
+
+function parseSimpleYamlMap(text) {
+  const out = {};
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const trimmed = String(line || "").trim();
+    if (!trimmed || trimmed === "---" || trimmed === "...") continue;
+    if (trimmed.startsWith("#")) continue;
+    if (/^\s/.test(String(line || ""))) continue;
+
+    const sep = trimmed.indexOf(":");
+    if (sep <= 0) continue;
+
+    const key = trimmed.slice(0, sep).trim();
+    const rawValue = trimmed.slice(sep + 1).trim();
+    if (!key) continue;
+    out[key] = parseYamlScalar(rawValue);
+  }
+  return out;
+}
+
+function parseYamlScalar(text) {
+  const value = String(text || "").trim();
+  if (!value) return "";
+  if (value === "null" || value === "~") return null;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (/^-?\d+$/.test(value)) return Number.parseInt(value, 10);
+  if (/^-?\d+\.\d+$/.test(value)) return Number.parseFloat(value);
+
+  if (value.startsWith("{") || value.startsWith("[")) {
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return value;
+    }
+  }
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    const unquoted = value.slice(1, -1);
+    if (value.startsWith('"')) {
+      try {
+        return JSON.parse(value);
+      } catch (_) {
+        return unquoted;
+      }
+    }
+    return unquoted.replace(/\\'/g, "'");
+  }
+
+  return value;
+}
+
+function serializeSimpleYamlMap(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+
+  const lines = [];
+  for (const [key, raw] of Object.entries(value)) {
+    const yamlKey = /^[A-Za-z0-9_.-]+$/.test(key) ? key : JSON.stringify(key);
+    lines.push(`${yamlKey}: ${serializeYamlScalar(raw)}`);
+  }
+  return lines.join("\n");
+}
+
+function serializeYamlScalar(value) {
+  if (value == null) return "null";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "null";
+  if (typeof value === "object") return JSON.stringify(value);
+
+  const text = String(value);
+  if (text === "") return '""';
+  if (text.includes("\n")) return JSON.stringify(text);
+
+  if (
+    /[:#\[\]\{\},&*!|>'"%@`]/.test(text) ||
+    /^\s|\s$/.test(text) ||
+    /^(true|false|null|~)$/i.test(text) ||
+    /^-?\d+(\.\d+)?$/.test(text)
+  ) {
+    return JSON.stringify(text);
+  }
   return text;
 }
 

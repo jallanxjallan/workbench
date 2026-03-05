@@ -1,4 +1,4 @@
-# obsidian-common
+# common
 
 Shared Obsidian tooling intended to be symlinked into project vaults as `_common`.
 
@@ -19,5 +19,5 @@ Shared Obsidian tooling intended to be symlinked into project vaults as `_common
 
 ## Manual Setup
 - Create `_project` symlink to project-owned source material.
-- Create `_common` symlink to this `obsidian-common` directory.
+- Create `_common` symlink to `Studio/Obsidian/common`.
 - Keep both links relative where possible.
