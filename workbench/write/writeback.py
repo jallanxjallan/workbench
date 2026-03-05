@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import sys
 
 from workbench.interop.document import Document
@@ -12,13 +13,13 @@ from workbench.lib.sentinel import (
     read_batch_sentinel,
 )
 from workbench.write.common import (
+    WriteError,
     atomic_write_text,
     fetch_batch_records,
     normalize_batch_slug,
-    resolve_record_slug,
-    resolve_writeback_new_target_path,
+    resolve_origin_slug,
     resolve_writeback_target_path,
-    serialize_record,
+    validate_record_batch_slug,
 )
 
 
@@ -50,70 +51,54 @@ def write_back_batch(
     asc_bin: str,
     debug_routing: bool,
 ) -> None:
-    normalized_batch_slug = normalize_batch_slug(batch_slug)
-    records = fetch_batch_records(normalized_batch_slug, asc_bin=asc_bin)
+    requested_batch_slug = normalize_batch_slug(batch_slug)
 
-    for index, record in enumerate(records, start=1):
+    for index, record in enumerate(
+        fetch_batch_records(requested_batch_slug, asc_bin=asc_bin),
+        start=1,
+    ):
+        validate_record_batch_slug(
+            record=record,
+            requested_batch_slug=requested_batch_slug,
+            record_index=index,
+        )
+
         target_path = resolve_writeback_target_path(
             record=record,
             record_index=index,
         )
         if not target_path.exists():
-            raise FileNotFoundError(f"writeback: target does not exist: {target_path}")
+            raise WriteError(f"target does not exist: {target_path}")
         if target_path.is_dir():
-            raise IsADirectoryError(f"writeback: target is a directory: {target_path}")
+            raise WriteError(f"target path is a directory: {target_path}")
 
         existing_doc = Document.read_file(
             target_path,
             sentinel_pattern=BATCH_SENTINEL_PATTERN,
         )
-        file_slug = existing_doc.metadata.get("slug")
-        if not isinstance(file_slug, str) or not file_slug.strip():
-            raise RuntimeError(f"writeback: file missing frontmatter slug: {target_path}")
 
-        record_slug = resolve_record_slug(record, record_index=index)
-        if file_slug.strip() != record_slug:
-            raise RuntimeError(
-                f"writeback: file slug mismatch at {target_path}: "
-                f"file={file_slug!r} record={record_slug!r}"
-            )
+        origin_slug = resolve_origin_slug(record=record, record_index=index)
+        if origin_slug is not None:
+            file_slug = existing_doc.metadata.get("slug")
+            if not isinstance(file_slug, str) or not file_slug.strip():
+                raise WriteError("frontmatter slug does not match record origin.slug")
+            if file_slug.strip() != origin_slug:
+                raise WriteError("frontmatter slug does not match record origin.slug")
 
         sentinel_slug = read_batch_sentinel(target_path)
-        if sentinel_slug is None:
-            new_target = resolve_writeback_new_target_path(
-                record=record,
-                record_index=index,
-                existing_path=target_path,
-            )
-            if new_target.exists():
-                raise FileExistsError(
-                    f"writeback: reroute target already exists: {new_target}"
-                )
-            if debug_routing:
-                print(
-                    f"[writeback] record {index} missing sentinel, reroute -> {new_target}",
-                    file=sys.stderr,
-                )
-            atomic_write_text(
-                new_target,
-                serialize_record(record, batch_slug=normalized_batch_slug),
-            )
-            continue
+        if sentinel_slug != record.batch_slug:
+            raise WriteError("batch sentinel does not match record batch_slug")
 
-        if sentinel_slug != normalized_batch_slug:
-            raise RuntimeError(
-                f"writeback: batch mismatch at {target_path}: "
-                f"file={sentinel_slug!r} record={normalized_batch_slug!r}"
-            )
-
+        existing_doc.metadata["autoscribe"] = copy.deepcopy(record.envelope)
         existing_doc.content = record.content
+
         if debug_routing:
             print(f"[writeback] record {index} overwrite -> {target_path}", file=sys.stderr)
         atomic_write_text(
             target_path,
             insert_batch_sentinel(
                 existing_doc.write_text(),
-                normalized_batch_slug,
+                record.batch_slug,
             ),
         )
 
@@ -127,6 +112,9 @@ def main(argv: list[str] | None = None) -> int:
             debug_routing=args.debug_routing,
         )
         return 0
+    except WriteError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
     except Exception as exc:  # noqa: BLE001
-        print(f"writeback: {exc}", file=sys.stderr)
+        print(f"ERROR: {exc}", file=sys.stderr)
         return 1

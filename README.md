@@ -13,8 +13,8 @@ wkb
 Namespaces:
 
 - `wkb ingest`
-- `wkb emit`
 - `wkb vault`
+- `wkb slug`
 
 Top-level commands:
 
@@ -37,14 +37,12 @@ Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-lev
 External scripts must import from:
 
 ```python
-from workbench.interop import Document, to_ndjson, from_ndjson
+from workbench.interop import Document
 ```
 
 Available symbols:
 
 - `Document`
-- `to_ndjson`
-- `from_ndjson`
 
 The `framing` namespace is internal and may change without notice.
 
@@ -54,29 +52,36 @@ The `framing` namespace is internal and may change without notice.
 - NDJSON is required for multi-record streaming.
 - Multi-document markdown streams are not supported.
 
-## Emit vs Write Separation
+## Record Envelope Boundary
 
-Canonical composition:
+Workbench is an NDJSON consumer and Markdown writer.
 
-```bash
-wkb writenew <batch-slug>
-wkb writeback <batch-slug>
-asc emit <batch> | wkb emit export | wkb writestream
-```
+Workbench reads only these record envelope fields when writing files:
 
-`writeback` uses explicit absolute paths from `input_record["path"]`.
+- `content`
+- `origin.slug`
+- `origin.path` (optional in the envelope, required when a write target must be resolved)
+- `batch_slug`
 
-`writenew` requires an explicit absolute `target_dir` in each emitted record.
+All other record fields are treated as opaque and preserved under frontmatter `autoscribe`.
 
-Batch slugs are treated as opaque timestamp-based execution identifiers.
+Workbench is not responsible for:
+
+- schema definition
+- record interpretation
+- multimodal input handling
+- analysis orchestration
+
+Those responsibilities belong to AutoScribe workers.
+
+Batch slugs are treated as opaque execution identifiers.
 
 Layer responsibilities:
 
 | Layer | Responsibility |
 | --- | --- |
-| `asc emit` | Produce records |
-| `wkb emit` | Convert records -> markdown |
-| `wkb writenew` / `wkb writeback` | Fetch records, resolve explicit paths, persist files |
+| Providers / AutoScribe | Produce and transform NDJSON records |
+| `wkb writenew` / `wkb writeback` | Consume NDJSON records and persist markdown files |
 | `wkb writestream` | Pass markdown through unchanged |
 | `wkb create-vault` | Provision vault structure, initialize local git repo, install required plugins, optional Dropbox assets link, and register the vault in Obsidian manager |
 

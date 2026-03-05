@@ -63,23 +63,29 @@ REGISTRY: dict[str, NamespaceEntry] = {
             ),
         },
     ),
-    "emit": NamespaceEntry(
-        summary="Outward data-flow pipelines.",
-        commands={
-            "export": CommandEntry(
-                "workbench.emit.export", "Export namespace surface."
-            ),
-            "assemble": CommandEntry(
-                "workbench.emit.assemble", "Assembly namespace surface."
-            ),
-        },
-    ),
     "vault": NamespaceEntry(
         summary="Vault-focused operations.",
         commands={
             "template": CommandEntry(
                 "workbench.cli.vault_template",
                 "Apply templates to one or more vault markdown files.",
+            ),
+        },
+    ),
+    "slug": NamespaceEntry(
+        summary="Slug identity operations.",
+        commands={
+            "build": CommandEntry(
+                "workbench.cli.slug",
+                "Build slug from canonical parts.",
+            ),
+            "ensure": CommandEntry(
+                "workbench.cli.slug",
+                "Validate existing slugs or write missing slugs for markdown files.",
+            ),
+            "validate": CommandEntry(
+                "workbench.cli.slug",
+                "Validate slug integrity for all markdown files under a directory.",
             ),
         },
     ),

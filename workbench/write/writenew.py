@@ -6,11 +6,13 @@ import argparse
 import sys
 
 from workbench.write.common import (
+    WriteError,
     atomic_write_text,
     fetch_batch_records,
     normalize_batch_slug,
     resolve_writenew_target_path,
     serialize_record,
+    validate_record_batch_slug,
 )
 
 
@@ -42,22 +44,26 @@ def write_new_batch(
     asc_bin: str,
     debug_routing: bool,
 ) -> None:
-    normalized_batch_slug = normalize_batch_slug(batch_slug)
-    records = fetch_batch_records(normalized_batch_slug, asc_bin=asc_bin)
+    requested_batch_slug = normalize_batch_slug(batch_slug)
 
-    for index, record in enumerate(records, start=1):
+    for index, record in enumerate(
+        fetch_batch_records(requested_batch_slug, asc_bin=asc_bin),
+        start=1,
+    ):
+        validate_record_batch_slug(
+            record=record,
+            requested_batch_slug=requested_batch_slug,
+            record_index=index,
+        )
         target_path = resolve_writenew_target_path(
-            metadata=record.metadata,
+            record=record,
             record_index=index,
         )
         if target_path.exists():
-            raise FileExistsError(f"writenew: target already exists: {target_path}")
+            raise WriteError(f"target already exists: {target_path}")
         if debug_routing:
             print(f"[writenew] record {index} -> {target_path}", file=sys.stderr)
-        atomic_write_text(
-            target_path,
-            serialize_record(record, batch_slug=normalized_batch_slug),
-        )
+        atomic_write_text(target_path, serialize_record(record))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -69,6 +75,9 @@ def main(argv: list[str] | None = None) -> int:
             debug_routing=args.debug_routing,
         )
         return 0
+    except WriteError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
     except Exception as exc:  # noqa: BLE001
-        print(f"writenew: {exc}", file=sys.stderr)
+        print(f"ERROR: {exc}", file=sys.stderr)
         return 1
