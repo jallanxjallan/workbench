@@ -9,11 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from workbench.interop.document import Document
+from workbench.emit.record_to_document import record_to_document
+from workbench.lib.sentinel import insert_batch_sentinel
 from workbench.lib.ndjson import StreamError, parse_ndjson
 from workbench.lib.subprocess import CommandError, run_text
 
-_BATCH_SENTINEL_TEMPLATE = "--- ASC BATCH: {batch_slug} ---"
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 
 
@@ -152,10 +152,56 @@ def resolve_writeback_target_path(
     return target_path.resolve()
 
 
+def resolve_writeback_new_target_path(
+    *,
+    record: WriteRecord,
+    record_index: int,
+    existing_path: Path,
+) -> Path:
+    target_dir = _first_string(record.metadata, "target_dir")
+    if target_dir is not None:
+        directory = Path(target_dir).expanduser()
+        if not directory.is_absolute():
+            raise WriteError(
+                f"record {record_index} target_dir must be an absolute path: {target_dir!r}"
+            )
+        root = directory.resolve()
+    else:
+        root = existing_path.parent.resolve()
+
+    filename = _derive_filename(metadata=record.metadata, record_index=record_index)
+    candidate = root / filename
+    if candidate.resolve() == existing_path.resolve():
+        candidate = candidate.with_name(f"{candidate.stem}--new{candidate.suffix}")
+    return candidate
+
+
+def resolve_record_slug(record: WriteRecord, *, record_index: int) -> str:
+    if isinstance(record.input_record, dict):
+        raw = record.input_record.get("slug")
+        if isinstance(raw, str) and raw.strip():
+            return raw.strip()
+
+    fallback = record.metadata.get("slug")
+    if isinstance(fallback, str) and fallback.strip():
+        return fallback.strip()
+
+    raise WriteError(f"record {record_index} missing input_record['slug']")
+
+
 def serialize_record(record: WriteRecord, *, batch_slug: str) -> str:
-    document = Document(metadata=record.metadata, content=record.content)
-    sentinel = _BATCH_SENTINEL_TEMPLATE.format(batch_slug=normalize_batch_slug(batch_slug))
-    return f"{sentinel}\n{document.write_text()}"
+    metadata_source: dict[str, Any]
+    if isinstance(record.input_record, dict):
+        metadata_source = dict(record.input_record)
+    else:
+        metadata_source = dict(record.metadata)
+
+    payload: dict[str, Any] = {
+        "content": record.content,
+        "input_record": metadata_source,
+    }
+    document = record_to_document(payload)
+    return insert_batch_sentinel(document.write_text(), normalize_batch_slug(batch_slug))
 
 
 def _first_string(metadata: dict[str, Any], *keys: str) -> str | None:

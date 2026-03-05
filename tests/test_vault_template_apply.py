@@ -8,7 +8,7 @@ from workbench.cli.vault_template import (
     VaultTemplateError,
     apply_template_to_files,
 )
-from workbench.lib.frontmatter import parse_frontmatter
+from workbench.interop.document import Document
 
 
 def _write(path: Path, content: str) -> None:
@@ -50,19 +50,17 @@ def test_apply_template_merges_frontmatter_and_inserts_body_when_empty(
     assert result.processed_files == 2
     assert result.updated_files == 2
 
-    empty_parsed = parse_frontmatter(empty_target.read_text(encoding="utf-8"))
-    assert empty_parsed.error is None
-    assert empty_parsed.data == {"project": "hhp", "type": "chapter"}
-    assert empty_parsed.body.strip() == "# {{title}}"
+    empty_doc = Document.read_file(empty_target)
+    assert empty_doc.metadata == {"project": "hhp", "type": "chapter"}
+    assert empty_doc.content.strip() == "# {{title}}"
 
-    populated_parsed = parse_frontmatter(populated_target.read_text(encoding="utf-8"))
-    assert populated_parsed.error is None
-    assert populated_parsed.data == {
+    populated_doc = Document.read_file(populated_target)
+    assert populated_doc.metadata == {
         "project": "hhp",
         "existing_key": "keep-me",
         "type": "chapter",
     }
-    assert populated_parsed.body.strip() == "Existing body."
+    assert populated_doc.content.strip() == "Existing body."
 
 
 def test_apply_template_keeps_existing_values_when_template_differs(
@@ -85,14 +83,13 @@ def test_apply_template_keeps_existing_values_when_template_differs(
     assert result.processed_files == 1
     assert result.updated_files == 1
 
-    parsed = parse_frontmatter(target.read_text(encoding="utf-8"))
-    assert parsed.error is None
-    assert parsed.data == {
+    doc = Document.read_file(target)
+    assert doc.metadata == {
         "project": "different",
         "author": "alice",
         "type": "chapter",
     }
-    assert parsed.body.strip() == "Body stays."
+    assert doc.content.strip() == "Body stays."
 
 
 def test_apply_template_migrates_existing_slug_to_legacy_slug(tmp_path: Path) -> None:
@@ -116,16 +113,15 @@ def test_apply_template_migrates_existing_slug_to_legacy_slug(tmp_path: Path) ->
     assert result.processed_files == 1
     assert result.updated_files == 1
 
-    parsed = parse_frontmatter(target.read_text(encoding="utf-8"))
-    assert parsed.error is None
-    assert parsed.data == {
+    doc = Document.read_file(target)
+    assert doc.metadata == {
         "project": "hhp",
         "legacy_slug": "old-chapter-01",
         "slug": "chapter-01",
         "author": "alice",
         "status": "draft",
     }
-    assert parsed.body.strip() == "Body stays."
+    assert doc.content.strip() == "Body stays."
 
 
 def test_apply_template_rejects_template_outside_vault_templates(

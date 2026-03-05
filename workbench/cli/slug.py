@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from workbench.lib.frontmatter import parse_frontmatter
+from workbench.interop.document import Document
 from workbench.slug.builder import build_slug
 from workbench.slug.validator import validate_slug
 from workbench.slug.writer import ensure_slug
@@ -53,11 +53,11 @@ def _read_paths_from_stdin() -> list[str]:
 
 
 def _has_slug(path: Path) -> bool:
-    raw = path.read_text(encoding="utf-8")
-    parsed = parse_frontmatter(raw)
-    if parsed.error:
-        raise ValueError(f"failed to parse frontmatter: {parsed.error}")
-    return "slug" in dict(parsed.data or {})
+    try:
+        doc = Document.read_file(path)
+    except ValueError as exc:
+        raise ValueError(f"failed to parse markdown: {exc}") from exc
+    return "slug" in dict(doc.metadata or {})
 
 
 def build_slug_command(args: argparse.Namespace) -> int:
@@ -120,13 +120,13 @@ def _validate(args: argparse.Namespace) -> int:
     )
 
     for path in markdown_files:
-        raw = path.read_text(encoding="utf-8")
-        parsed = parse_frontmatter(raw)
-        if parsed.error:
-            errors.append(f"{path}: frontmatter parse failed: {parsed.error}")
+        try:
+            doc = Document.read_file(path)
+        except ValueError as exc:
+            errors.append(f"{path}: markdown parse failed: {exc}")
             continue
 
-        data = dict(parsed.data or {})
+        data = dict(doc.metadata or {})
         if "slug" not in data:
             errors.append(f"{path}: missing slug")
             continue

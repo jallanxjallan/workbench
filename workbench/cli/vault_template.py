@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from workbench.interop.document import Document
-from workbench.lib.frontmatter import parse_frontmatter
 from workbench.write.common import atomic_write_text
 
 MARKDOWN_SUFFIXES = (".md", ".markdown")
@@ -153,15 +152,17 @@ def _resolve_template_path(template_name: str, vault_root: Path) -> Path:
 
 
 def _load_template(path: Path) -> tuple[dict[str, object], str]:
-    raw = path.read_text(encoding="utf-8")
-    parsed = parse_frontmatter(raw)
-    if parsed.error:
-        raise VaultTemplateError(f"ERROR: Template parse failed ({path}): {parsed.error}")
-    if not parsed.has_frontmatter:
+    inspected = Document.inspect_file(path)
+    if inspected.error:
+        raise VaultTemplateError(
+            f"ERROR: Template parse failed ({path}): {inspected.error}"
+        )
+    if not inspected.has_frontmatter:
         raise VaultTemplateError(
             f"ERROR: Template is missing frontmatter block: {path}"
         )
-    return dict(parsed.data or {}), parsed.body
+    doc = Document.read_file(path)
+    return dict(doc.metadata or {}), doc.content
 
 
 def _render_markdown(frontmatter: dict[str, object], body: str) -> str:
@@ -204,18 +205,19 @@ def _build_change_plan(template_path: Path, targets: list[Path]) -> list[Planned
 
     for target in targets:
         original = target.read_text(encoding="utf-8")
-        parsed = parse_frontmatter(original)
-        if parsed.error:
-            raise VaultTemplateError(f"ERROR: File parse failed ({target}): {parsed.error}")
+        try:
+            current_doc = Document.read_text(original)
+        except ValueError as exc:
+            raise VaultTemplateError(f"ERROR: File parse failed ({target}): {exc}") from exc
 
-        current_frontmatter = dict(parsed.data or {})
+        current_frontmatter = dict(current_doc.metadata or {})
         merged_frontmatter = _merge_frontmatter(
             current=current_frontmatter,
             template=template_frontmatter,
             target_path=target,
         )
 
-        current_body = parsed.body
+        current_body = current_doc.content
         final_body = current_body if current_body.strip() else template_body
         updated = _render_markdown(merged_frontmatter, final_body)
         if updated == original:

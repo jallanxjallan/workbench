@@ -7,7 +7,7 @@ import re
 import sys
 from typing import Any
 
-from workbench.lib.frontmatter import parse_frontmatter
+from workbench.interop.document import Document
 from workbench.lib.ndjson import StreamError, emit_ndjson, parse_ndjson
 
 CONTENT_FIELD = "content"
@@ -41,14 +41,21 @@ def main(argv: list[str] | None = None) -> int:
             if not isinstance(content, str):
                 raise StreamError(f"missing string field: {CONTENT_FIELD}")
 
-            parsed = parse_frontmatter(content, sentinel_pattern=ASC_SENTINEL_PATTERN)
+            parsed = Document.inspect_text(
+                content,
+                sentinel_pattern=ASC_SENTINEL_PATTERN,
+            )
             if parsed.has_frontmatter and parsed.error:
                 print(f"inject_metadata: {parsed.error}", file=sys.stderr)
                 return 1
 
             input_record = _normalize_input_record(record.get(INPUT_RECORD_FIELD))
-            if parsed.has_frontmatter and parsed.data and FRONTMATTER_KEY in parsed.data:
-                input_record[TARGET_KEY] = parsed.data[FRONTMATTER_KEY]
+            if (
+                parsed.has_frontmatter
+                and parsed.metadata
+                and FRONTMATTER_KEY in parsed.metadata
+            ):
+                input_record[TARGET_KEY] = parsed.metadata[FRONTMATTER_KEY]
 
             record[INPUT_RECORD_FIELD] = input_record
             sys.stdout.write(emit_ndjson(record) + "\n")

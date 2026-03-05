@@ -4,7 +4,6 @@ from pathlib import Path
 import re
 import subprocess
 
-from workbench.lib.frontmatter import strip_bom
 from workbench.lib.ndjson import StreamError, parse_ndjson
 from workbench.lib.paths import PathError, ensure_within
 from workbench.lib.slug import is_valid_batch_slug
@@ -24,6 +23,10 @@ _RG_BATCH_SENTINEL_REGEX = (
 
 class SelectError(RuntimeError):
     pass
+
+
+def _strip_bom(text: str) -> str:
+    return text[1:] if text.startswith("\ufeff") else text
 
 
 def default_pattern() -> str:
@@ -267,7 +270,7 @@ def _matches_start_of_file(path: Path, pattern: re.Pattern[str]) -> bool:
     except UnicodeDecodeError:
         return False
 
-    text = strip_bom(text)
+    text = _strip_bom(text)
     return pattern.match(text) is not None
 
 
@@ -285,7 +288,7 @@ def extract_batch_slug(path: Path) -> str | None:
     except UnicodeDecodeError:
         return None
 
-    text = strip_bom(text)
+    text = _strip_bom(text)
     if text == "":
         return None
 

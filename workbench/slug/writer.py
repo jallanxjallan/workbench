@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from workbench.interop.document import Document
-from workbench.lib.frontmatter import parse_frontmatter
 from workbench.slug.builder import build_slug
 from workbench.slug.normalize import normalize_segment
 from workbench.slug.validator import validate_slug
@@ -26,14 +25,14 @@ def ensure_slug(filepath: Path, *, namespace: str | None = None) -> str:
     if path.suffix.lower() not in MARKDOWN_SUFFIXES:
         raise ValueError(f"target file is not markdown: {path}")
 
-    raw = path.read_text(encoding="utf-8")
-    parsed = parse_frontmatter(raw)
-    if parsed.error:
-        raise ValueError(f"failed to parse frontmatter: {parsed.error}")
-    if not parsed.has_frontmatter:
+    inspected = Document.inspect_file(path)
+    if inspected.error:
+        raise ValueError(f"failed to parse markdown: {inspected.error}")
+    if not inspected.has_frontmatter:
         raise ValueError("missing frontmatter block")
+    doc = Document.read_file(path)
 
-    metadata = dict(parsed.data or {})
+    metadata = dict(doc.metadata or {})
 
     if "slug" in metadata:
         existing = metadata["slug"]
@@ -73,8 +72,7 @@ def ensure_slug(filepath: Path, *, namespace: str | None = None) -> str:
         raise ValueError(f"slug collision detected: {slug}")
 
     metadata["slug"] = slug
-    updated = Document(content=parsed.body, metadata=metadata).write_text()
-    path.write_text(updated, encoding="utf-8")
+    Document(content=doc.content, metadata=metadata).write_file(path, overwrite=True)
     return slug
 
 
@@ -89,12 +87,12 @@ def _collect_sibling_slugs(filepath: Path) -> set[str]:
         if resolved == target:
             continue
 
-        raw = resolved.read_text(encoding="utf-8")
-        parsed = parse_frontmatter(raw)
-        if parsed.error:
-            raise ValueError(f"failed to parse sibling frontmatter: {resolved}")
+        try:
+            doc = Document.read_file(resolved)
+        except ValueError as exc:
+            raise ValueError(f"failed to parse sibling markdown: {resolved}: {exc}") from exc
 
-        data = dict(parsed.data or {})
+        data = dict(doc.metadata or {})
         value = data.get("slug")
         if not isinstance(value, str):
             continue

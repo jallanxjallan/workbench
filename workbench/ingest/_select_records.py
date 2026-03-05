@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import sys
 
-from workbench.lib.frontmatter import parse_frontmatter
+from workbench.interop.document import Document
 from workbench.lib.ndjson import StreamError, emit_ndjson, parse_ndjson
 from workbench.lib.paths import PathError, ensure_within
 
@@ -34,12 +34,12 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _extract_frontmatter(content: str) -> dict[str, object] | None:
-    parsed = parse_frontmatter(content, sentinel_pattern=_BATCH_SENTINEL_LINE_RE)
+    parsed = Document.inspect_text(content, sentinel_pattern=_BATCH_SENTINEL_LINE_RE)
     if not parsed.has_frontmatter:
         return None
     if parsed.error:
         return None
-    return parsed.data
+    return parsed.metadata
 
 
 def _resolve_path(*, base_dir: Path, raw_path: str) -> Path:
