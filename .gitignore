@@ -18,3 +18,8 @@ dev/experiments/tmp_artifacts/
 
 # Local Pandoc data-dir editing symlink (not owned by Workbench)
 pandoc-data
+
+# Noisy obsidian files
+vault_template/.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache

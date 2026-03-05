@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from workbench.config.roots import RootResolutionError, resolve_content_root
+from workbench.lib.paths import normalize_project_name
 
 PROJECT_SUBDIRECTORIES = ("manuscript", "assets", "notes", "instructions")
 MARKDOWN_SUFFIX = ".md"
@@ -27,7 +28,7 @@ class ImportProjectResult:
     mode: str
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="import-project",
         description="Import markdown/assets from a draft vault into a target vault project.",
@@ -57,18 +58,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Move files instead of copying (default is copy).",
     )
-    return parser.parse_args(argv)
-
-
-def _normalize_project_name(project_name: str) -> str:
-    normalized = project_name.strip()
-    if not normalized:
-        raise ImportProjectError("ERROR: Project name must be non-empty.")
-    if "/" in normalized or "\\" in normalized:
-        raise ImportProjectError(
-            "ERROR: Project name must not contain path separators."
-        )
-    return normalized
+    return parser
 
 
 def _resolve_draft_path(raw_path: str) -> Path:
@@ -201,7 +191,10 @@ def import_project(
         raise ImportProjectError(f"ERROR: Target vault does not exist: {vault_path}")
 
     resolved_draft = _resolve_draft_path(draft_path)
-    selected_project_name = _normalize_project_name(project_name or resolved_draft.name)
+    try:
+        selected_project_name = normalize_project_name(project_name or resolved_draft.name)
+    except ValueError as exc:
+        raise ImportProjectError(str(exc)) from exc
 
     project_path = _create_project_directory(
         vault_path=vault_path,
@@ -241,7 +234,8 @@ def import_project(
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
     try:
         result = import_project(
             vault_root=args.vault_root,

@@ -1,7 +1,7 @@
 ---
 slug: __SLUG__
 class: passage
-stage: draft
+stage: new
 state: active
 locked: false
 autoscribe:

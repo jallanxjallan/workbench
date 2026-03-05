@@ -14,12 +14,7 @@ __all__ = [
 
 
 def to_ndjson(docs: Iterable[Document]) -> str:
-    """
-    Serialize Document objects to compliant NDJSON.
-
-    Schema:
-        {"metadata": <object>, "content": <string>}
-    """
+    """Serialize Document objects to NDJSON."""
     lines = [
         emit_ndjson(
             {
@@ -33,9 +28,7 @@ def to_ndjson(docs: Iterable[Document]) -> str:
 
 
 def from_ndjson(text: str) -> List[Document]:
-    """
-    Parse compliant NDJSON into Document objects.
-    """
+    """Deserialize NDJSON records to Document objects."""
     documents: List[Document] = []
 
     for record_no, record in enumerate(parse_ndjson(io.StringIO(text)), start=1):

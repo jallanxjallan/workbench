@@ -60,7 +60,7 @@ def _has_slug(path: Path) -> bool:
     return "slug" in dict(parsed.data or {})
 
 
-def _build(args: argparse.Namespace) -> int:
+def build_slug_command(args: argparse.Namespace) -> int:
     try:
         slug = build_slug(
             namespace=args.namespace,
@@ -75,7 +75,7 @@ def _build(args: argparse.Namespace) -> int:
         return 1
 
 
-def _ensure(args: argparse.Namespace) -> int:
+def ensure_slug_command(args: argparse.Namespace) -> int:
     raw_paths = [str(path) for path in args.paths]
     if args.stdin:
         raw_paths.extend(_read_paths_from_stdin())
@@ -167,9 +167,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.action == "build":
-        return _build(args)
+        return build_slug_command(args)
     if args.action == "ensure":
-        return _ensure(args)
+        return ensure_slug_command(args)
     if args.action == "validate":
         return _validate(args)
 

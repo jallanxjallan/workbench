@@ -46,6 +46,7 @@ def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None
 
 
 def normalize_batch_slug(value: str) -> str:
+    """Normalize batch identifiers."""
     normalized = str(value).strip()
     if not normalized:
         raise WriteError("batch slug must be a non-empty string")

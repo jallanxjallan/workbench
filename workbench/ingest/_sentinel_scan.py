@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 
+from workbench.lib.frontmatter import strip_bom
 from workbench.lib.ndjson import StreamError, parse_ndjson
 from workbench.lib.paths import PathError, ensure_within
 from workbench.lib.slug import is_valid_batch_slug
@@ -35,7 +36,31 @@ def expand_paths(
     raw_paths: list[str],
     follow_symlinks: bool = False,
 ) -> list[Path]:
-    return _expand_paths(cwd=cwd, raw_paths=raw_paths, follow_symlinks=follow_symlinks)
+    """Resolve query paths into a sorted list of files under `cwd`."""
+    query = raw_paths if raw_paths else ["."]
+    all_files: set[Path] = set()
+
+    for raw in query:
+        candidate = Path(raw).expanduser()
+        path = candidate if candidate.is_absolute() else (cwd / candidate)
+        path = path.absolute()
+        try:
+            ensure_within(cwd, path, raw=raw)
+        except PathError as exc:
+            raise SelectError(f"path is outside project root: {raw}") from exc
+
+        if path.is_dir():
+            for child in _walk_files(path, follow_symlinks=follow_symlinks):
+                all_files.add(child)
+            continue
+
+        if path.is_file():
+            all_files.add(path)
+            continue
+
+        raise SelectError(f"path does not exist: {raw}")
+
+    return sorted(all_files)
 
 
 def scan_paths_for_pattern(
@@ -45,7 +70,7 @@ def scan_paths_for_pattern(
     pattern: re.Pattern[str],
     follow_symlinks: bool = False,
 ) -> list[str]:
-    paths = _expand_paths(
+    paths = expand_paths(
         cwd=cwd,
         raw_paths=raw_paths,
         follow_symlinks=follow_symlinks,
@@ -79,11 +104,7 @@ def scan_batch_sentinel_records(
     raw_paths: list[str],
     follow_symlinks: bool = False,
 ) -> list[dict[str, str]]:
-    """Discover eligible files using `rg`.
-
-    Batch slug parsing is intentionally ignored in output. Sentinel discovery is
-    used only for path selection in Workbench ingest flows.
-    """
+    """Scan filesystem paths for batch sentinel markers and return NDJSON ingest records."""
 
     query_paths = _normalize_query_paths(cwd=cwd, raw_paths=raw_paths)
     rows = _scan_with_rg(
@@ -115,7 +136,10 @@ def _normalize_query_paths(*, cwd: Path, raw_paths: list[str]) -> list[str]:
         candidate = Path(raw.strip()).expanduser()
         path = candidate if candidate.is_absolute() else (cwd / candidate)
         path = path.absolute()
-        _ensure_within(cwd=cwd, path=path, raw=raw)
+        try:
+            ensure_within(cwd, path, raw=raw)
+        except PathError as exc:
+            raise SelectError(f"path is outside project root: {raw}") from exc
 
         if not path.exists():
             raise SelectError(f"path does not exist: {raw}")
@@ -202,42 +226,6 @@ def _scan_with_rg(
     return rows
 
 
-def _expand_paths(
-    *,
-    cwd: Path,
-    raw_paths: list[str],
-    follow_symlinks: bool,
-) -> list[Path]:
-    query = raw_paths if raw_paths else ["."]
-    all_files: set[Path] = set()
-
-    for raw in query:
-        candidate = Path(raw).expanduser()
-        path = candidate if candidate.is_absolute() else (cwd / candidate)
-        path = path.absolute()
-        _ensure_within(cwd=cwd, path=path, raw=raw)
-
-        if path.is_dir():
-            for child in _walk_files(path, follow_symlinks=follow_symlinks):
-                all_files.add(child)
-            continue
-
-        if path.is_file():
-            all_files.add(path)
-            continue
-
-        raise SelectError(f"path does not exist: {raw}")
-
-    return sorted(all_files)
-
-
-def _ensure_within(*, cwd: Path, path: Path, raw: str) -> None:
-    try:
-        ensure_within(cwd, path, raw=raw)
-    except PathError as exc:
-        raise SelectError(f"path is outside project root: {raw}") from exc
-
-
 def _walk_files(root: Path, *, follow_symlinks: bool) -> list[Path]:
     files: list[Path] = []
     seen_dirs: set[tuple[int, int]] = set()
@@ -279,7 +267,7 @@ def _matches_start_of_file(path: Path, pattern: re.Pattern[str]) -> bool:
     except UnicodeDecodeError:
         return False
 
-    text = _strip_bom_prefix(text)
+    text = strip_bom(text)
     return pattern.match(text) is not None
 
 
@@ -297,7 +285,7 @@ def extract_batch_slug(path: Path) -> str | None:
     except UnicodeDecodeError:
         return None
 
-    text = _strip_bom_prefix(text)
+    text = strip_bom(text)
     if text == "":
         return None
 
@@ -313,12 +301,6 @@ def extract_batch_slug_from_first_line(first_line: str) -> str | None:
     if not is_valid_batch_slug(slug):
         return None
     return slug
-
-
-def _strip_bom_prefix(text: str) -> str:
-    if text.startswith("\ufeff"):
-        return text[1:]
-    return text
 
 
 __all__ = [

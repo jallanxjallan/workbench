@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 import yaml
 
+from workbench.lib.frontmatter import strip_bom, to_json_value
 
 # ---------------------------------------------------------------------------
 # Utilities
@@ -79,7 +80,7 @@ class Document:
                 raise ValueError(f"Failed to parse metadata: {parsed.error}")
             self.metadata = parsed.metadata or {}
         elif isinstance(self.metadata, Mapping):
-            self.metadata = self.to_json_value(dict(self.metadata))
+            self.metadata = to_json_value(dict(self.metadata))
         else:
             raise ValueError("metadata must be a mapping object")
 
@@ -108,20 +109,6 @@ class Document:
         raise AttributeError(attr)
 
     # ------------------------------------------------------------------
-    # Normalization
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def to_json_value(value: Any) -> Any:
-        if value is None or isinstance(value, (str, int, float, bool)):
-            return value
-        if isinstance(value, Mapping):
-            return {str(k): Document.to_json_value(v) for k, v in value.items()}
-        if isinstance(value, (list, tuple)):
-            return [Document.to_json_value(v) for v in value]
-        return str(value)
-
-    # ------------------------------------------------------------------
     # YAML Parsing
     # ------------------------------------------------------------------
 
@@ -137,11 +124,7 @@ class Document:
         if not isinstance(parsed, dict):
             raise ValueError("frontmatter must be a mapping object")
 
-        return Document.to_json_value(parsed)
-
-    @staticmethod
-    def _strip_bom(text: str) -> str:
-        return text[1:] if text.startswith("\ufeff") else text
+        return to_json_value(parsed)
 
     @classmethod
     def inspect_text(
@@ -150,7 +133,7 @@ class Document:
         *,
         sentinel_pattern: re.Pattern[str] | None = None,
     ) -> DocumentParseResult:
-        normalized = cls._strip_bom(text)
+        normalized = strip_bom(text)
         lines = normalized.splitlines(keepends=True)
 
         if not lines:
@@ -235,8 +218,8 @@ class Document:
         if not isinstance(metadata, Mapping):
             raise ValueError("metadata must be a mapping object")
 
-        normalized_meta = cls.to_json_value(dict(metadata))
-        normalized_meta.update({k: cls.to_json_value(v) for k, v in kwargs.items()})
+        normalized_meta = to_json_value(dict(metadata))
+        normalized_meta.update({k: to_json_value(v) for k, v in kwargs.items()})
 
         return cls(content=content, metadata=normalized_meta, filepath=filepath)
 
@@ -289,11 +272,14 @@ class Document:
     # Introspection
     # ------------------------------------------------------------------
 
-    def words(self) -> int:
+    @property
+    def word_count(self) -> int:
         return len(re.findall(r"\b\w+\b", self.content))
 
-    def word_count(self) -> int:
-        return self.words()
+    @property
+    def words(self) -> int:
+        # Deprecated alias; use `word_count`.
+        return self.word_count
 
     def modified(self) -> int | None:
         if self.filepath and self.filepath.exists():

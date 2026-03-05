@@ -15,6 +15,7 @@ _MAX_SEMANTIC_BASE_LENGTH = 48
 
 
 def normalize_semantic_base(filename: str) -> str:
+    """Normalize a filename-derived semantic base for slug generation."""
     base_name = os.path.basename(str(filename))
     stem, _ = os.path.splitext(base_name)
     normalized = unicodedata.normalize("NFKD", stem)

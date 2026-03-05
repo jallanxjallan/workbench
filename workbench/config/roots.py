@@ -8,6 +8,10 @@ from pathlib import Path
 WORKBENCH_CONTENT_ROOT = "WORKBENCH_CONTENT_ROOT"
 WORKBENCH_CONFIG_DIR = "WORKBENCH_CONFIG_DIR"
 WORKBENCH_CACHE_DIR = "WORKBENCH_CACHE_DIR"
+WORKBENCH_ROOT = Path(__file__).resolve().parents[2]
+ASSETS_ROOT = WORKBENCH_ROOT / "assets"
+VAULT_TEMPLATE_ROOT = ASSETS_ROOT / "vault_template"
+OBSIDIAN_COMMON_ROOT = ASSETS_ROOT / "obsidian_common"
 
 
 class RootResolutionError(RuntimeError):

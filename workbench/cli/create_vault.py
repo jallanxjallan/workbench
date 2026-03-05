@@ -10,16 +10,16 @@ import secrets
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from workbench.lib.paths import normalize_vault_name
+from workbench.write.common import atomic_write_text
+
 SUCCESS_MESSAGE = "create-vault: completed"
 FAILURE_MESSAGE = "create-vault: failed"
-REQUIRED_PLUGINS = ("quickadd", "dataview", "templater", "obsidian-git")
-REQUIRED_TEMPLATE_FILES = ("community-plugins.json", "core-plugins.json")
-OPTIONAL_TEMPLATE_FILES = ("app.json",)
+REQUIRED_PLUGINS = ("dataview", "obsidian-git", "quickadd", "templater", "wkb-project")
 GITIGNORE_TEMPLATE = """# ============================
 # Default: Ignore Everything
 # ============================
@@ -80,13 +80,9 @@ Thumbs.db
 
 STUDIO_ROOT = Path.home().resolve() / "Studio"
 WORKBENCH_ROOT = Path.home().resolve() / "Workbench"
-CANONICAL_COMMON_ROOT = WORKBENCH_ROOT / "assets" / "obsidian"
-COMMON_INDEX_ROOT = CANONICAL_COMMON_ROOT / "index"
-HOTKEYS_SOURCE = COMMON_INDEX_ROOT / "hotkeys.json"
-APPEARANCE_SOURCE = COMMON_INDEX_ROOT / "appearance.json"
+VAULT_TEMPLATE_ROOT = WORKBENCH_ROOT / "assets" / "vault_template"
+OBSIDIAN_COMMON_ROOT = WORKBENCH_ROOT / "assets" / "obsidian_common"
 DROPBOX_ASSET_ROOT = Path.home().resolve() / "Dropbox" / "Assets"
-PLUGIN_DISTRIBUTION_ROOT = WORKBENCH_ROOT / "assets" / "plugins"
-OBSIDIAN_TEMPLATE_ROOT = WORKBENCH_ROOT / "assets" / "obsidian-template"
 OBSIDIAN_MANAGER_CANDIDATES = (
     Path.home().resolve() / ".config" / "obsidian" / "obsidian.json",
     Path.home().resolve() / ".config" / "Obsidian" / "obsidian.json",
@@ -108,7 +104,7 @@ class CreateVaultResult:
     installed_plugins: int
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="create-vault",
         description="Create a deterministic vault provision under ~/Studio.",
@@ -124,16 +120,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip Dropbox asset directory + assets symlink provisioning.",
     )
-    return parser.parse_args(argv)
-
-
-def _normalize_vault_name(vault_name: str) -> str:
-    normalized = vault_name.strip()
-    if not normalized:
-        raise CreateVaultError("ERROR: Vault name must be non-empty.")
-    if "/" in normalized or "\\" in normalized:
-        raise CreateVaultError("ERROR: Vault name must not contain '/'.")
-    return normalized
+    return parser
 
 
 def _derive_mnemonic(vault_name: str) -> str:
@@ -190,7 +177,7 @@ def _derive_label(vault_name: str) -> str:
 
 
 def _resolve_vault_path(vault_name: str) -> Path:
-    normalized = _normalize_vault_name(vault_name)
+    normalized = normalize_vault_name(vault_name)
     return (STUDIO_ROOT / normalized).resolve()
 
 
@@ -199,59 +186,23 @@ def _validate_required_directory(path: Path) -> None:
         raise CreateVaultError(f"ERROR: Required directory is missing: {path}")
 
 
-def _validate_required_file(path: Path) -> None:
-    if not path.exists() or not path.is_file():
-        raise CreateVaultError(f"ERROR: Required file is missing: {path}")
-
-
 def _validate_preconditions(*, no_assets: bool) -> None:
     _validate_required_directory(STUDIO_ROOT)
-    _validate_required_directory(CANONICAL_COMMON_ROOT)
-    _validate_required_directory(PLUGIN_DISTRIBUTION_ROOT)
-    _validate_required_directory(OBSIDIAN_TEMPLATE_ROOT)
-
-    for plugin_name in REQUIRED_PLUGINS:
-        _validate_required_directory(PLUGIN_DISTRIBUTION_ROOT / plugin_name)
-
-    for config_name in REQUIRED_TEMPLATE_FILES:
-        _validate_required_file(OBSIDIAN_TEMPLATE_ROOT / config_name)
-
-    _validate_required_file(HOTKEYS_SOURCE)
-    _validate_required_file(APPEARANCE_SOURCE)
+    _validate_required_directory(VAULT_TEMPLATE_ROOT)
+    _validate_required_directory(OBSIDIAN_COMMON_ROOT)
+    _validate_required_directory(VAULT_TEMPLATE_ROOT / ".obsidian" / "plugins")
 
     if not no_assets:
         _validate_required_directory(DROPBOX_ASSET_ROOT)
 
 
-def _copy_required_plugins(destination_plugins_root: Path) -> None:
-    for plugin_name in REQUIRED_PLUGINS:
-        source = PLUGIN_DISTRIBUTION_ROOT / plugin_name
-        destination = destination_plugins_root / plugin_name
-        shutil.copytree(source, destination, dirs_exist_ok=False)
-
-
-def _copy_obsidian_template(obsidian_dir: Path) -> None:
-    for filename in REQUIRED_TEMPLATE_FILES:
-        source = OBSIDIAN_TEMPLATE_ROOT / filename
-        destination = obsidian_dir / filename
-        shutil.copy2(source, destination)
-
-    for filename in OPTIONAL_TEMPLATE_FILES:
-        source = OBSIDIAN_TEMPLATE_ROOT / filename
-        if source.exists() and source.is_file():
-            destination = obsidian_dir / filename
-            shutil.copy2(source, destination)
-
-
-def _link_behavioral_config(obsidian_dir: Path) -> None:
-    for filename in ("hotkeys.json", "appearance.json"):
-        link_path = obsidian_dir / filename
-        link_path.symlink_to(Path("..") / "_common" / "index" / filename)
+def _copy_vault_template(vault_path: Path) -> None:
+    shutil.copytree(VAULT_TEMPLATE_ROOT, vault_path, dirs_exist_ok=True)
 
 
 def _link_common_directory(vault_path: Path) -> None:
-    relative_target = os.path.relpath(CANONICAL_COMMON_ROOT, start=vault_path)
-    (vault_path / "_common").symlink_to(Path(relative_target), target_is_directory=True)
+    common_target = vault_path / "_common"
+    common_target.symlink_to(OBSIDIAN_COMMON_ROOT.resolve(), target_is_directory=True)
 
 
 def _provision_assets(
@@ -330,17 +281,7 @@ def _write_vault_registry(
         "label": _derive_label(vault_name),
         "mnemonic": mnemonic,
     }
-    _write_json_atomic(registry_path, payload)
-
-
-def _provision_obsidian(vault_path: Path) -> None:
-    obsidian_dir = vault_path / ".obsidian"
-    plugins_dir = obsidian_dir / "plugins"
-    plugins_dir.mkdir(parents=True, exist_ok=False)
-
-    _copy_required_plugins(plugins_dir)
-    _copy_obsidian_template(obsidian_dir)
-    _link_behavioral_config(obsidian_dir)
+    atomic_write_text(registry_path, json.dumps(payload, separators=(",", ":")))
 
 
 def _resolve_obsidian_manager_path() -> Path:
@@ -383,19 +324,6 @@ def _next_vault_manager_id(existing: set[str]) -> str:
     raise CreateVaultError("ERROR: Failed to allocate Obsidian vault manager id.")
 
 
-def _write_json_atomic(path: Path, payload: dict[str, object]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_raw = tempfile.mkstemp(prefix=".obsidian-manager.", dir=str(path.parent))
-    tmp_path = Path(tmp_raw)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, separators=(",", ":"))
-        os.replace(tmp_path, path)
-    except Exception:
-        tmp_path.unlink(missing_ok=True)
-        raise
-
-
 def _register_vault_in_obsidian_manager(vault_path: Path) -> None:
     manager_path = _resolve_obsidian_manager_path()
     data = _load_obsidian_manager(manager_path)
@@ -436,7 +364,7 @@ def _register_vault_in_obsidian_manager(vault_path: Path) -> None:
         vaults[target_id] = updated
 
     data["vaults"] = vaults
-    _write_json_atomic(manager_path, data)
+    atomic_write_text(manager_path, json.dumps(data, separators=(",", ":")))
 
 
 def create_vault(
@@ -445,7 +373,10 @@ def create_vault(
     force: bool = False,
     no_assets: bool = False,
 ) -> CreateVaultResult:
-    normalized_name = _normalize_vault_name(vault_name)
+    try:
+        normalized_name = normalize_vault_name(vault_name)
+    except ValueError as exc:
+        raise CreateVaultError(str(exc)) from exc
     _validate_preconditions(no_assets=no_assets)
     vault_path = _resolve_vault_path(normalized_name)
     if vault_path.exists():
@@ -457,6 +388,7 @@ def create_vault(
 
     try:
         vault_path.mkdir(parents=False, exist_ok=False)
+        _copy_vault_template(vault_path)
         _link_common_directory(vault_path)
         _initialize_local_git_repo(vault_path)
         _write_gitignore(vault_path)
@@ -473,7 +405,6 @@ def create_vault(
                 force=force,
             )
 
-        _provision_obsidian(vault_path)
         _register_vault_in_obsidian_manager(vault_path)
     except Exception as exc:
         if vault_path.exists():
@@ -488,12 +419,19 @@ def create_vault(
         vault_path=vault_path,
         mnemonic=mnemonic,
         assets_path=assets_path,
-        installed_plugins=len(REQUIRED_PLUGINS),
+        installed_plugins=len(
+            [
+                entry
+                for entry in (vault_path / ".obsidian" / "plugins").iterdir()
+                if entry.is_dir()
+            ]
+        ),
     )
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
     try:
         result = create_vault(
             str(args.vault_name),

@@ -128,7 +128,7 @@ def test_apply_template_migrates_existing_slug_to_legacy_slug(tmp_path: Path) ->
     assert parsed.body.strip() == "Body stays."
 
 
-def test_apply_template_rejects_template_outside_common_templates(
+def test_apply_template_rejects_template_outside_vault_templates(
     tmp_path: Path,
 ) -> None:
     vault_root = _init_vault(tmp_path)

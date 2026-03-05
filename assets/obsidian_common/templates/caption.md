@@ -1,11 +1,11 @@
 ---
 slug: __SLUG__
-class: image
-stage:
+class: caption
+stage: new
 state: active
 locked: false
 image:
-  source:
+  image_link:
   show: false
   caption:
   photographer:

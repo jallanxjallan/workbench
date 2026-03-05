@@ -33,13 +33,6 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _ensure_within(*, root: Path, path: Path, raw: str) -> None:
-    try:
-        ensure_within(root, path, raw=raw)
-    except PathError as exc:
-        raise SelectRecordsError(f"path is outside base dir: {raw}") from exc
-
-
 def _extract_frontmatter(content: str) -> dict[str, object] | None:
     parsed = parse_frontmatter(content, sentinel_pattern=_BATCH_SENTINEL_LINE_RE)
     if not parsed.has_frontmatter:
@@ -53,7 +46,10 @@ def _resolve_path(*, base_dir: Path, raw_path: str) -> Path:
     candidate = Path(raw_path.strip()).expanduser()
     path = candidate if candidate.is_absolute() else (base_dir / candidate)
     path = path.resolve()
-    _ensure_within(root=base_dir, path=path, raw=raw_path)
+    try:
+        ensure_within(base_dir, path, raw=raw_path)
+    except PathError as exc:
+        raise SelectRecordsError(f"path is outside base dir: {raw_path}") from exc
     return path
 
 

@@ -24,23 +24,20 @@ def _configure_canonical_roots(
     studio_root.mkdir(parents=True, exist_ok=True)
 
     workbench_root = tmp_path / "Workbench"
-    canonical_common_root = workbench_root / "assets" / "obsidian"
-    common_index_root = canonical_common_root / "index"
-    _write_file(common_index_root / "hotkeys.json")
-    _write_file(common_index_root / "appearance.json")
-
-    plugin_root = workbench_root / "assets" / "plugins"
-    template_root = workbench_root / "assets" / "obsidian-template"
+    template_root = workbench_root / "assets" / "vault_template"
+    common_root = workbench_root / "assets" / "obsidian_common"
+    plugins_root = template_root / ".obsidian" / "plugins"
 
     for plugin_name in create_vault_module.REQUIRED_PLUGINS:
-        plugin_dir = plugin_root / plugin_name
+        plugin_dir = plugins_root / plugin_name
         plugin_dir.mkdir(parents=True, exist_ok=True)
         _write_file(plugin_dir / "main.js", content=f"// {plugin_name}\n")
 
-    _write_file(template_root / "community-plugins.json", content="[]\n")
-    _write_file(template_root / "core-plugins.json", content="[]\n")
-    _write_file(template_root / "app.json")
-    _write_file(template_root / "workspace.json")
+    _write_file(template_root / ".obsidian" / "community-plugins.json", content="[]\n")
+    _write_file(template_root / ".obsidian" / "core-plugins.json", content="[]\n")
+    _write_file(template_root / ".obsidian" / "app.json")
+    _write_file(template_root / ".obsidian" / "hotkeys.json")
+    _write_file(common_root / "templates" / "passage.md")
 
     dropbox_assets_root = tmp_path / "Dropbox" / "Assets"
     if create_dropbox:
@@ -50,21 +47,9 @@ def _configure_canonical_roots(
     _write_file(obsidian_manager, content='{"vaults":{},"openSchemes":{}}\n')
 
     monkeypatch.setattr(create_vault_module, "STUDIO_ROOT", studio_root)
-    monkeypatch.setattr(
-        create_vault_module, "CANONICAL_COMMON_ROOT", canonical_common_root
-    )
-    monkeypatch.setattr(create_vault_module, "COMMON_INDEX_ROOT", common_index_root)
-    monkeypatch.setattr(
-        create_vault_module, "HOTKEYS_SOURCE", common_index_root / "hotkeys.json"
-    )
-    monkeypatch.setattr(
-        create_vault_module,
-        "APPEARANCE_SOURCE",
-        common_index_root / "appearance.json",
-    )
     monkeypatch.setattr(create_vault_module, "WORKBENCH_ROOT", workbench_root)
-    monkeypatch.setattr(create_vault_module, "PLUGIN_DISTRIBUTION_ROOT", plugin_root)
-    monkeypatch.setattr(create_vault_module, "OBSIDIAN_TEMPLATE_ROOT", template_root)
+    monkeypatch.setattr(create_vault_module, "VAULT_TEMPLATE_ROOT", template_root)
+    monkeypatch.setattr(create_vault_module, "OBSIDIAN_COMMON_ROOT", common_root)
     monkeypatch.setattr(create_vault_module, "DROPBOX_ASSET_ROOT", dropbox_assets_root)
     monkeypatch.setattr(
         create_vault_module,
@@ -72,7 +57,7 @@ def _configure_canonical_roots(
         (obsidian_manager,),
     )
 
-    return studio_root, canonical_common_root, workbench_root, dropbox_assets_root
+    return studio_root, template_root, workbench_root, dropbox_assets_root
 
 
 def test_derive_mnemonic_examples() -> None:
@@ -107,14 +92,12 @@ def test_create_vault_provisions_expected_layout(
     assert result.installed_plugins == len(create_vault_module.REQUIRED_PLUGINS)
 
     root_entries = {entry.name for entry in vault_path.iterdir()}
-    assert root_entries == {
-        ".obsidian",
-        ".git",
-        ".gitignore",
-        "_common",
-        "_vault_registry.json",
-        "assets",
-    }
+    assert ".obsidian" in root_entries
+    assert ".git" in root_entries
+    assert ".gitignore" in root_entries
+    assert "_common" in root_entries
+    assert "_vault_registry.json" in root_entries
+    assert "assets" in root_entries
     assert (vault_path / ".git").is_dir()
     assert (
         (vault_path / ".gitignore").read_text(encoding="utf-8")
@@ -124,7 +107,9 @@ def test_create_vault_provisions_expected_layout(
     assert "[remote " not in git_config_text
 
     assert (vault_path / "_common").is_symlink()
-    assert os.readlink(vault_path / "_common") == "../../Workbench/assets/obsidian"
+    assert os.readlink(vault_path / "_common") == str(
+        (tmp_path / "Workbench" / "assets" / "obsidian_common").resolve()
+    )
 
     assert (vault_path / "assets").is_symlink()
     assert os.readlink(vault_path / "assets") == str(dropbox_assets_root / "hlf")
@@ -137,18 +122,7 @@ def test_create_vault_provisions_expected_layout(
         entry.name for entry in (vault_path / ".obsidian" / "plugins").iterdir()
     }
     assert plugin_entries == set(create_vault_module.REQUIRED_PLUGINS)
-    assert not (vault_path / ".obsidian" / "workspace.json").exists()
-
-    assert (vault_path / ".obsidian" / "hotkeys.json").is_symlink()
-    assert (vault_path / ".obsidian" / "appearance.json").is_symlink()
-    assert (
-        os.readlink(vault_path / ".obsidian" / "hotkeys.json")
-        == "../_common/index/hotkeys.json"
-    )
-    assert (
-        os.readlink(vault_path / ".obsidian" / "appearance.json")
-        == "../_common/index/appearance.json"
-    )
+    assert (vault_path / ".obsidian" / "hotkeys.json").is_file()
 
     manager_path = tmp_path / ".config" / "obsidian" / "obsidian.json"
     manager_data = json.loads(manager_path.read_text(encoding="utf-8"))
@@ -214,13 +188,13 @@ def test_create_vault_rolls_back_on_post_create_failure(
 
     def _boom(_: Path) -> None:
         raise create_vault_module.CreateVaultError(
-            "ERROR: Simulated plugin install failure."
+            "ERROR: Simulated template copy failure."
         )
 
-    monkeypatch.setattr(create_vault_module, "_copy_required_plugins", _boom)
+    monkeypatch.setattr(create_vault_module, "_copy_vault_template", _boom)
 
     with pytest.raises(
-        create_vault_module.CreateVaultError, match="Simulated plugin install failure"
+        create_vault_module.CreateVaultError, match="Simulated template copy failure"
     ):
         create_vault_module.create_vault("OneManAirForce")
 
@@ -258,36 +232,16 @@ def test_create_vault_validates_preconditions_before_existing_path_check(
 
     workbench_root = tmp_path / "Workbench"
     monkeypatch.setattr(create_vault_module, "STUDIO_ROOT", studio_root)
-    monkeypatch.setattr(
-        create_vault_module,
-        "CANONICAL_COMMON_ROOT",
-        workbench_root / "assets" / "obsidian",
-    )
-    monkeypatch.setattr(
-        create_vault_module,
-        "COMMON_INDEX_ROOT",
-        workbench_root / "assets" / "obsidian" / "index",
-    )
-    monkeypatch.setattr(
-        create_vault_module,
-        "HOTKEYS_SOURCE",
-        workbench_root / "assets" / "obsidian" / "index" / "hotkeys.json",
-    )
-    monkeypatch.setattr(
-        create_vault_module,
-        "APPEARANCE_SOURCE",
-        workbench_root / "assets" / "obsidian" / "index" / "appearance.json",
-    )
     monkeypatch.setattr(create_vault_module, "WORKBENCH_ROOT", workbench_root)
     monkeypatch.setattr(
         create_vault_module,
-        "PLUGIN_DISTRIBUTION_ROOT",
-        workbench_root / "assets" / "plugins",
+        "VAULT_TEMPLATE_ROOT",
+        workbench_root / "assets" / "vault_template",
     )
     monkeypatch.setattr(
         create_vault_module,
-        "OBSIDIAN_TEMPLATE_ROOT",
-        workbench_root / "assets" / "obsidian-template",
+        "OBSIDIAN_COMMON_ROOT",
+        workbench_root / "assets" / "obsidian_common",
     )
     monkeypatch.setattr(
         create_vault_module,

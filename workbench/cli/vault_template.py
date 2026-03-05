@@ -11,6 +11,7 @@ from pathlib import Path
 
 from workbench.interop.document import Document
 from workbench.lib.frontmatter import parse_frontmatter
+from workbench.write.common import atomic_write_text
 
 MARKDOWN_SUFFIXES = (".md", ".markdown")
 
@@ -34,7 +35,7 @@ class PlannedChange:
     updated_text: str
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vault template",
         description="Vault template operations.",
@@ -48,7 +49,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     apply_parser.add_argument(
         "--template",
         required=True,
-        help="Template name/path under <vault>/_common/templates (or absolute path).",
+        help="Template name/path under <vault>/_common/templates.",
     )
     apply_parser.add_argument(
         "--files",
@@ -57,7 +58,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Target markdown files.",
     )
 
-    return parser.parse_args(argv)
+    return parser
 
 
 def _resolve_existing_markdown_path(raw_path: str) -> Path:
@@ -91,12 +92,19 @@ def _resolve_target_files(raw_paths: list[str]) -> list[Path]:
 def _find_vault_root_for_file(path: Path) -> Path:
     for parent in [path.parent, *path.parents]:
         obsidian_dir = parent / ".obsidian"
-        common_dir = parent / "_common"
-        if obsidian_dir.is_dir() and common_dir.exists():
+        common_templates_dir = parent / "_common" / "templates"
+        if obsidian_dir.is_dir() and common_templates_dir.is_dir():
             return parent.resolve()
     raise VaultTemplateError(
         f"ERROR: Could not resolve vault root from file path: {path}"
     )
+
+
+def _resolve_templates_root(vault_root: Path) -> Path:
+    templates_root = (vault_root / "_common" / "templates").resolve()
+    if templates_root.exists() and templates_root.is_dir():
+        return templates_root
+    raise VaultTemplateError(f"ERROR: Template directory is missing: {templates_root}")
 
 
 def _resolve_template_path(template_name: str, vault_root: Path) -> Path:
@@ -104,11 +112,7 @@ def _resolve_template_path(template_name: str, vault_root: Path) -> Path:
     if not raw:
         raise VaultTemplateError("ERROR: Template name must be non-empty.")
 
-    templates_root = (vault_root / "_common" / "templates").resolve()
-    if not templates_root.exists() or not templates_root.is_dir():
-        raise VaultTemplateError(
-            f"ERROR: Template directory is missing: {templates_root}"
-        )
+    templates_root = _resolve_templates_root(vault_root)
 
     if raw.startswith("_common/templates/"):
         raw = raw[len("_common/templates/") :]
@@ -224,18 +228,6 @@ def _build_change_plan(template_path: Path, targets: list[Path]) -> list[Planned
     return planned
 
 
-def _write_text_atomic(path: Path, text: str) -> None:
-    fd, tmp_raw = tempfile.mkstemp(prefix=f".{path.name}.wkb.", dir=str(path.parent))
-    tmp_path = Path(tmp_raw)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(text)
-        os.replace(tmp_path, path)
-    except Exception:
-        tmp_path.unlink(missing_ok=True)
-        raise
-
-
 def _apply_changes_atomically(changes: list[PlannedChange]) -> None:
     if not changes:
         return
@@ -263,7 +255,7 @@ def _apply_changes_atomically(changes: list[PlannedChange]) -> None:
         rollback_errors: list[str] = []
         for change in reversed(applied):
             try:
-                _write_text_atomic(change.path, change.original_text)
+                atomic_write_text(change.path, change.original_text)
             except Exception as rollback_exc:  # noqa: BLE001
                 rollback_errors.append(f"{change.path}: {rollback_exc}")
 
@@ -305,7 +297,8 @@ def apply_template_to_files(
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
     if args.action != "apply":
         print(f"ERROR: Unsupported action: {args.action}", file=sys.stderr)
         return 2
