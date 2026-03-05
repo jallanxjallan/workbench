@@ -21,14 +21,14 @@ Top-level commands:
 - `wkb writenew <batch-slug>`
 - `wkb writeback <batch-slug>`
 - `wkb writestream`
-- `wkb slug <target_dir> <source_name>`
-- `wkb create-vault <VaultName> [--force] [--no-assets]`
+- `wkb slug <file> [--write]`
+- `wkb create-vault <vault-name-or-path>`
 
 Obsidian scaffolding roots used by `create-vault`:
 
-- `~/Studio/Obsidian/vault` (template copied into each new vault)
-- `~/Studio/Obsidian/common` (symlinked as `_common`)
-- New vault registry file: `_vault_registry.yaml`
+- `~/Studio/Obsidian/vault` (template source)
+- `~/Studio/Obsidian/common` (symlink target for `_common`)
+- Per-vault registry file: `_vault_registry` (single-record NDJSON)
 - Migration helper: `bin/migrate_studio_obsidian_layout [<studio_root>]`
 
 Vault template command:
@@ -36,6 +36,12 @@ Vault template command:
 - `wkb vault template apply --template <template_name> --files file1.md file2.md`
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
+
+`wkb slug` also keeps legacy compatibility with:
+
+- `wkb slug build ...`
+- `wkb slug ensure ...`
+- `wkb slug validate ...`
 
 ## Public Integration API
 
@@ -90,7 +96,7 @@ Layer responsibilities:
 | Providers / AutoScribe | Produce and transform NDJSON records |
 | `wkb writenew` / `wkb writeback` | Consume NDJSON records and persist markdown files |
 | `wkb writestream` | Pass markdown through unchanged |
-| `wkb create-vault` | Provision vault structure, initialize local git repo, install required plugins, optional Dropbox assets link, and register the vault in Obsidian manager |
+| `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry`, template install, and `_common` symlink |
 
 ## Pandoc Integration Policy
 

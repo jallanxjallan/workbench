@@ -30,11 +30,12 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "Pass markdown batch through unchanged to stdout.",
     ),
     "slug": CommandEntry(
-        "workbench.cli.slug", "Build, ensure, and validate deterministic slugs."
+        "workbench.cli.slug",
+        "Generate deterministic slugs for vault markdown files (supports legacy subcommands).",
     ),
     "create-vault": CommandEntry(
         "workbench.cli.create_vault",
-        "Provision a deterministic Obsidian vault under ~/Studio.",
+        "Create or initialize a vault with internal _vault_registry metadata.",
     ),
     "import-project": CommandEntry(
         "workbench.cli.import_project",

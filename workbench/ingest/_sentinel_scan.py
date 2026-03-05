@@ -6,7 +6,6 @@ import subprocess
 
 from workbench.lib.ndjson import StreamError, parse_ndjson
 from workbench.lib.paths import PathError, ensure_within
-from workbench.lib.slug import is_valid_batch_slug
 
 AUTO_GENERATED_SENTINEL = "<!-- AUTO_GENERATED -->"
 AUTO_GENERATED_SENTINEL_RE = re.compile(r"^\s*<!--\s*AUTO_GENERATED\s*-->\s*$")
@@ -19,6 +18,10 @@ _BATCH_SENTINEL_LINE_RE = re.compile(
 _RG_BATCH_SENTINEL_REGEX = (
     r"^\s*---\s*ASC\s+BATCH:\s*.+\s*---\s*$"
 )
+
+
+def is_valid_batch_slug(value: str) -> bool:
+    return isinstance(value, str) and bool(value.strip())
 
 
 class SelectError(RuntimeError):

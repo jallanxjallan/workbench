@@ -1,7 +1,6 @@
 """Workbench configuration helpers."""
 
 from workbench.config.roots import (
-    ASSETS_ROOT,
     OBSIDIAN_ROOT,
     OBSIDIAN_COMMON_ROOT,
     RootResolutionError,
@@ -12,7 +11,6 @@ from workbench.config.roots import (
 )
 
 __all__ = [
-    "ASSETS_ROOT",
     "OBSIDIAN_ROOT",
     "OBSIDIAN_COMMON_ROOT",
     "RootResolutionError",

@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import date
 from pathlib import Path
 
 import pytest
-import yaml
 
 import workbench.cli.create_vault as create_vault_module
 
@@ -16,268 +14,144 @@ def _write_file(path: Path, content: str = "{}\n") -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _configure_canonical_roots(
+def _configure_roots(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    *,
-    create_dropbox: bool = True,
-) -> tuple[Path, Path, Path, Path]:
+) -> tuple[Path, Path, Path]:
     studio_root = tmp_path / "Studio"
-    studio_root.mkdir(parents=True, exist_ok=True)
-
     obsidian_root = studio_root / "Obsidian"
     template_root = obsidian_root / "vault"
     common_root = obsidian_root / "common"
-    plugins_root = template_root / ".obsidian" / "plugins"
 
-    for plugin_name in create_vault_module.REQUIRED_PLUGINS:
-        plugin_dir = plugins_root / plugin_name
-        plugin_dir.mkdir(parents=True, exist_ok=True)
-        _write_file(plugin_dir / "main.js", content=f"// {plugin_name}\n")
-
-    _write_file(template_root / ".obsidian" / "community-plugins.json", content="[]\n")
-    _write_file(template_root / ".obsidian" / "core-plugins.json", content="[]\n")
-    _write_file(template_root / ".obsidian" / "app.json")
-    _write_file(template_root / ".obsidian" / "hotkeys.json")
-    _write_file(common_root / "templates" / "passage.md")
-
-    dropbox_assets_root = tmp_path / "Dropbox" / "Assets"
-    if create_dropbox:
-        dropbox_assets_root.mkdir(parents=True, exist_ok=True)
-
-    obsidian_manager = tmp_path / ".config" / "obsidian" / "obsidian.json"
-    _write_file(obsidian_manager, content='{"vaults":{},"openSchemes":{}}\n')
+    _write_file(template_root / ".obsidian" / "app.json", content="{}\n")
+    _write_file(template_root / ".obsidian" / "hotkeys.json", content="{}\n")
+    _write_file(common_root / "templates" / "passage.md", content="# passage\n")
 
     monkeypatch.setattr(create_vault_module, "STUDIO_ROOT", studio_root)
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_ROOT", obsidian_root)
     monkeypatch.setattr(create_vault_module, "VAULT_TEMPLATE_ROOT", template_root)
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_COMMON_ROOT", common_root)
-    monkeypatch.setattr(create_vault_module, "DROPBOX_ASSET_ROOT", dropbox_assets_root)
-    monkeypatch.setattr(
-        create_vault_module,
-        "OBSIDIAN_MANAGER_CANDIDATES",
-        (obsidian_manager,),
-    )
 
-    return studio_root, obsidian_root, template_root, dropbox_assets_root
+    return studio_root, template_root, common_root
 
 
-def test_derive_mnemonic_examples() -> None:
-    assert create_vault_module._derive_mnemonic("HPPLawFirm") == "hlf"
-    assert create_vault_module._derive_mnemonic("OneManAirForce") == "omaf"
-    assert create_vault_module._derive_mnemonic("BataviaTriptych") == "bt"
-    assert create_vault_module._derive_mnemonic("Memoir") == "mem"
-
-    with pytest.raises(create_vault_module.CreateVaultError, match="too short"):
-        create_vault_module._derive_mnemonic("A")
+def _read_registry(vault_path: Path) -> dict[str, object]:
+    raw = (vault_path / "_vault_registry").read_text(encoding="utf-8").strip()
+    assert raw
+    line = raw.splitlines()[0]
+    return json.loads(line)
 
 
-def test_derive_label_examples() -> None:
-    assert create_vault_module._derive_label("HHPLawFirm") == "HHP Law Firm"
-    assert create_vault_module._derive_label("OneManAirForce") == "One Man Air Force"
-    assert create_vault_module._derive_label("memoir") == "Memoir"
-
-
-def test_create_vault_provisions_expected_layout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_create_vault_new_path_creates_registry_template_and_common_link(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, dropbox_assets_root = _configure_canonical_roots(
-        tmp_path, monkeypatch
-    )
+    studio_root, _, common_root = _configure_roots(tmp_path, monkeypatch)
 
-    result = create_vault_module.create_vault("HPPLawFirm")
-    vault_path = studio_root / "HPPLawFirm"
+    result = create_vault_module.create_vault("omaf")
+    vault_path = studio_root / "omaf"
 
+    assert result.status == create_vault_module.STATUS_CREATED
     assert result.vault_path == vault_path
-    assert result.mnemonic == "hlf"
-    assert result.assets_path == dropbox_assets_root / "hlf"
-    assert result.installed_plugins == len(create_vault_module.REQUIRED_PLUGINS)
+    assert result.registry_created is True
 
-    root_entries = {entry.name for entry in vault_path.iterdir()}
-    assert ".obsidian" in root_entries
-    assert ".git" in root_entries
-    assert ".gitignore" in root_entries
-    assert "_common" in root_entries
-    assert "_vault_registry.yaml" in root_entries
-    assert "assets" in root_entries
-    assert (vault_path / ".git").is_dir()
-    assert (
-        (vault_path / ".gitignore").read_text(encoding="utf-8")
-        == create_vault_module.GITIGNORE_TEMPLATE
-    )
-    git_config_text = (vault_path / ".git" / "config").read_text(encoding="utf-8")
-    assert "[remote " not in git_config_text
-
+    assert (vault_path / "_vault_registry").is_file()
+    assert (vault_path / ".obsidian").is_dir()
     assert (vault_path / "_common").is_symlink()
-    assert os.readlink(vault_path / "_common") == str(
-        (tmp_path / "Studio" / "Obsidian" / "common").resolve()
+    assert os.readlink(vault_path / "_common") == os.path.relpath(
+        common_root.resolve(), start=vault_path.resolve()
     )
 
-    assert (vault_path / "assets").is_symlink()
-    assert os.readlink(vault_path / "assets") == str(dropbox_assets_root / "hlf")
-    vault_registry = yaml.safe_load(
-        (vault_path / "_vault_registry.yaml").read_text(encoding="utf-8")
-    )
-    assert vault_registry["vault"] == "HPPLawFirm"
-    assert vault_registry["created"] == date.today().isoformat()
-    assert vault_registry["path"] == str(vault_path)
-    assert vault_registry["common_link"] == "_common"
-    assert vault_registry["label"] == "HPP Law Firm"
-    assert vault_registry["mnemonic"] == "hlf"
-
-    plugin_entries = {
-        entry.name for entry in (vault_path / ".obsidian" / "plugins").iterdir()
-    }
-    assert plugin_entries == set(create_vault_module.REQUIRED_PLUGINS)
-    assert (vault_path / ".obsidian" / "hotkeys.json").is_file()
-
-    manager_path = tmp_path / ".config" / "obsidian" / "obsidian.json"
-    manager_data = json.loads(manager_path.read_text(encoding="utf-8"))
-    assert "vaults" in manager_data
-    vault_entries = list(manager_data["vaults"].values())
-    assert len(vault_entries) == 1
-    assert vault_entries[0]["path"] == str(vault_path)
-    assert isinstance(vault_entries[0]["ts"], int)
+    registry = _read_registry(vault_path)
+    assert set(registry.keys()) == {"vault_id", "created", "tool", "version"}
+    assert isinstance(registry["vault_id"], str)
+    assert len(registry["vault_id"]) == 26
+    assert registry["tool"] == "workbench"
+    assert registry["version"] == 1
+    assert str(registry["created"]).endswith("Z")
 
 
-def test_create_vault_no_assets_skips_dropbox_precondition(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_create_vault_existing_folder_preserves_existing_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, dropbox_assets_root = (
-        _configure_canonical_roots(
-            tmp_path,
-            monkeypatch,
-            create_dropbox=False,
-        )
-    )
+    _, _, _ = _configure_roots(tmp_path, monkeypatch)
 
-    result = create_vault_module.create_vault("Memoir", no_assets=True)
+    existing = tmp_path / "Studio" / "existing"
+    existing.mkdir(parents=True, exist_ok=True)
+    _write_file(existing / "file.md", content="existing\n")
 
-    assert result.mnemonic == "mem"
-    assert result.assets_path is None
-    assert not (studio_root / "Memoir" / "assets").exists()
-    assert dropbox_assets_root.exists() is False
+    result = create_vault_module.create_vault(str(existing))
+
+    assert result.status == create_vault_module.STATUS_INITIALIZED
+    assert (existing / "file.md").read_text(encoding="utf-8") == "existing\n"
+    assert (existing / "_vault_registry").is_file()
+    assert (existing / ".obsidian").is_dir()
+    assert (existing / "_common").is_symlink()
 
 
-def test_create_vault_updates_existing_obsidian_manager_entry(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_create_vault_existing_registry_is_idempotent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, _ = _configure_canonical_roots(tmp_path, monkeypatch)
-    manager_path = tmp_path / ".config" / "obsidian" / "obsidian.json"
-    existing = {
-        "vaults": {
-            "abc123": {
-                "path": str(studio_root / "HPPLawFirm"),
-                "ts": 1000,
-                "open": True,
-            }
-        },
-        "openSchemes": {"scenes": True},
-    }
-    manager_path.write_text(json.dumps(existing), encoding="utf-8")
+    _, _, _ = _configure_roots(tmp_path, monkeypatch)
 
-    create_vault_module.create_vault("HPPLawFirm")
+    existing = tmp_path / "Studio" / "existing"
+    existing.mkdir(parents=True, exist_ok=True)
+    _write_file(existing / "note.md", content="keep\n")
 
-    updated = json.loads(manager_path.read_text(encoding="utf-8"))
-    assert set(updated["vaults"].keys()) == {"abc123"}
-    assert updated["vaults"]["abc123"]["path"] == str(studio_root / "HPPLawFirm")
-    assert isinstance(updated["vaults"]["abc123"]["ts"], int)
-    assert updated["vaults"]["abc123"]["ts"] >= 1000
-    assert updated["vaults"]["abc123"]["open"] is True
+    first = create_vault_module.create_vault(str(existing))
+    first_registry = (existing / "_vault_registry").read_text(encoding="utf-8")
+
+    second = create_vault_module.create_vault(str(existing))
+    second_registry = (existing / "_vault_registry").read_text(encoding="utf-8")
+
+    assert first.status == create_vault_module.STATUS_INITIALIZED
+    assert second.status == create_vault_module.STATUS_ALREADY
+    assert first_registry == second_registry
+    assert (existing / "note.md").read_text(encoding="utf-8") == "keep\n"
 
 
-def test_create_vault_rolls_back_on_post_create_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_create_vault_fails_when_common_path_exists_and_is_not_symlink(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, dropbox_assets_root = _configure_canonical_roots(
-        tmp_path, monkeypatch
-    )
+    _, _, _ = _configure_roots(tmp_path, monkeypatch)
 
-    def _boom(_: Path) -> None:
-        raise create_vault_module.CreateVaultError(
-            "ERROR: Simulated template copy failure."
-        )
+    existing = tmp_path / "Studio" / "existing"
+    existing.mkdir(parents=True, exist_ok=True)
+    (existing / "_common").mkdir(parents=True, exist_ok=False)
 
-    monkeypatch.setattr(create_vault_module, "_copy_vault_template", _boom)
-
-    with pytest.raises(
-        create_vault_module.CreateVaultError, match="Simulated template copy failure"
-    ):
-        create_vault_module.create_vault("OneManAirForce")
-
-    assert not (studio_root / "OneManAirForce").exists()
-    assert not (dropbox_assets_root / "omaf").exists()
+    with pytest.raises(create_vault_module.CreateVaultError, match="Unsafe existing _common"):
+        create_vault_module.create_vault(str(existing))
 
 
-def test_create_vault_rolls_back_when_git_init_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_main_prints_status_messages(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    studio_root, _, _, dropbox_assets_root = _configure_canonical_roots(
-        tmp_path, monkeypatch
-    )
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
 
-    def _boom(_: Path) -> None:
-        raise create_vault_module.CreateVaultError("ERROR: Simulated git init failure.")
+    rc_created = create_vault_module.main(["omaf"])
+    created_output = capsys.readouterr().out
+    assert rc_created == 0
+    assert "Created new vault:" in created_output
+    assert "omaf" in created_output
 
-    monkeypatch.setattr(create_vault_module, "_initialize_local_git_repo", _boom)
+    existing = studio_root / "existing"
+    existing.mkdir(parents=True, exist_ok=True)
+    _write_file(existing / "file.md", "keep\n")
 
-    with pytest.raises(
-        create_vault_module.CreateVaultError, match="Simulated git init failure"
-    ):
-        create_vault_module.create_vault("OneManAirForce")
+    rc_init = create_vault_module.main([str(existing)])
+    init_output = capsys.readouterr().out
+    assert rc_init == 0
+    assert "Initialized existing folder as vault:" in init_output
+    assert "existing" in init_output
+    assert "Existing files preserved." in init_output
 
-    assert not (studio_root / "OneManAirForce").exists()
-    assert not (dropbox_assets_root / "omaf").exists()
-
-
-def test_create_vault_validates_preconditions_before_existing_path_check(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    studio_root = tmp_path / "Studio"
-    obsidian_root = studio_root / "Obsidian"
-    existing_vault = studio_root / "HPPLawFirm"
-    existing_vault.mkdir(parents=True, exist_ok=False)
-
-    monkeypatch.setattr(create_vault_module, "STUDIO_ROOT", studio_root)
-    monkeypatch.setattr(create_vault_module, "OBSIDIAN_ROOT", obsidian_root)
-    monkeypatch.setattr(
-        create_vault_module,
-        "VAULT_TEMPLATE_ROOT",
-        obsidian_root / "vault",
-    )
-    monkeypatch.setattr(
-        create_vault_module,
-        "OBSIDIAN_COMMON_ROOT",
-        obsidian_root / "common",
-    )
-    monkeypatch.setattr(
-        create_vault_module,
-        "DROPBOX_ASSET_ROOT",
-        tmp_path / "Dropbox" / "Assets",
-    )
-    monkeypatch.setattr(
-        create_vault_module,
-        "OBSIDIAN_MANAGER_CANDIDATES",
-        (tmp_path / ".config" / "obsidian" / "obsidian.json",),
-    )
-
-    with pytest.raises(
-        create_vault_module.CreateVaultError, match="Required directory is missing"
-    ):
-        create_vault_module.create_vault("HPPLawFirm")
-
-
-def test_main_prints_required_success_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _configure_canonical_roots(tmp_path, monkeypatch)
-
-    rc = create_vault_module.main(["HPPLawFirm"])
-    output = capsys.readouterr().out
-
-    assert rc == 0
-    assert "create-vault: completed" in output
-    assert "Vault created:" in output
-    assert "  Name: HPPLawFirm" in output
-    assert "  Mnemonic: hlf" in output
-    assert "  Assets: " in output
+    rc_already = create_vault_module.main([str(existing)])
+    already_output = capsys.readouterr().out
+    assert rc_already == 0
+    assert "Vault already initialized:" in already_output
+    assert "existing" in already_output

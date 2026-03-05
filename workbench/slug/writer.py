@@ -12,6 +12,35 @@ from workbench.slug.validator import validate_slug
 MARKDOWN_SUFFIXES = (".md", ".markdown")
 
 
+def write_slug(filepath: Path, slug: str, *, require_placeholder: bool = True) -> str:
+    path = Path(filepath).expanduser().resolve()
+    if not path.exists() or not path.is_file():
+        raise ValueError(f"target file does not exist: {path}")
+    if path.suffix.lower() not in MARKDOWN_SUFFIXES:
+        raise ValueError(f"target file is not markdown: {path}")
+    if not isinstance(slug, str) or not slug.strip():
+        raise ValueError("slug must be a non-empty string")
+
+    validate_slug(slug)
+
+    inspected = Document.inspect_file(path)
+    if inspected.error:
+        raise ValueError(f"failed to parse markdown: {inspected.error}")
+    if not inspected.has_frontmatter:
+        raise ValueError("missing frontmatter block")
+
+    doc = Document.read_file(path)
+    metadata = dict(doc.metadata or {})
+    existing = metadata.get("slug")
+    if require_placeholder:
+        if not isinstance(existing, str) or existing.strip() != "__SLUG__":
+            raise ValueError("slug sentinel '__SLUG__' not found")
+
+    metadata["slug"] = slug
+    Document(content=doc.content, metadata=metadata).write_file(path, overwrite=True)
+    return slug
+
+
 def ensure_slug(filepath: Path, *, namespace: str | None = None) -> str:
     """
     Ensure a file has a valid slug.
