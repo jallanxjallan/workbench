@@ -1,0 +1,44 @@
+{
+  "quickadd:choice:5c4b5b1a-89cb-47f2-83da-c78d3f9f5370": [
+    {
+      "modifiers": [
+        "Alt",
+        "Shift"
+      ],
+      "key": "Q"
+    }
+  ],
+  "quickadd:choice:1d3a9b06-9a39-4f0a-9ef7-4f01217b56cc": [
+    {
+      "modifiers": [
+        "Alt",
+        "Shift"
+      ],
+      "key": "T"
+    }
+  ],
+  "quickadd:choice:f2d729c1-6f49-4ba1-b53c-f5ed7f1851e8": [],
+  "quickadd:runQuickAdd": [],
+  "_common/scripts/dispatch_apply_template_to_files.js": [],
+  "create-_common/scripts/dispatch_apply_template_to_files.js": [],
+  "templater:create-new-note-from-template": [
+    {
+      "modifiers": [
+        "Alt",
+        "Shift"
+      ],
+      "key": "N"
+    }
+  ],
+  "templater:replace-in-file-templater": [],
+  "templater:insert-templater": [],
+  "workspace:toggle-pin": [
+    {
+      "modifiers": [
+        "Mod",
+        "Shift"
+      ],
+      "key": "P"
+    }
+  ]
+}

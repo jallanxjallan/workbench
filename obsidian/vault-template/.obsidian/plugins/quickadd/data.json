@@ -21,6 +21,26 @@
       }
     },
     {
+      "id": "1d3a9b06-9a39-4f0a-9ef7-4f01217b56cc",
+      "name": "Insert Content Template",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "Insert Content Template",
+        "id": "f0d0f3d5-c94e-4a27-82d3-7bf9f95f2cb5",
+        "commands": [
+          {
+            "name": "insert_content_template",
+            "type": "UserScript",
+            "id": "4f31d348-6a2e-4c2e-86c9-4766b7d40c6a",
+            "path": "_common/scripts/insert_content_template.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
       "id": "ef1a248d-6d77-4b72-88c2-f7cc5198bb36",
       "name": "Open Draft Status",
       "type": "Macro",
