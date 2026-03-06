@@ -1,4 +1,4 @@
-module.exports = async function openCommonQueryIndex(params = {}) {
+module.exports = async function listQueries(params = {}) {
   const app = params.app || globalThis.app;
   if (!app || !app.vault || !app.workspace) {
     return notice("Obsidian context not available.");

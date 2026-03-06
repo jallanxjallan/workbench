@@ -2,19 +2,19 @@
   "choices": [
     {
       "id": "5c4b5b1a-89cb-47f2-83da-c78d3f9f5370",
-      "name": "Open Common Query Index",
+      "name": "List Queries",
       "type": "Macro",
       "command": true,
       "runOnStartup": false,
       "macro": {
-        "name": "Open Common Query Index",
+        "name": "List Queries",
         "id": "f924a88b-f4a2-4c87-a9b1-6f80e1ad0c61",
         "commands": [
           {
-            "name": "open_common_query_index",
+            "name": "list_queries",
             "type": "UserScript",
             "id": "f8b5f928-dcb6-4d10-93bc-c6f8bf2f4b7c",
-            "path": "_common/scripts/open_common_query_index.js",
+            "path": "_common/scripts/list_queries.js",
             "settings": {}
           }
         ]
