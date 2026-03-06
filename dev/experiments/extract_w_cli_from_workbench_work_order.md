@@ -79,7 +79,7 @@ workbench/commands/
    - backup-project
    - backup-secrets
    - backup-snapshot
-   - create-project
+   - create-vault
    - ingest_external_files
    - ingest_vault_content
    - select-records
@@ -203,4 +203,3 @@ Workbench is the engine room.
 ---
 
 End of Work Order.
-

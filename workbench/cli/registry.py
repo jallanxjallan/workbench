@@ -41,17 +41,9 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "workbench.cli.create_vault",
         "Create or initialize a vault with internal _vault_registry metadata.",
     ),
-    "create-project": CommandEntry(
-        "workbench.cli.create_project",
-        "Create or initialize a vault project with internal _vault_registry metadata.",
-    ),
     "scan-sentinel": CommandEntry(
         "workbench.cli.scan_sentinel",
         "Select markdown paths whose first line is a valid ASC batch sentinel.",
-    ),
-    "import-project": CommandEntry(
-        "workbench.cli.import_project",
-        "Import a draft vault into a target vault project.",
     ),
 }
 

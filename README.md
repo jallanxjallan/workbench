@@ -24,9 +24,8 @@ Top-level commands:
 - `wkb scan-sentinel [paths...]`
 - `wkb slug <file> [--write]`
 - `wkb create-vault <vault-name-or-path>`
-- `wkb create-project <vault-name-or-path>` (alias of `create-vault`)
 
-Obsidian scaffolding roots used by `create-vault`/`create-project`:
+Obsidian scaffolding roots used by `create-vault`:
 
 - `~/Workbench/obsidian/vault-template` (template source)
 - `~/Workbench/obsidian/vault-common` (symlink target for `_common`)
@@ -104,7 +103,6 @@ Layer responsibilities:
 | `wkb writenew` / `wkb writeback` | Consume NDJSON records and persist markdown files |
 | `wkb writestream` | Pass markdown through unchanged |
 | `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry`, template install, and `_common` symlink |
-| `wkb create-project` | Alias of `create-vault` with the same `_common` symlink behavior |
 
 ## Pandoc Integration Policy
 
