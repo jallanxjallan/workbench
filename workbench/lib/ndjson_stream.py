@@ -6,8 +6,9 @@ import json
 from typing import Any, Iterable, Iterator
 
 
-def iter_ndjson(stream: Iterable[str]) -> Iterator[dict[str, Any]]:
-    for line in stream:
+def iter_ndjson(stream: Iterable[str] | str) -> Iterator[dict[str, Any]]:
+    source = stream.splitlines() if isinstance(stream, str) else stream
+    for line in source:
         line = line.strip()
         if not line:
             continue
