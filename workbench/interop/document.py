@@ -6,6 +6,8 @@ from pathlib import Path
 import re
 from typing import Any, Mapping
 
+from workbench.lib.text import strip_utf8_bom
+
 _SERDE_MODULE = importlib.import_module("YAML".lower())
 
 def _to_json_value(value: Any) -> Any:
@@ -16,10 +18,6 @@ def _to_json_value(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [_to_json_value(item) for item in value]
     return str(value)
-
-
-def _strip_bom(text: str) -> str:
-    return text[1:] if text.startswith("\ufeff") else text
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +134,7 @@ class Document:
         *,
         sentinel_pattern: re.Pattern[str] | None = None,
     ) -> DocumentParseResult:
-        normalized = _strip_bom(text)
+        normalized = strip_utf8_bom(text)
         lines = normalized.splitlines(keepends=True)
 
         if not lines:

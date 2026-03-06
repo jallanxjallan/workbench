@@ -1,3 +1,5 @@
+"""Scan markdown files for ASC batch sentinel lines."""
+
 from __future__ import annotations
 
 import argparse
@@ -5,20 +7,13 @@ from pathlib import Path
 import sys
 
 from workbench.lib.ndjson import emit_ndjson
-
-try:
-    from workbench.ingest._sentinel_scan import (
-        SelectError,
-        scan_batch_sentinel_records,
-    )
-except ImportError:  # pragma: no cover - script-mode fallback
-    from _sentinel_scan import SelectError, scan_batch_sentinel_records
+from workbench.lib.sentinel_scan import SentinelScanError, scan_paths_for_batch_sentinel
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="select_sentinel.py",
-        description="Select markdown paths containing ASC batch sentinel lines.",
+        prog="scan-sentinel",
+        description=__doc__,
     )
     parser.add_argument(
         "paths",
@@ -39,17 +34,16 @@ def main(argv: list[str] | None = None) -> int:
     raw_paths = args.paths or ["."]
 
     try:
-        rows = scan_batch_sentinel_records(
+        rows = scan_paths_for_batch_sentinel(
             cwd=cwd,
             raw_paths=raw_paths,
             follow_symlinks=args.follow_symlinks,
         )
-
-        for row in rows:
-            sys.stdout.write(emit_ndjson({"path": row["path"]}) + "\n")
+        for path in rows:
+            sys.stdout.write(emit_ndjson({"path": path}) + "\n")
         return 0
-    except SelectError as exc:
-        print(f"[select_sentinel] error: {exc}", file=sys.stderr)
+    except SentinelScanError as exc:
+        print(f"[scan-sentinel] error: {exc}", file=sys.stderr)
         return 1
 
 

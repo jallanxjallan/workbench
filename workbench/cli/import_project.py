@@ -140,7 +140,7 @@ def _write_instruction_placeholder(
         f"- Project Root: `{project_path.relative_to(vault_path)}`\n\n"
         "## TODO\n"
         "- Add project-specific instruction macros.\n"
-        "- Add ingestion/emit workflow notes.\n"
+        "- Add scan-sentinel and asc ingest workflow notes.\n"
     )
     instruction_path.write_text(content, encoding="utf-8")
 

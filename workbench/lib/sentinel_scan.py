@@ -1,3 +1,5 @@
+"""Sentinel-based file selection helpers for `wkb scan-sentinel`."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +8,7 @@ import subprocess
 
 from workbench.lib.ndjson import StreamError, parse_ndjson
 from workbench.lib.paths import PathError, ensure_within
+from workbench.lib.text import strip_utf8_bom
 
 AUTO_GENERATED_SENTINEL = "<!-- AUTO_GENERATED -->"
 AUTO_GENERATED_SENTINEL_RE = re.compile(r"^\s*<!--\s*AUTO_GENERATED\s*-->\s*$")
@@ -15,21 +18,15 @@ _BATCH_SENTINEL_LINE_RE = re.compile(
     re.IGNORECASE,
 )
 
-_RG_BATCH_SENTINEL_REGEX = (
-    r"^\s*---\s*ASC\s+BATCH:\s*.+\s*---\s*$"
-)
+_RG_BATCH_SENTINEL_REGEX = r"^\s*---\s*ASC\s+BATCH:\s*.+\s*---\s*$"
 
 
 def is_valid_batch_slug(value: str) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-class SelectError(RuntimeError):
+class SentinelScanError(RuntimeError):
     pass
-
-
-def _strip_bom(text: str) -> str:
-    return text[1:] if text.startswith("\ufeff") else text
 
 
 def default_pattern() -> str:
@@ -53,7 +50,7 @@ def expand_paths(
         try:
             ensure_within(cwd, path, raw=raw)
         except PathError as exc:
-            raise SelectError(f"path is outside project root: {raw}") from exc
+            raise SentinelScanError(f"path is outside project root: {raw}") from exc
 
         if path.is_dir():
             for child in _walk_files(path, follow_symlinks=follow_symlinks):
@@ -64,7 +61,7 @@ def expand_paths(
             all_files.add(path)
             continue
 
-        raise SelectError(f"path does not exist: {raw}")
+        raise SentinelScanError(f"path does not exist: {raw}")
 
     return sorted(all_files)
 
@@ -96,39 +93,13 @@ def scan_paths_for_batch_sentinel(
     raw_paths: list[str],
     follow_symlinks: bool = False,
 ) -> list[str]:
-    rows = scan_batch_sentinel_records(
-        cwd=cwd,
-        raw_paths=raw_paths,
-        follow_symlinks=follow_symlinks,
-    )
-    return [row["path"] for row in rows]
-
-
-def scan_batch_sentinel_records(
-    *,
-    cwd: Path,
-    raw_paths: list[str],
-    follow_symlinks: bool = False,
-) -> list[dict[str, str]]:
-    """Scan filesystem paths for batch sentinel markers and return NDJSON ingest records."""
-
     query_paths = _normalize_query_paths(cwd=cwd, raw_paths=raw_paths)
     rows = _scan_with_rg(
         cwd=cwd,
         query_paths=query_paths,
         follow_symlinks=follow_symlinks,
     )
-
-    dedup: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for item in sorted(rows, key=lambda value: value["path"]):
-        path = item["path"]
-        if path in seen:
-            continue
-        seen.add(path)
-        dedup.append(item)
-
-    return dedup
+    return sorted(set(rows))
 
 
 def _normalize_query_paths(*, cwd: Path, raw_paths: list[str]) -> list[str]:
@@ -137,7 +108,7 @@ def _normalize_query_paths(*, cwd: Path, raw_paths: list[str]) -> list[str]:
 
     for raw in query:
         if not isinstance(raw, str) or not raw.strip():
-            raise SelectError("path must be a non-empty string")
+            raise SentinelScanError("path must be a non-empty string")
 
         candidate = Path(raw.strip()).expanduser()
         path = candidate if candidate.is_absolute() else (cwd / candidate)
@@ -145,10 +116,10 @@ def _normalize_query_paths(*, cwd: Path, raw_paths: list[str]) -> list[str]:
         try:
             ensure_within(cwd, path, raw=raw)
         except PathError as exc:
-            raise SelectError(f"path is outside project root: {raw}") from exc
+            raise SentinelScanError(f"path is outside project root: {raw}") from exc
 
         if not path.exists():
-            raise SelectError(f"path does not exist: {raw}")
+            raise SentinelScanError(f"path does not exist: {raw}")
 
         rel = path.relative_to(cwd)
         normalized.append(str(rel) if str(rel) else ".")
@@ -163,7 +134,7 @@ def _scan_with_rg(
     cwd: Path,
     query_paths: list[str],
     follow_symlinks: bool,
-) -> list[dict[str, str]]:
+) -> list[str]:
     cmd = [
         "rg",
         "--json",
@@ -180,19 +151,22 @@ def _scan_with_rg(
     if follow_symlinks:
         cmd.insert(1, "--follow")
 
-    proc = subprocess.run(
-        cmd,
-        cwd=str(cwd),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise SentinelScanError("rg command not found") from exc
 
     if proc.returncode not in (0, 1):
         message = proc.stderr.strip() or proc.stdout.strip() or "rg scan failed"
-        raise SelectError(message)
+        raise SentinelScanError(message)
 
-    rows: list[dict[str, str]] = []
+    rows: list[str] = []
     try:
         input_stream = proc.stdout.splitlines()
         for input_record in parse_ndjson(input_stream):
@@ -225,20 +199,25 @@ def _scan_with_rg(
             if extract_batch_slug_from_first_line(first_line) is None:
                 continue
 
-            rows.append({"path": path_text})
+            rows.append(_normalize_match_path(path_text))
     except StreamError as exc:
-        raise SelectError("invalid rg output") from exc
+        raise SentinelScanError("invalid rg output") from exc
 
     return rows
+
+
+def _normalize_match_path(path_text: str) -> str:
+    normalized = path_text.replace("\\", "/")
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
 
 
 def _walk_files(root: Path, *, follow_symlinks: bool) -> list[Path]:
     files: list[Path] = []
     seen_dirs: set[tuple[int, int]] = set()
 
-    for current_dir, dirnames, filenames in root.walk(
-        follow_symlinks=follow_symlinks
-    ):
+    for current_dir, dirnames, filenames in root.walk(follow_symlinks=follow_symlinks):
         try:
             stat = current_dir.stat()
         except OSError:
@@ -273,7 +252,7 @@ def _matches_start_of_file(path: Path, pattern: re.Pattern[str]) -> bool:
     except UnicodeDecodeError:
         return False
 
-    text = _strip_bom(text)
+    text = strip_utf8_bom(text)
     return pattern.match(text) is not None
 
 
@@ -291,7 +270,7 @@ def extract_batch_slug(path: Path) -> str | None:
     except UnicodeDecodeError:
         return None
 
-    text = _strip_bom(text)
+    text = strip_utf8_bom(text)
     if text == "":
         return None
 
@@ -310,13 +289,11 @@ def extract_batch_slug_from_first_line(first_line: str) -> str | None:
 
 
 __all__ = [
-    "SelectError",
+    "SentinelScanError",
     "default_pattern",
     "expand_paths",
     "scan_paths_for_pattern",
     "scan_paths_for_batch_sentinel",
-    "scan_batch_sentinel_records",
     "extract_batch_slug",
     "extract_batch_slug_from_first_line",
-    "is_valid_batch_slug",
 ]

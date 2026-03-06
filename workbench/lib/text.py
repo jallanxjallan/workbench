@@ -18,3 +18,7 @@ def kebab_case(value: str) -> str:
     cleaned = re.sub(r"[\s_]+", "-", cleaned)
     cleaned = re.sub(r"-+", "-", cleaned)
     return cleaned.strip("-") or "item"
+
+
+def strip_utf8_bom(text: str) -> str:
+    return text[1:] if text.startswith("\ufeff") else text

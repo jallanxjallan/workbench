@@ -12,7 +12,6 @@ wkb
 
 Namespaces:
 
-- `wkb ingest`
 - `wkb vault`
 - `wkb slug`
 
@@ -21,13 +20,15 @@ Top-level commands:
 - `wkb writenew <batch-slug>`
 - `wkb writeback <batch-slug>`
 - `wkb writestream`
+- `wkb scan-sentinel [paths...]`
 - `wkb slug <file> [--write]`
 - `wkb create-vault <vault-name-or-path>`
+- `wkb create-project <vault-name-or-path>` (alias of `create-vault`)
 
-Obsidian scaffolding roots used by `create-vault`:
+Obsidian scaffolding roots used by `create-vault`/`create-project`:
 
-- `~/Studio/Obsidian/vault` (template source)
-- `~/Studio/Obsidian/common` (symlink target for `_common`)
+- `~/Workbench/obsidian/vault-template` (template source)
+- `~/Workbench/obsidian/vault-common` (symlink target for `_common`)
 - Per-vault registry file: `_vault_registry` (single-record NDJSON)
 - Migration helper: `bin/migrate_studio_obsidian_layout [<studio_root>]`
 
@@ -94,9 +95,11 @@ Layer responsibilities:
 | Layer | Responsibility |
 | --- | --- |
 | Providers / AutoScribe | Produce and transform NDJSON records |
+| `wkb scan-sentinel` | Select markdown files whose first line contains a valid ASC batch sentinel and emit path NDJSON rows |
 | `wkb writenew` / `wkb writeback` | Consume NDJSON records and persist markdown files |
 | `wkb writestream` | Pass markdown through unchanged |
 | `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry`, template install, and `_common` symlink |
+| `wkb create-project` | Alias of `create-vault` with the same `_common` symlink behavior |
 
 ## Pandoc Integration Policy
 

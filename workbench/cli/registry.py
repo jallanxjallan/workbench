@@ -37,6 +37,14 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "workbench.cli.create_vault",
         "Create or initialize a vault with internal _vault_registry metadata.",
     ),
+    "create-project": CommandEntry(
+        "workbench.cli.create_project",
+        "Create or initialize a vault project with internal _vault_registry metadata.",
+    ),
+    "scan-sentinel": CommandEntry(
+        "workbench.cli.scan_sentinel",
+        "Select markdown paths whose first line is a valid ASC batch sentinel.",
+    ),
     "import-project": CommandEntry(
         "workbench.cli.import_project",
         "Import a draft vault into a target vault project.",
@@ -45,25 +53,6 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
 
 
 REGISTRY: dict[str, NamespaceEntry] = {
-    "ingest": NamespaceEntry(
-        summary="Inward data-flow pipelines.",
-        commands={
-            "split": CommandEntry(
-                "workbench.ingest.split", "Split NDJSON content by section markers."
-            ),
-            "inject-metadata": CommandEntry(
-                "workbench.ingest.inject_metadata",
-                "Inject selected frontmatter metadata into records.",
-            ),
-            "normalize-path": CommandEntry(
-                "workbench.ingest.normalize_path", "Normalize path rows from stdin."
-            ),
-            "select": CommandEntry(
-                "workbench.ingest.select",
-                "Select sentinel files and resolve content records.",
-            ),
-        },
-    ),
     "vault": NamespaceEntry(
         summary="Vault-focused operations.",
         commands={
