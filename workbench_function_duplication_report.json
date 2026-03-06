@@ -1,0 +1,3483 @@
+{
+  "report_name": "Workbench function inventory and duplication analysis",
+  "generated_at_utc": "2026-03-06T03:43:19Z",
+  "root_path": "/home/jeremy/Workbench",
+  "scope": {
+    "included": "all files under ~/Workbench except transient/internal directories",
+    "excluded_directories": [
+      ".git",
+      ".mypy_cache",
+      ".pytest_cache",
+      ".ruff_cache",
+      ".venv",
+      "__pycache__",
+      "venv"
+    ],
+    "excluded_files": [
+      "workbench_function_duplication_report.json"
+    ],
+    "duplication_primary_language": "python"
+  },
+  "summary": {
+    "file_count": 130,
+    "function_count_all_languages": 252,
+    "function_count_python": 229,
+    "duplicate_groups_exact_body_python": 3,
+    "duplicate_groups_structural_python": 8,
+    "duplicate_names_python": 6
+  },
+  "duplication_candidates": {
+    "exact_body_python": [
+      {
+        "fingerprint": "55dabd2411335e03bfb6d0e5aced68e6c4bd25c63dd46b964d06361f6fc66e19",
+        "count": 7,
+        "functions": [
+          {
+            "relative_path": "tests/test_create_vault.py",
+            "qualified_name": "_write_file",
+            "line_start": 12,
+            "signature": "def _write_file(path, content='{}\\n') -> None"
+          },
+          {
+            "relative_path": "tests/test_scan_sentinel.py",
+            "qualified_name": "_write",
+            "line_start": 20,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_sentinel.py",
+            "qualified_name": "_write",
+            "line_start": 12,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_slug.py",
+            "qualified_name": "_write",
+            "line_start": 12,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_slug_command.py",
+            "qualified_name": "_write",
+            "line_start": 11,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_vault_template_apply.py",
+            "qualified_name": "_write",
+            "line_start": 14,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_writeback_safety.py",
+            "qualified_name": "_write",
+            "line_start": 13,
+            "signature": "def _write(path, content) -> None"
+          }
+        ]
+      },
+      {
+        "fingerprint": "bccc6d7e0df43bc76b95951f9b5a2c5b7076190f258f60432d521e9bc0e48e3a",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/cli/create_project.py",
+            "qualified_name": "_display_path",
+            "line_start": 32,
+            "signature": "def _display_path(path) -> str"
+          },
+          {
+            "relative_path": "workbench/cli/create_vault.py",
+            "qualified_name": "_display_path",
+            "line_start": 101,
+            "signature": "def _display_path(path) -> str"
+          }
+        ]
+      },
+      {
+        "fingerprint": "f91d4f79ce1ab6e1b0bc58480bd85757a523ee24989d1e11fe2b09263692dfc8",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/write/common.py",
+            "qualified_name": "resolve_writenew_target_path",
+            "line_start": 106,
+            "signature": "def resolve_writenew_target_path(*, record, record_index) -> Path"
+          },
+          {
+            "relative_path": "workbench/write/common.py",
+            "qualified_name": "resolve_writeback_target_path",
+            "line_start": 110,
+            "signature": "def resolve_writeback_target_path(*, record, record_index) -> Path"
+          }
+        ]
+      }
+    ],
+    "structural_python": [
+      {
+        "fingerprint": "28fb95691970e2ff5de32e33a5e0bdfcf88a4f728348d0b6370349456757bc14",
+        "count": 6,
+        "functions": [
+          {
+            "relative_path": "tests/test_scan_sentinel.py",
+            "qualified_name": "_write",
+            "line_start": 20,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_sentinel.py",
+            "qualified_name": "_write",
+            "line_start": 12,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_slug.py",
+            "qualified_name": "_write",
+            "line_start": 12,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_slug_command.py",
+            "qualified_name": "_write",
+            "line_start": 11,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_vault_template_apply.py",
+            "qualified_name": "_write",
+            "line_start": 14,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_writeback_safety.py",
+            "qualified_name": "_write",
+            "line_start": 13,
+            "signature": "def _write(path, content) -> None"
+          }
+        ]
+      },
+      {
+        "fingerprint": "a418edafa6775c76e07515f3367de2301a5bb34de71b8fda1b8d104ff5f89685",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "tests/test_stream_command.py",
+            "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.CountingInput.__init__",
+            "line_start": 46,
+            "signature": "def __init__(self) -> None"
+          },
+          {
+            "relative_path": "tests/test_stream_command.py",
+            "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.StopAfterFirstRecordWriter.__init__",
+            "line_start": 59,
+            "signature": "def __init__(self) -> None"
+          }
+        ]
+      },
+      {
+        "fingerprint": "9d496acc28018f4109814e5fcd47f499cac5dcc012809508f49e9071d2be6ac2",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/cli/create_project.py",
+            "qualified_name": "_parser",
+            "line_start": 17,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/cli/create_vault.py",
+            "qualified_name": "_parser",
+            "line_start": 50,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          }
+        ]
+      },
+      {
+        "fingerprint": "b0b5d141977df1929b48cf483677e9018e89440fa67bf54812b2613443d64dce",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/cli/create_project.py",
+            "qualified_name": "_display_path",
+            "line_start": 32,
+            "signature": "def _display_path(path) -> str"
+          },
+          {
+            "relative_path": "workbench/cli/create_vault.py",
+            "qualified_name": "_display_path",
+            "line_start": 101,
+            "signature": "def _display_path(path) -> str"
+          }
+        ]
+      },
+      {
+        "fingerprint": "d3558fa2054c002f02df5cb5ccc159effd02d8bbeeec9b8200e6e8d3b4e4f47f",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/cli/create_project.py",
+            "qualified_name": "main",
+            "line_start": 41,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/cli/create_vault.py",
+            "qualified_name": "main",
+            "line_start": 260,
+            "signature": "def main(argv=None) -> int"
+          }
+        ]
+      },
+      {
+        "fingerprint": "55337ae06c4786142ba84a7254dfece5f0c172b0127fb463ae358a0035e1e558",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/cli/stream.py",
+            "qualified_name": "_parser",
+            "line_start": 12,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/write/writestream.py",
+            "qualified_name": "_parser",
+            "line_start": 12,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          }
+        ]
+      },
+      {
+        "fingerprint": "6126dec83a85fd41332ee8c5abb91638c5bf6bf6519cb0d36ed26f780d6535cd",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/write/writeback.py",
+            "qualified_name": "_parser",
+            "line_start": 26,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/write/writenew.py",
+            "qualified_name": "_parser",
+            "line_start": 19,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          }
+        ]
+      },
+      {
+        "fingerprint": "48f0f6aecbc693b4db077624b5cf005e81dcff9113a694b81c3a8bd8fc2211a9",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/write/writeback.py",
+            "qualified_name": "main",
+            "line_start": 106,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/write/writenew.py",
+            "qualified_name": "main",
+            "line_start": 69,
+            "signature": "def main(argv=None) -> int"
+          }
+        ]
+      }
+    ],
+    "same_name_python": [
+      {
+        "fingerprint": "main",
+        "count": 11,
+        "functions": [
+          {
+            "relative_path": "workbench/cli/create_project.py",
+            "qualified_name": "main",
+            "line_start": 41,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/cli/create_vault.py",
+            "qualified_name": "main",
+            "line_start": 260,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/cli/import_project.py",
+            "qualified_name": "main",
+            "line_start": 236,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/cli/main.py",
+            "qualified_name": "main",
+            "line_start": 46,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/cli/scan_sentinel.py",
+            "qualified_name": "main",
+            "line_start": 31,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/cli/slug.py",
+            "qualified_name": "main",
+            "line_start": 338,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/cli/stream.py",
+            "qualified_name": "main",
+            "line_start": 30,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/cli/vault_template.py",
+            "qualified_name": "main",
+            "line_start": 301,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/write/writeback.py",
+            "qualified_name": "main",
+            "line_start": 106,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/write/writenew.py",
+            "qualified_name": "main",
+            "line_start": 69,
+            "signature": "def main(argv=None) -> int"
+          },
+          {
+            "relative_path": "workbench/write/writestream.py",
+            "qualified_name": "main",
+            "line_start": 19,
+            "signature": "def main(argv=None) -> int"
+          }
+        ]
+      },
+      {
+        "fingerprint": "_parser",
+        "count": 9,
+        "functions": [
+          {
+            "relative_path": "workbench/cli/create_project.py",
+            "qualified_name": "_parser",
+            "line_start": 17,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/cli/create_vault.py",
+            "qualified_name": "_parser",
+            "line_start": 50,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/cli/import_project.py",
+            "qualified_name": "_parser",
+            "line_start": 31,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/cli/scan_sentinel.py",
+            "qualified_name": "_parser",
+            "line_start": 13,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/cli/stream.py",
+            "qualified_name": "_parser",
+            "line_start": 12,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/cli/vault_template.py",
+            "qualified_name": "_parser",
+            "line_start": 37,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/write/writeback.py",
+            "qualified_name": "_parser",
+            "line_start": 26,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/write/writenew.py",
+            "qualified_name": "_parser",
+            "line_start": 19,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          },
+          {
+            "relative_path": "workbench/write/writestream.py",
+            "qualified_name": "_parser",
+            "line_start": 12,
+            "signature": "def _parser() -> argparse.ArgumentParser"
+          }
+        ]
+      },
+      {
+        "fingerprint": "_write",
+        "count": 6,
+        "functions": [
+          {
+            "relative_path": "tests/test_scan_sentinel.py",
+            "qualified_name": "_write",
+            "line_start": 20,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_sentinel.py",
+            "qualified_name": "_write",
+            "line_start": 12,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_slug.py",
+            "qualified_name": "_write",
+            "line_start": 12,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_slug_command.py",
+            "qualified_name": "_write",
+            "line_start": 11,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_vault_template_apply.py",
+            "qualified_name": "_write",
+            "line_start": 14,
+            "signature": "def _write(path, content) -> None"
+          },
+          {
+            "relative_path": "tests/test_writeback_safety.py",
+            "qualified_name": "_write",
+            "line_start": 13,
+            "signature": "def _write(path, content) -> None"
+          }
+        ]
+      },
+      {
+        "fingerprint": "_init_vault",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "tests/test_slug_command.py",
+            "qualified_name": "_init_vault",
+            "line_start": 16,
+            "signature": "def _init_vault(tmp_path, monkeypatch) -> tuple[Path, Path]"
+          },
+          {
+            "relative_path": "tests/test_vault_template_apply.py",
+            "qualified_name": "_init_vault",
+            "line_start": 19,
+            "signature": "def _init_vault(tmp_path) -> Path"
+          }
+        ]
+      },
+      {
+        "fingerprint": "__init__",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "tests/test_stream_command.py",
+            "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.CountingInput.__init__",
+            "line_start": 46,
+            "signature": "def __init__(self) -> None"
+          },
+          {
+            "relative_path": "tests/test_stream_command.py",
+            "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.StopAfterFirstRecordWriter.__init__",
+            "line_start": 59,
+            "signature": "def __init__(self) -> None"
+          }
+        ]
+      },
+      {
+        "fingerprint": "_display_path",
+        "count": 2,
+        "functions": [
+          {
+            "relative_path": "workbench/cli/create_project.py",
+            "qualified_name": "_display_path",
+            "line_start": 32,
+            "signature": "def _display_path(path) -> str"
+          },
+          {
+            "relative_path": "workbench/cli/create_vault.py",
+            "qualified_name": "_display_path",
+            "line_start": 101,
+            "signature": "def _display_path(path) -> str"
+          }
+        ]
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "/home/jeremy/Workbench/.github/workflows/ci.yml",
+      "relative_path": ".github/workflows/ci.yml",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/.gitignore",
+      "relative_path": ".gitignore",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/.vscode/extensions.json",
+      "relative_path": ".vscode/extensions.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/ChatGPT - WorkBench_friday_morning_refactor.pdf",
+      "relative_path": "ChatGPT - WorkBench_friday_morning_refactor.pdf",
+      "language": "other",
+      "functions": [],
+      "analysis": "binary_or_non_text_file"
+    },
+    {
+      "path": "/home/jeremy/Workbench/README.md",
+      "relative_path": "README.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/bin/wkb",
+      "relative_path": "bin/wkb",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/code_review_package_description.json",
+      "relative_path": "code_review_package_description.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/dev/experiments/extract_w_cli_from_workbench_work_order.md",
+      "relative_path": "dev/experiments/extract_w_cli_from_workbench_work_order.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/dev/experiments/smoke_split_write.sh",
+      "relative_path": "dev/experiments/smoke_split_write.sh",
+      "language": "shell",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/dev/experiments/workbench_full_reorganization_work_order.md",
+      "relative_path": "dev/experiments/workbench_full_reorganization_work_order.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/README.md",
+      "relative_path": "obsidian/vault-common/README.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/index/appearance.json",
+      "relative_path": "obsidian/vault-common/index/appearance.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/index/instructions.json",
+      "relative_path": "obsidian/vault-common/index/instructions.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/queries/Common Query Index.md",
+      "relative_path": "obsidian/vault-common/queries/Common Query Index.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/queries/Content Index.md",
+      "relative_path": "obsidian/vault-common/queries/Content Index.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/queries/Content Status.md",
+      "relative_path": "obsidian/vault-common/queries/Content Status.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/queries/File Health.md",
+      "relative_path": "obsidian/vault-common/queries/File Health.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/queries/Link Health.md",
+      "relative_path": "obsidian/vault-common/queries/Link Health.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/_shared.js",
+      "relative_path": "obsidian/vault-common/scripts/_shared.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/content_status_persistent_row_selection_dataview_js.js",
+      "relative_path": "obsidian/vault-common/scripts/content_status_persistent_row_selection_dataview_js.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/dispatch_apply_template_to_files.js",
+      "relative_path": "obsidian/vault-common/scripts/dispatch_apply_template_to_files.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/edit_vault_registry.js",
+      "relative_path": "obsidian/vault-common/scripts/edit_vault_registry.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/generate_slug.js",
+      "relative_path": "obsidian/vault-common/scripts/generate_slug.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/insert_batch_sentinel_from_query.js",
+      "relative_path": "obsidian/vault-common/scripts/insert_batch_sentinel_from_query.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/make_slug.js",
+      "relative_path": "obsidian/vault-common/scripts/make_slug.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/open_common_query_picker.js",
+      "relative_path": "obsidian/vault-common/scripts/open_common_query_picker.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/open_draft_status_query.js",
+      "relative_path": "obsidian/vault-common/scripts/open_draft_status_query.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/scripts/toggle_image_visibility.js",
+      "relative_path": "obsidian/vault-common/scripts/toggle_image_visibility.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/templates/caption.md",
+      "relative_path": "obsidian/vault-common/templates/caption.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/templates/passage.md",
+      "relative_path": "obsidian/vault-common/templates/passage.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/templates/topic.md",
+      "relative_path": "obsidian/vault-common/templates/topic.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/tools/obsidian-vault-sanity.zsh",
+      "relative_path": "obsidian/vault-common/tools/obsidian-vault-sanity.zsh",
+      "language": "shell",
+      "functions": [
+        {
+          "name": "usage",
+          "qualified_name": "usage",
+          "signature": "usage()",
+          "purpose": "Shell function for usage.",
+          "line_start": 4,
+          "line_end": null
+        },
+        {
+          "name": "die",
+          "qualified_name": "die",
+          "signature": "die()",
+          "purpose": "Shell function for die.",
+          "line_start": 14,
+          "line_end": null
+        },
+        {
+          "name": "pass",
+          "qualified_name": "pass",
+          "signature": "pass()",
+          "purpose": "Shell function for pass.",
+          "line_start": 36,
+          "line_end": null
+        },
+        {
+          "name": "warn",
+          "qualified_name": "warn",
+          "signature": "warn()",
+          "purpose": "Shell function for warn.",
+          "line_start": 40,
+          "line_end": null
+        },
+        {
+          "name": "fail",
+          "qualified_name": "fail",
+          "signature": "fail()",
+          "purpose": "Shell function for fail.",
+          "line_start": 45,
+          "line_end": null
+        },
+        {
+          "name": "check_link",
+          "qualified_name": "check_link",
+          "signature": "check_link()",
+          "purpose": "Shell function for check_link.",
+          "line_start": 50,
+          "line_end": null
+        }
+      ],
+      "analysis": "6_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-common/vault_conventions.md",
+      "relative_path": "obsidian/vault-common/vault_conventions.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/app.json",
+      "relative_path": "obsidian/vault-template/.obsidian/app.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/appearance.json",
+      "relative_path": "obsidian/vault-template/.obsidian/appearance.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/community-plugins.json",
+      "relative_path": "obsidian/vault-template/.obsidian/community-plugins.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/core-plugins.json",
+      "relative_path": "obsidian/vault-template/.obsidian/core-plugins.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/hotkeys.json",
+      "relative_path": "obsidian/vault-template/.obsidian/hotkeys.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/dataview/data.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/dataview/data.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/dataview/main.js",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/dataview/main.js",
+      "language": "javascript_typescript",
+      "functions": [
+        {
+          "name": "maybeNegate",
+          "qualified_name": "maybeNegate",
+          "signature": "function maybeNegate(num, force = false)",
+          "purpose": "JavaScript/TypeScript function for maybeNegate.",
+          "line_start": 2362,
+          "line_end": null
+        },
+        {
+          "name": "removeMarkdown",
+          "qualified_name": "removeMarkdown",
+          "signature": "function removeMarkdown(md, options)",
+          "purpose": "JavaScript/TypeScript function for removeMarkdown.",
+          "line_start": 7508,
+          "line_end": null
+        },
+        {
+          "name": "LocalForage",
+          "qualified_name": "LocalForage",
+          "signature": "function LocalForage()",
+          "purpose": "JavaScript/TypeScript function for LocalForage.",
+          "line_start": 12378,
+          "line_end": null
+        },
+        {
+          "name": "validate",
+          "qualified_name": "validate",
+          "signature": "function validate(v)",
+          "purpose": "JavaScript/TypeScript function for validate.",
+          "line_start": 15089,
+          "line_end": null
+        },
+        {
+          "name": "forceType",
+          "qualified_name": "forceType",
+          "signature": "function forceType(a, b)",
+          "purpose": "JavaScript/TypeScript function for forceType.",
+          "line_start": 15149,
+          "line_end": null
+        }
+      ],
+      "analysis": "5_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/dataview/manifest.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/dataview/manifest.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/dataview/styles.css",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/dataview/styles.css",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/obsidian-git/data.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/obsidian-git/data.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/obsidian-git/main.js",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/obsidian-git/main.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/obsidian-git/manifest.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/obsidian-git/manifest.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/obsidian-git/styles.css",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/obsidian-git/styles.css",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/quickadd/data.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/quickadd/data.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/quickadd/main.js",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/quickadd/main.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/quickadd/manifest.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/quickadd/manifest.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/quickadd/styles.css",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/quickadd/styles.css",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/templater/data.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/templater/data.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/templater/main.js",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/templater/main.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/templater/manifest.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/templater/manifest.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/templater/styles.css",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/templater/styles.css",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/wkb-project/main.js",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/wkb-project/main.js",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/wkb-project/main.ts",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/wkb-project/main.ts",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/wkb-project/manifest.json",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/wkb-project/manifest.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/wkb-project/projectModal.ts",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/wkb-project/projectModal.ts",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/wkb-project/projectService.ts",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/wkb-project/projectService.ts",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/plugins/wkb-project/settings.ts",
+      "relative_path": "obsidian/vault-template/.obsidian/plugins/wkb-project/settings.ts",
+      "language": "javascript_typescript",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/obsidian/vault-template/.obsidian/workspace.json",
+      "relative_path": "obsidian/vault-template/.obsidian/workspace.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/pyproject.toml",
+      "relative_path": "pyproject.toml",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/aliases.zsh",
+      "relative_path": "shell/aliases.zsh",
+      "language": "shell",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/commands/files.zsh",
+      "relative_path": "shell/commands/files.zsh",
+      "language": "shell",
+      "functions": [
+        {
+          "name": "mkcd",
+          "qualified_name": "mkcd",
+          "signature": "mkcd()",
+          "purpose": "Shell function for mkcd.",
+          "line_start": 2,
+          "line_end": null
+        },
+        {
+          "name": "backup_file",
+          "qualified_name": "backup_file",
+          "signature": "backup_file()",
+          "purpose": "Shell function for backup_file.",
+          "line_start": 6,
+          "line_end": null
+        },
+        {
+          "name": "safe_rm",
+          "qualified_name": "safe_rm",
+          "signature": "safe_rm()",
+          "purpose": "Shell function for safe_rm.",
+          "line_start": 10,
+          "line_end": null
+        }
+      ],
+      "analysis": "3_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/commands/git.zsh",
+      "relative_path": "shell/commands/git.zsh",
+      "language": "shell",
+      "functions": [
+        {
+          "name": "gclean",
+          "qualified_name": "gclean",
+          "signature": "gclean()",
+          "purpose": "Shell function for gclean.",
+          "line_start": 2,
+          "line_end": null
+        },
+        {
+          "name": "glast",
+          "qualified_name": "glast",
+          "signature": "glast()",
+          "purpose": "Shell function for glast.",
+          "line_start": 6,
+          "line_end": null
+        }
+      ],
+      "analysis": "2_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/core/base.zsh",
+      "relative_path": "shell/core/base.zsh",
+      "language": "shell",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/core/env/autoscribe.zsh",
+      "relative_path": "shell/core/env/autoscribe.zsh",
+      "language": "shell",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/core/env/environment.zsh",
+      "relative_path": "shell/core/env/environment.zsh",
+      "language": "shell",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/core/functions/devhook.zsh",
+      "relative_path": "shell/core/functions/devhook.zsh",
+      "language": "shell",
+      "functions": [
+        {
+          "name": "workbench_devhook_unset_autoscribe_env",
+          "qualified_name": "workbench_devhook_unset_autoscribe_env",
+          "signature": "workbench_devhook_unset_autoscribe_env()",
+          "purpose": "Shell function for workbench_devhook_unset_autoscribe_env.",
+          "line_start": 13,
+          "line_end": null
+        },
+        {
+          "name": "workbench_devhook_load_aliases",
+          "qualified_name": "workbench_devhook_load_aliases",
+          "signature": "workbench_devhook_load_aliases()",
+          "purpose": "Shell function for workbench_devhook_load_aliases.",
+          "line_start": 27,
+          "line_end": null
+        },
+        {
+          "name": "workbench_devhook_apply_runtime_env",
+          "qualified_name": "workbench_devhook_apply_runtime_env",
+          "signature": "workbench_devhook_apply_runtime_env()",
+          "purpose": "Shell function for workbench_devhook_apply_runtime_env.",
+          "line_start": 36,
+          "line_end": null
+        },
+        {
+          "name": "workbench_devhook_on_chpwd",
+          "qualified_name": "workbench_devhook_on_chpwd",
+          "signature": "workbench_devhook_on_chpwd()",
+          "purpose": "Shell function for workbench_devhook_on_chpwd.",
+          "line_start": 42,
+          "line_end": null
+        },
+        {
+          "name": "workbench_devhook_on_precmd",
+          "qualified_name": "workbench_devhook_on_precmd",
+          "signature": "workbench_devhook_on_precmd()",
+          "purpose": "Shell function for workbench_devhook_on_precmd.",
+          "line_start": 47,
+          "line_end": null
+        },
+        {
+          "name": "workbench_devhook_teardown",
+          "qualified_name": "workbench_devhook_teardown",
+          "signature": "workbench_devhook_teardown()",
+          "purpose": "Shell function for workbench_devhook_teardown.",
+          "line_start": 51,
+          "line_end": null
+        },
+        {
+          "name": "workbench_devhook_init",
+          "qualified_name": "workbench_devhook_init",
+          "signature": "workbench_devhook_init()",
+          "purpose": "Shell function for workbench_devhook_init.",
+          "line_start": 56,
+          "line_end": null
+        }
+      ],
+      "analysis": "7_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/core/user_shell.zsh",
+      "relative_path": "shell/core/user_shell.zsh",
+      "language": "shell",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/env/autoscribe.zsh",
+      "relative_path": "shell/env/autoscribe.zsh",
+      "language": "shell",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/shell/env/environment.zsh",
+      "relative_path": "shell/env/environment.zsh",
+      "language": "shell",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/conftest.py",
+      "relative_path": "tests/conftest.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_cli_registry.py",
+      "relative_path": "tests/test_cli_registry.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "test_create_project_command_points_to_create_project_module",
+          "qualified_name": "test_create_project_command_points_to_create_project_module",
+          "signature": "def test_create_project_command_points_to_create_project_module() -> None",
+          "purpose": "Function for test create project command points to create project module.",
+          "line_start": 4,
+          "line_end": 6
+        },
+        {
+          "name": "test_scan_sentinel_command_points_to_scan_sentinel_module",
+          "qualified_name": "test_scan_sentinel_command_points_to_scan_sentinel_module",
+          "signature": "def test_scan_sentinel_command_points_to_scan_sentinel_module() -> None",
+          "purpose": "Function for test scan sentinel command points to scan sentinel module.",
+          "line_start": 9,
+          "line_end": 11
+        },
+        {
+          "name": "test_stream_command_points_to_stream_module",
+          "qualified_name": "test_stream_command_points_to_stream_module",
+          "signature": "def test_stream_command_points_to_stream_module() -> None",
+          "purpose": "Function for test stream command points to stream module.",
+          "line_start": 14,
+          "line_end": 16
+        },
+        {
+          "name": "test_legacy_ingest_namespace_removed",
+          "qualified_name": "test_legacy_ingest_namespace_removed",
+          "signature": "def test_legacy_ingest_namespace_removed() -> None",
+          "purpose": "Function for test legacy ingest namespace removed.",
+          "line_start": 19,
+          "line_end": 20
+        }
+      ],
+      "analysis": "4_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_create_vault.py",
+      "relative_path": "tests/test_create_vault.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_write_file",
+          "qualified_name": "_write_file",
+          "signature": "def _write_file(path, content='{}\\n') -> None",
+          "purpose": "Function for  write file.",
+          "line_start": 12,
+          "line_end": 14
+        },
+        {
+          "name": "_configure_roots",
+          "qualified_name": "_configure_roots",
+          "signature": "def _configure_roots(tmp_path, monkeypatch) -> tuple[Path, Path, Path]",
+          "purpose": "Function for  configure roots.",
+          "line_start": 17,
+          "line_end": 35
+        },
+        {
+          "name": "_read_registry",
+          "qualified_name": "_read_registry",
+          "signature": "def _read_registry(vault_path) -> dict[str, object]",
+          "purpose": "Function for  read registry.",
+          "line_start": 38,
+          "line_end": 42
+        },
+        {
+          "name": "test_create_vault_new_path_creates_registry_template_and_common_link",
+          "qualified_name": "test_create_vault_new_path_creates_registry_template_and_common_link",
+          "signature": "def test_create_vault_new_path_creates_registry_template_and_common_link(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test create vault new path creates registry template and common link.",
+          "line_start": 45,
+          "line_end": 71
+        },
+        {
+          "name": "test_create_vault_existing_folder_preserves_existing_files",
+          "qualified_name": "test_create_vault_existing_folder_preserves_existing_files",
+          "signature": "def test_create_vault_existing_folder_preserves_existing_files(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test create vault existing folder preserves existing files.",
+          "line_start": 74,
+          "line_end": 90
+        },
+        {
+          "name": "test_create_vault_existing_registry_is_idempotent",
+          "qualified_name": "test_create_vault_existing_registry_is_idempotent",
+          "signature": "def test_create_vault_existing_registry_is_idempotent(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test create vault existing registry is idempotent.",
+          "line_start": 93,
+          "line_end": 112
+        },
+        {
+          "name": "test_create_vault_fails_when_common_path_exists_and_is_not_symlink",
+          "qualified_name": "test_create_vault_fails_when_common_path_exists_and_is_not_symlink",
+          "signature": "def test_create_vault_fails_when_common_path_exists_and_is_not_symlink(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test create vault fails when common path exists and is not symlink.",
+          "line_start": 115,
+          "line_end": 126
+        },
+        {
+          "name": "test_main_prints_status_messages",
+          "qualified_name": "test_main_prints_status_messages",
+          "signature": "def test_main_prints_status_messages(tmp_path, monkeypatch, capsys) -> None",
+          "purpose": "Function for test main prints status messages.",
+          "line_start": 129,
+          "line_end": 157
+        }
+      ],
+      "analysis": "8_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_ndjson_streaming.py",
+      "relative_path": "tests/test_ndjson_streaming.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "test_fetch_batch_records_is_lazy_and_stream_based",
+          "qualified_name": "test_fetch_batch_records_is_lazy_and_stream_based",
+          "signature": "def test_fetch_batch_records_is_lazy_and_stream_based(monkeypatch) -> None",
+          "purpose": "Function for test fetch batch records is lazy and stream based.",
+          "line_start": 8,
+          "line_end": 34
+        },
+        {
+          "name": "_fake_iter_stdout_lines",
+          "qualified_name": "test_fetch_batch_records_is_lazy_and_stream_based._fake_iter_stdout_lines",
+          "signature": "def _fake_iter_stdout_lines(args, *, check=True)",
+          "purpose": "Function for  fake iter stdout lines.",
+          "line_start": 13,
+          "line_end": 17
+        }
+      ],
+      "analysis": "2_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_no_frontmatter_parsing.py",
+      "relative_path": "tests/test_no_frontmatter_parsing.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "test_no_legacy_frontmatter_module",
+          "qualified_name": "test_no_legacy_frontmatter_module",
+          "signature": "def test_no_legacy_frontmatter_module() -> None",
+          "purpose": "Function for test no legacy frontmatter module.",
+          "line_start": 11,
+          "line_end": 12
+        },
+        {
+          "name": "test_no_internal_frontmatter_parsing_outside_document",
+          "qualified_name": "test_no_internal_frontmatter_parsing_outside_document",
+          "signature": "def test_no_internal_frontmatter_parsing_outside_document() -> None",
+          "purpose": "Function for test no internal frontmatter parsing outside document.",
+          "line_start": 15,
+          "line_end": 29
+        }
+      ],
+      "analysis": "2_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_scan_sentinel.py",
+      "relative_path": "tests/test_scan_sentinel.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_write",
+          "qualified_name": "_write",
+          "signature": "def _write(path, content) -> None",
+          "purpose": "Function for  write.",
+          "line_start": 20,
+          "line_end": 22
+        },
+        {
+          "name": "test_extract_batch_slug_from_first_line_valid",
+          "qualified_name": "test_extract_batch_slug_from_first_line_valid",
+          "signature": "def test_extract_batch_slug_from_first_line_valid() -> None",
+          "purpose": "Function for test extract batch slug from first line valid.",
+          "line_start": 25,
+          "line_end": 26
+        },
+        {
+          "name": "test_extract_batch_slug_from_first_line_malformed_returns_none",
+          "qualified_name": "test_extract_batch_slug_from_first_line_malformed_returns_none",
+          "signature": "def test_extract_batch_slug_from_first_line_malformed_returns_none() -> None",
+          "purpose": "Function for test extract batch slug from first line malformed returns none.",
+          "line_start": 29,
+          "line_end": 30
+        },
+        {
+          "name": "test_extract_batch_slug_not_at_top_returns_none",
+          "qualified_name": "test_extract_batch_slug_not_at_top_returns_none",
+          "signature": "def test_extract_batch_slug_not_at_top_returns_none(tmp_path) -> None",
+          "purpose": "Function for test extract batch slug not at top returns none.",
+          "line_start": 33,
+          "line_end": 36
+        },
+        {
+          "name": "test_scan_paths_for_batch_sentinel_detects_and_ignores",
+          "qualified_name": "test_scan_paths_for_batch_sentinel_detects_and_ignores",
+          "signature": "def test_scan_paths_for_batch_sentinel_detects_and_ignores(tmp_path) -> None",
+          "purpose": "Function for test scan paths for batch sentinel detects and ignores.",
+          "line_start": 39,
+          "line_end": 48
+        },
+        {
+          "name": "test_scan_with_rg_parses_only_valid_first_line_matches",
+          "qualified_name": "test_scan_with_rg_parses_only_valid_first_line_matches",
+          "signature": "def test_scan_with_rg_parses_only_valid_first_line_matches(monkeypatch) -> None",
+          "purpose": "Function for test scan with rg parses only valid first line matches.",
+          "line_start": 51,
+          "line_end": 97
+        },
+        {
+          "name": "_fake_run",
+          "qualified_name": "test_scan_with_rg_parses_only_valid_first_line_matches._fake_run",
+          "signature": "def _fake_run(*args, **kwargs) -> subprocess.CompletedProcess[str]",
+          "purpose": "Function for  fake run.",
+          "line_start": 87,
+          "line_end": 93
+        },
+        {
+          "name": "test_scan_sentinel_cli_dispatch_outputs_paths",
+          "qualified_name": "test_scan_sentinel_cli_dispatch_outputs_paths",
+          "signature": "def test_scan_sentinel_cli_dispatch_outputs_paths(monkeypatch, capsys) -> None",
+          "purpose": "Function for test scan sentinel cli dispatch outputs paths.",
+          "line_start": 100,
+          "line_end": 115
+        }
+      ],
+      "analysis": "8_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_sentinel.py",
+      "relative_path": "tests/test_sentinel.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_write",
+          "qualified_name": "_write",
+          "signature": "def _write(path, content) -> None",
+          "purpose": "Function for  write.",
+          "line_start": 12,
+          "line_end": 14
+        },
+        {
+          "name": "test_read_batch_sentinel_present",
+          "qualified_name": "test_read_batch_sentinel_present",
+          "signature": "def test_read_batch_sentinel_present(tmp_path) -> None",
+          "purpose": "Function for test read batch sentinel present.",
+          "line_start": 17,
+          "line_end": 20
+        },
+        {
+          "name": "test_read_batch_sentinel_absent",
+          "qualified_name": "test_read_batch_sentinel_absent",
+          "signature": "def test_read_batch_sentinel_absent(tmp_path) -> None",
+          "purpose": "Function for test read batch sentinel absent.",
+          "line_start": 23,
+          "line_end": 26
+        },
+        {
+          "name": "test_read_batch_sentinel_malformed_returns_none",
+          "qualified_name": "test_read_batch_sentinel_malformed_returns_none",
+          "signature": "def test_read_batch_sentinel_malformed_returns_none(tmp_path) -> None",
+          "purpose": "Function for test read batch sentinel malformed returns none.",
+          "line_start": 29,
+          "line_end": 32
+        },
+        {
+          "name": "test_read_batch_sentinel_not_at_top_returns_none",
+          "qualified_name": "test_read_batch_sentinel_not_at_top_returns_none",
+          "signature": "def test_read_batch_sentinel_not_at_top_returns_none(tmp_path) -> None",
+          "purpose": "Function for test read batch sentinel not at top returns none.",
+          "line_start": 35,
+          "line_end": 38
+        },
+        {
+          "name": "test_strip_and_insert_batch_sentinel_roundtrip",
+          "qualified_name": "test_strip_and_insert_batch_sentinel_roundtrip",
+          "signature": "def test_strip_and_insert_batch_sentinel_roundtrip() -> None",
+          "purpose": "Function for test strip and insert batch sentinel roundtrip.",
+          "line_start": 41,
+          "line_end": 45
+        }
+      ],
+      "analysis": "6_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_slug.py",
+      "relative_path": "tests/test_slug.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_write",
+          "qualified_name": "_write",
+          "signature": "def _write(path, content) -> None",
+          "purpose": "Function for  write.",
+          "line_start": 12,
+          "line_end": 14
+        },
+        {
+          "name": "test_normalize_segment_strips_accents_for_indonesian_names",
+          "qualified_name": "test_normalize_segment_strips_accents_for_indonesian_names",
+          "signature": "def test_normalize_segment_strips_accents_for_indonesian_names() -> None",
+          "purpose": "Function for test normalize segment strips accents for indonesian names.",
+          "line_start": 17,
+          "line_end": 18
+        },
+        {
+          "name": "test_normalize_segment_rejects_empty_result",
+          "qualified_name": "test_normalize_segment_rejects_empty_result",
+          "signature": "def test_normalize_segment_rejects_empty_result() -> None",
+          "purpose": "Function for test normalize segment rejects empty result.",
+          "line_start": 21,
+          "line_end": 23
+        },
+        {
+          "name": "test_build_instruction_without_context_fails",
+          "qualified_name": "test_build_instruction_without_context_fails",
+          "signature": "def test_build_instruction_without_context_fails() -> None",
+          "purpose": "Function for test build instruction without context fails.",
+          "line_start": 26,
+          "line_end": 33
+        },
+        {
+          "name": "test_ensure_slug_fails_on_duplicate_collision",
+          "qualified_name": "test_ensure_slug_fails_on_duplicate_collision",
+          "signature": "def test_ensure_slug_fails_on_duplicate_collision(tmp_path) -> None",
+          "purpose": "Function for test ensure slug fails on duplicate collision.",
+          "line_start": 36,
+          "line_end": 52
+        },
+        {
+          "name": "test_ensure_slug_preserves_existing_valid_slug",
+          "qualified_name": "test_ensure_slug_preserves_existing_valid_slug",
+          "signature": "def test_ensure_slug_preserves_existing_valid_slug(tmp_path) -> None",
+          "purpose": "Function for test ensure slug preserves existing valid slug.",
+          "line_start": 55,
+          "line_end": 63
+        },
+        {
+          "name": "test_ensure_slug_raises_on_existing_invalid_slug",
+          "qualified_name": "test_ensure_slug_raises_on_existing_invalid_slug",
+          "signature": "def test_ensure_slug_raises_on_existing_invalid_slug(tmp_path) -> None",
+          "purpose": "Function for test ensure slug raises on existing invalid slug.",
+          "line_start": 66,
+          "line_end": 71
+        },
+        {
+          "name": "test_ensure_slug_replaces_placeholder_slug",
+          "qualified_name": "test_ensure_slug_replaces_placeholder_slug",
+          "signature": "def test_ensure_slug_replaces_placeholder_slug(tmp_path) -> None",
+          "purpose": "Function for test ensure slug replaces placeholder slug.",
+          "line_start": 74,
+          "line_end": 83
+        },
+        {
+          "name": "test_ensure_slug_ignores_placeholder_siblings_for_collision_scan",
+          "qualified_name": "test_ensure_slug_ignores_placeholder_siblings_for_collision_scan",
+          "signature": "def test_ensure_slug_ignores_placeholder_siblings_for_collision_scan(tmp_path) -> None",
+          "purpose": "Function for test ensure slug ignores placeholder siblings for collision scan.",
+          "line_start": 86,
+          "line_end": 98
+        }
+      ],
+      "analysis": "9_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_slug_command.py",
+      "relative_path": "tests/test_slug_command.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_write",
+          "qualified_name": "_write",
+          "signature": "def _write(path, content) -> None",
+          "purpose": "Function for  write.",
+          "line_start": 11,
+          "line_end": 13
+        },
+        {
+          "name": "_init_vault",
+          "qualified_name": "_init_vault",
+          "signature": "def _init_vault(tmp_path, monkeypatch) -> tuple[Path, Path]",
+          "purpose": "Function for  init vault.",
+          "line_start": 16,
+          "line_end": 22
+        },
+        {
+          "name": "test_slug_command_generates_expected_slug",
+          "qualified_name": "test_slug_command_generates_expected_slug",
+          "signature": "def test_slug_command_generates_expected_slug(tmp_path, monkeypatch, capsys) -> None",
+          "purpose": "Function for test slug command generates expected slug.",
+          "line_start": 25,
+          "line_end": 38
+        },
+        {
+          "name": "test_slug_command_fails_when_class_is_missing",
+          "qualified_name": "test_slug_command_fails_when_class_is_missing",
+          "signature": "def test_slug_command_fails_when_class_is_missing(tmp_path, monkeypatch, capsys) -> None",
+          "purpose": "Function for test slug command fails when class is missing.",
+          "line_start": 41,
+          "line_end": 54
+        },
+        {
+          "name": "test_slug_command_detects_studio_wide_collision",
+          "qualified_name": "test_slug_command_detects_studio_wide_collision",
+          "signature": "def test_slug_command_detects_studio_wide_collision(tmp_path, monkeypatch, capsys) -> None",
+          "purpose": "Function for test slug command detects studio wide collision.",
+          "line_start": 57,
+          "line_end": 77
+        },
+        {
+          "name": "test_slug_command_write_replaces_sentinel",
+          "qualified_name": "test_slug_command_write_replaces_sentinel",
+          "signature": "def test_slug_command_write_replaces_sentinel(tmp_path, monkeypatch, capsys) -> None",
+          "purpose": "Function for test slug command write replaces sentinel.",
+          "line_start": 80,
+          "line_end": 96
+        }
+      ],
+      "analysis": "6_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_stream_command.py",
+      "relative_path": "tests/test_stream_command.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_line",
+          "qualified_name": "_line",
+          "signature": "def _line(record) -> str",
+          "purpose": "Function for  line.",
+          "line_start": 13,
+          "line_end": 14
+        },
+        {
+          "name": "test_stream_markdown_concatenates_in_order",
+          "qualified_name": "test_stream_markdown_concatenates_in_order",
+          "signature": "def test_stream_markdown_concatenates_in_order() -> None",
+          "purpose": "Function for test stream markdown concatenates in order.",
+          "line_start": 17,
+          "line_end": 27
+        },
+        {
+          "name": "test_stream_markdown_skips_records_without_content",
+          "qualified_name": "test_stream_markdown_skips_records_without_content",
+          "signature": "def test_stream_markdown_skips_records_without_content() -> None",
+          "purpose": "Function for test stream markdown skips records without content.",
+          "line_start": 30,
+          "line_end": 41
+        },
+        {
+          "name": "test_stream_markdown_is_incremental_not_full_buffered",
+          "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered",
+          "signature": "def test_stream_markdown_is_incremental_not_full_buffered() -> None",
+          "purpose": "Function for test stream markdown is incremental not full buffered.",
+          "line_start": 44,
+          "line_end": 74
+        },
+        {
+          "name": "__init__",
+          "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.CountingInput.__init__",
+          "signature": "def __init__(self) -> None",
+          "purpose": "Function for   init  .",
+          "line_start": 46,
+          "line_end": 47
+        },
+        {
+          "name": "__iter__",
+          "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.CountingInput.__iter__",
+          "signature": "def __iter__(self) -> CountingInput",
+          "purpose": "Function for   iter  .",
+          "line_start": 49,
+          "line_end": 50
+        },
+        {
+          "name": "__next__",
+          "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.CountingInput.__next__",
+          "signature": "def __next__(self) -> str",
+          "purpose": "Function for   next  .",
+          "line_start": 52,
+          "line_end": 56
+        },
+        {
+          "name": "__init__",
+          "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.StopAfterFirstRecordWriter.__init__",
+          "signature": "def __init__(self) -> None",
+          "purpose": "Function for   init  .",
+          "line_start": 59,
+          "line_end": 60
+        },
+        {
+          "name": "write",
+          "qualified_name": "test_stream_markdown_is_incremental_not_full_buffered.StopAfterFirstRecordWriter.write",
+          "signature": "def write(self, value) -> int",
+          "purpose": "Function for write.",
+          "line_start": 62,
+          "line_end": 66
+        },
+        {
+          "name": "test_cli_dispatches_stream_command",
+          "qualified_name": "test_cli_dispatches_stream_command",
+          "signature": "def test_cli_dispatches_stream_command(monkeypatch) -> None",
+          "purpose": "Function for test cli dispatches stream command.",
+          "line_start": 77,
+          "line_end": 87
+        },
+        {
+          "name": "_fake_stream_markdown",
+          "qualified_name": "test_cli_dispatches_stream_command._fake_stream_markdown",
+          "signature": "def _fake_stream_markdown() -> None",
+          "purpose": "Function for  fake stream markdown.",
+          "line_start": 80,
+          "line_end": 81
+        }
+      ],
+      "analysis": "11_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_vault_template_apply.py",
+      "relative_path": "tests/test_vault_template_apply.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_write",
+          "qualified_name": "_write",
+          "signature": "def _write(path, content) -> None",
+          "purpose": "Function for  write.",
+          "line_start": 14,
+          "line_end": 16
+        },
+        {
+          "name": "_init_vault",
+          "qualified_name": "_init_vault",
+          "signature": "def _init_vault(tmp_path) -> Path",
+          "purpose": "Function for  init vault.",
+          "line_start": 19,
+          "line_end": 23
+        },
+        {
+          "name": "test_apply_template_merges_frontmatter_and_inserts_body_when_empty",
+          "qualified_name": "test_apply_template_merges_frontmatter_and_inserts_body_when_empty",
+          "signature": "def test_apply_template_merges_frontmatter_and_inserts_body_when_empty(tmp_path) -> None",
+          "purpose": "Function for test apply template merges frontmatter and inserts body when empty.",
+          "line_start": 26,
+          "line_end": 63
+        },
+        {
+          "name": "test_apply_template_keeps_existing_values_when_template_differs",
+          "qualified_name": "test_apply_template_keeps_existing_values_when_template_differs",
+          "signature": "def test_apply_template_keeps_existing_values_when_template_differs(tmp_path) -> None",
+          "purpose": "Function for test apply template keeps existing values when template differs.",
+          "line_start": 66,
+          "line_end": 92
+        },
+        {
+          "name": "test_apply_template_migrates_existing_slug_to_legacy_slug",
+          "qualified_name": "test_apply_template_migrates_existing_slug_to_legacy_slug",
+          "signature": "def test_apply_template_migrates_existing_slug_to_legacy_slug(tmp_path) -> None",
+          "purpose": "Function for test apply template migrates existing slug to legacy slug.",
+          "line_start": 95,
+          "line_end": 124
+        },
+        {
+          "name": "test_apply_template_rejects_template_outside_vault_templates",
+          "qualified_name": "test_apply_template_rejects_template_outside_vault_templates",
+          "signature": "def test_apply_template_rejects_template_outside_vault_templates(tmp_path) -> None",
+          "purpose": "Function for test apply template rejects template outside vault templates.",
+          "line_start": 127,
+          "line_end": 142
+        }
+      ],
+      "analysis": "6_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_writeback_safety.py",
+      "relative_path": "tests/test_writeback_safety.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_write",
+          "qualified_name": "_write",
+          "signature": "def _write(path, content) -> None",
+          "purpose": "Function for  write.",
+          "line_start": 13,
+          "line_end": 15
+        },
+        {
+          "name": "_make_markdown",
+          "qualified_name": "_make_markdown",
+          "signature": "def _make_markdown(*, metadata, content, batch_slug) -> str",
+          "purpose": "Function for  make markdown.",
+          "line_start": 18,
+          "line_end": 25
+        },
+        {
+          "name": "_make_record",
+          "qualified_name": "_make_record",
+          "signature": "def _make_record(*, path, slug, batch_slug, content, envelope_extra=None, origin_extra=None) -> WriteRecord",
+          "purpose": "Function for  make record.",
+          "line_start": 28,
+          "line_end": 57
+        },
+        {
+          "name": "test_writeback_preserves_record_envelope_in_autoscribe",
+          "qualified_name": "test_writeback_preserves_record_envelope_in_autoscribe",
+          "signature": "def test_writeback_preserves_record_envelope_in_autoscribe(tmp_path, monkeypatch, envelope_extra, origin_extra) -> None",
+          "purpose": "Function for test writeback preserves record envelope in autoscribe.",
+          "line_start": 99,
+          "line_end": 149
+        },
+        {
+          "name": "test_writeback_aborts_on_slug_mismatch",
+          "qualified_name": "test_writeback_aborts_on_slug_mismatch",
+          "signature": "def test_writeback_aborts_on_slug_mismatch(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test writeback aborts on slug mismatch.",
+          "line_start": 152,
+          "line_end": 183
+        },
+        {
+          "name": "test_writeback_aborts_when_sentinel_mismatch",
+          "qualified_name": "test_writeback_aborts_when_sentinel_mismatch",
+          "signature": "def test_writeback_aborts_when_sentinel_mismatch(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test writeback aborts when sentinel mismatch.",
+          "line_start": 186,
+          "line_end": 217
+        },
+        {
+          "name": "test_writeback_aborts_when_sentinel_missing",
+          "qualified_name": "test_writeback_aborts_when_sentinel_missing",
+          "signature": "def test_writeback_aborts_when_sentinel_missing(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test writeback aborts when sentinel missing.",
+          "line_start": 220,
+          "line_end": 251
+        },
+        {
+          "name": "test_writeback_aborts_when_record_batch_slug_differs_from_request",
+          "qualified_name": "test_writeback_aborts_when_record_batch_slug_differs_from_request",
+          "signature": "def test_writeback_aborts_when_record_batch_slug_differs_from_request(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test writeback aborts when record batch slug differs from request.",
+          "line_start": 254,
+          "line_end": 288
+        },
+        {
+          "name": "test_writeback_rejects_non_absolute_origin_path",
+          "qualified_name": "test_writeback_rejects_non_absolute_origin_path",
+          "signature": "def test_writeback_rejects_non_absolute_origin_path(monkeypatch) -> None",
+          "purpose": "Function for test writeback rejects non absolute origin path.",
+          "line_start": 291,
+          "line_end": 315
+        }
+      ],
+      "analysis": "9_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/tests/test_writenew_envelope.py",
+      "relative_path": "tests/test_writenew_envelope.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "test_writenew_writes_autoscribe_envelope_preserving_unknown_fields",
+          "qualified_name": "test_writenew_writes_autoscribe_envelope_preserving_unknown_fields",
+          "signature": "def test_writenew_writes_autoscribe_envelope_preserving_unknown_fields(tmp_path, monkeypatch) -> None",
+          "purpose": "Function for test writenew writes autoscribe envelope preserving unknown fields.",
+          "line_start": 13,
+          "line_end": 56
+        },
+        {
+          "name": "test_writenew_rejects_non_absolute_origin_path",
+          "qualified_name": "test_writenew_rejects_non_absolute_origin_path",
+          "signature": "def test_writenew_rejects_non_absolute_origin_path(monkeypatch) -> None",
+          "purpose": "Function for test writenew rejects non absolute origin path.",
+          "line_start": 59,
+          "line_end": 84
+        }
+      ],
+      "analysis": "2_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/work_order_wkb_stream_refactor.md",
+      "relative_path": "work_order_wkb_stream_refactor.md",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/__init__.py",
+      "relative_path": "workbench/__init__.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/__init__.py",
+      "relative_path": "workbench/cli/__init__.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/create_project.py",
+      "relative_path": "workbench/cli/create_project.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 17,
+          "line_end": 29
+        },
+        {
+          "name": "_display_path",
+          "qualified_name": "_display_path",
+          "signature": "def _display_path(path) -> str",
+          "purpose": "Function for  display path.",
+          "line_start": 32,
+          "line_end": 38
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 41,
+          "line_end": 60
+        }
+      ],
+      "analysis": "3_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/create_vault.py",
+      "relative_path": "workbench/cli/create_vault.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 50,
+          "line_end": 62
+        },
+        {
+          "name": "_validate_required_directory",
+          "qualified_name": "_validate_required_directory",
+          "signature": "def _validate_required_directory(path) -> None",
+          "purpose": "Function for  validate required directory.",
+          "line_start": 65,
+          "line_end": 67
+        },
+        {
+          "name": "_validate_preconditions",
+          "qualified_name": "_validate_preconditions",
+          "signature": "def _validate_preconditions() -> None",
+          "purpose": "Function for  validate preconditions.",
+          "line_start": 70,
+          "line_end": 72
+        },
+        {
+          "name": "_resolve_vault_path",
+          "qualified_name": "_resolve_vault_path",
+          "signature": "def _resolve_vault_path(vault_path) -> Path",
+          "purpose": "Function for  resolve vault path.",
+          "line_start": 75,
+          "line_end": 94
+        },
+        {
+          "name": "is_vault",
+          "qualified_name": "is_vault",
+          "signature": "def is_vault(path) -> bool",
+          "purpose": "Function for is vault.",
+          "line_start": 97,
+          "line_end": 98
+        },
+        {
+          "name": "_display_path",
+          "qualified_name": "_display_path",
+          "signature": "def _display_path(path) -> str",
+          "purpose": "Function for  display path.",
+          "line_start": 101,
+          "line_end": 107
+        },
+        {
+          "name": "_encode_ulid",
+          "qualified_name": "_encode_ulid",
+          "signature": "def _encode_ulid(value) -> str",
+          "purpose": "Function for  encode ulid.",
+          "line_start": 110,
+          "line_end": 116
+        },
+        {
+          "name": "_generate_ulid",
+          "qualified_name": "_generate_ulid",
+          "signature": "def _generate_ulid() -> str",
+          "purpose": "Function for  generate ulid.",
+          "line_start": 119,
+          "line_end": 124
+        },
+        {
+          "name": "_utc_now_iso",
+          "qualified_name": "_utc_now_iso",
+          "signature": "def _utc_now_iso() -> str",
+          "purpose": "Function for  utc now iso.",
+          "line_start": 127,
+          "line_end": 130
+        },
+        {
+          "name": "_copy_template_without_overwrite",
+          "qualified_name": "_copy_template_without_overwrite",
+          "signature": "def _copy_template_without_overwrite(vault_path) -> None",
+          "purpose": "Function for  copy template without overwrite.",
+          "line_start": 133,
+          "line_end": 146
+        },
+        {
+          "name": "_install_template_if_missing",
+          "qualified_name": "_install_template_if_missing",
+          "signature": "def _install_template_if_missing(vault_path) -> bool",
+          "purpose": "Function for  install template if missing.",
+          "line_start": 149,
+          "line_end": 157
+        },
+        {
+          "name": "_ensure_common_symlink",
+          "qualified_name": "_ensure_common_symlink",
+          "signature": "def _ensure_common_symlink(vault_path) -> bool",
+          "purpose": "Function for  ensure common symlink.",
+          "line_start": 160,
+          "line_end": 177
+        },
+        {
+          "name": "_create_vault_registry",
+          "qualified_name": "_create_vault_registry",
+          "signature": "def _create_vault_registry(vault_path) -> bool",
+          "purpose": "Function for  create vault registry.",
+          "line_start": 180,
+          "line_end": 192
+        },
+        {
+          "name": "load_registry",
+          "qualified_name": "load_registry",
+          "signature": "def load_registry(path) -> dict[str, object]",
+          "purpose": "Function for load registry.",
+          "line_start": 195,
+          "line_end": 215
+        },
+        {
+          "name": "create_vault",
+          "qualified_name": "create_vault",
+          "signature": "def create_vault(vault_path) -> CreateVaultResult",
+          "purpose": "Function for create vault.",
+          "line_start": 218,
+          "line_end": 257
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 260,
+          "line_end": 279
+        }
+      ],
+      "analysis": "16_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/import_project.py",
+      "relative_path": "workbench/cli/import_project.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 31,
+          "line_end": 61
+        },
+        {
+          "name": "_resolve_draft_path",
+          "qualified_name": "_resolve_draft_path",
+          "signature": "def _resolve_draft_path(raw_path) -> Path",
+          "purpose": "Function for  resolve draft path.",
+          "line_start": 64,
+          "line_end": 68
+        },
+        {
+          "name": "_iter_manuscript_markdown",
+          "qualified_name": "_iter_manuscript_markdown",
+          "signature": "def _iter_manuscript_markdown(draft_path) -> list[Path]",
+          "purpose": "Function for  iter manuscript markdown.",
+          "line_start": 71,
+          "line_end": 81
+        },
+        {
+          "name": "_transfer_file",
+          "qualified_name": "_transfer_file",
+          "signature": "def _transfer_file(*, source, destination, move) -> None",
+          "purpose": "Function for  transfer file.",
+          "line_start": 84,
+          "line_end": 91
+        },
+        {
+          "name": "_import_markdown",
+          "qualified_name": "_import_markdown",
+          "signature": "def _import_markdown(*, draft_path, manuscript_dir, move) -> int",
+          "purpose": "Function for  import markdown.",
+          "line_start": 94,
+          "line_end": 101
+        },
+        {
+          "name": "_iter_asset_files",
+          "qualified_name": "_iter_asset_files",
+          "signature": "def _iter_asset_files(assets_root) -> list[Path]",
+          "purpose": "Function for  iter asset files.",
+          "line_start": 104,
+          "line_end": 107
+        },
+        {
+          "name": "_import_assets",
+          "qualified_name": "_import_assets",
+          "signature": "def _import_assets(*, draft_path, assets_dir, move) -> int",
+          "purpose": "Function for  import assets.",
+          "line_start": 110,
+          "line_end": 125
+        },
+        {
+          "name": "_write_instruction_placeholder",
+          "qualified_name": "_write_instruction_placeholder",
+          "signature": "def _write_instruction_placeholder(*, vault_path, project_name, project_path) -> None",
+          "purpose": "Function for  write instruction placeholder.",
+          "line_start": 128,
+          "line_end": 145
+        },
+        {
+          "name": "_create_project_directory",
+          "qualified_name": "_create_project_directory",
+          "signature": "def _create_project_directory(*, vault_path, project_name) -> Path",
+          "purpose": "Function for  create project directory.",
+          "line_start": 148,
+          "line_end": 156
+        },
+        {
+          "name": "_write_asset_index",
+          "qualified_name": "_write_asset_index",
+          "signature": "def _write_asset_index(*, assets_dir) -> None",
+          "purpose": "Function for  write asset index.",
+          "line_start": 159,
+          "line_end": 169
+        },
+        {
+          "name": "import_project",
+          "qualified_name": "import_project",
+          "signature": "def import_project(*, vault_root, vault_name, draft_path, project_name, move) -> ImportProjectResult",
+          "purpose": "Function for import project.",
+          "line_start": 172,
+          "line_end": 233
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 236,
+          "line_end": 259
+        }
+      ],
+      "analysis": "12_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/main.py",
+      "relative_path": "workbench/cli/main.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_print_root_help",
+          "qualified_name": "_print_root_help",
+          "signature": "def _print_root_help() -> None",
+          "purpose": "Function for  print root help.",
+          "line_start": 12,
+          "line_end": 26
+        },
+        {
+          "name": "_print_namespace_help",
+          "qualified_name": "_print_namespace_help",
+          "signature": "def _print_namespace_help(namespace) -> None",
+          "purpose": "Function for  print namespace help.",
+          "line_start": 29,
+          "line_end": 35
+        },
+        {
+          "name": "_load_main",
+          "qualified_name": "_load_main",
+          "signature": "def _load_main(entry) -> Callable[[list[str] | None], int]",
+          "purpose": "Function for  load main.",
+          "line_start": 38,
+          "line_end": 43
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 46,
+          "line_end": 78
+        },
+        {
+          "name": "entrypoint",
+          "qualified_name": "entrypoint",
+          "signature": "def entrypoint() -> int",
+          "purpose": "Function for entrypoint.",
+          "line_start": 81,
+          "line_end": 82
+        }
+      ],
+      "analysis": "5_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/registry.py",
+      "relative_path": "workbench/cli/registry.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/scan_sentinel.py",
+      "relative_path": "workbench/cli/scan_sentinel.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 13,
+          "line_end": 28
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 31,
+          "line_end": 47
+        }
+      ],
+      "analysis": "2_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/slug.py",
+      "relative_path": "workbench/cli/slug.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_legacy_parser",
+          "qualified_name": "_legacy_parser",
+          "signature": "def _legacy_parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  legacy parser.",
+          "line_start": 25,
+          "line_end": 56
+        },
+        {
+          "name": "_file_parser",
+          "qualified_name": "_file_parser",
+          "signature": "def _file_parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  file parser.",
+          "line_start": 59,
+          "line_end": 73
+        },
+        {
+          "name": "_read_paths_from_stdin",
+          "qualified_name": "_read_paths_from_stdin",
+          "signature": "def _read_paths_from_stdin() -> list[str]",
+          "purpose": "Function for  read paths from stdin.",
+          "line_start": 76,
+          "line_end": 77
+        },
+        {
+          "name": "_has_slug",
+          "qualified_name": "_has_slug",
+          "signature": "def _has_slug(path) -> bool",
+          "purpose": "Function for  has slug.",
+          "line_start": 80,
+          "line_end": 85
+        },
+        {
+          "name": "find_vault_root",
+          "qualified_name": "find_vault_root",
+          "signature": "def find_vault_root(filepath) -> Path",
+          "purpose": "Function for find vault root.",
+          "line_start": 88,
+          "line_end": 101
+        },
+        {
+          "name": "_resolve_registry_path",
+          "qualified_name": "_resolve_registry_path",
+          "signature": "def _resolve_registry_path(vault_root) -> Path",
+          "purpose": "Function for  resolve registry path.",
+          "line_start": 104,
+          "line_end": 113
+        },
+        {
+          "name": "_load_vault_mnemonic",
+          "qualified_name": "_load_vault_mnemonic",
+          "signature": "def _load_vault_mnemonic(vault_root) -> str",
+          "purpose": "Function for  load vault mnemonic.",
+          "line_start": 116,
+          "line_end": 127
+        },
+        {
+          "name": "_kebab",
+          "qualified_name": "_kebab",
+          "signature": "def _kebab(text) -> str",
+          "purpose": "Function for  kebab.",
+          "line_start": 130,
+          "line_end": 131
+        },
+        {
+          "name": "_extract_existing_slugs",
+          "qualified_name": "_extract_existing_slugs",
+          "signature": "def _extract_existing_slugs(studio_root) -> dict[str, set[Path]]",
+          "purpose": "Function for  extract existing slugs.",
+          "line_start": 134,
+          "line_end": 172
+        },
+        {
+          "name": "_slug_for_file",
+          "qualified_name": "_slug_for_file",
+          "signature": "def _slug_for_file(filepath) -> str",
+          "purpose": "Function for  slug for file.",
+          "line_start": 175,
+          "line_end": 188
+        },
+        {
+          "name": "_check_collision",
+          "qualified_name": "_check_collision",
+          "signature": "def _check_collision(*, slug, filepath) -> None",
+          "purpose": "Function for  check collision.",
+          "line_start": 191,
+          "line_end": 196
+        },
+        {
+          "name": "_write_slug",
+          "qualified_name": "_write_slug",
+          "signature": "def _write_slug(filepath, slug) -> None",
+          "purpose": "Function for  write slug.",
+          "line_start": 199,
+          "line_end": 203
+        },
+        {
+          "name": "_file_slug_command",
+          "qualified_name": "_file_slug_command",
+          "signature": "def _file_slug_command(args) -> int",
+          "purpose": "Function for  file slug command.",
+          "line_start": 206,
+          "line_end": 218
+        },
+        {
+          "name": "build_slug_command",
+          "qualified_name": "build_slug_command",
+          "signature": "def build_slug_command(args) -> int",
+          "purpose": "Function for build slug command.",
+          "line_start": 221,
+          "line_end": 233
+        },
+        {
+          "name": "ensure_slug_command",
+          "qualified_name": "ensure_slug_command",
+          "signature": "def ensure_slug_command(args) -> int",
+          "purpose": "Function for ensure slug command.",
+          "line_start": 236,
+          "line_end": 265
+        },
+        {
+          "name": "_validate",
+          "qualified_name": "_validate",
+          "signature": "def _validate(args) -> int",
+          "purpose": "Function for  validate.",
+          "line_start": 268,
+          "line_end": 320
+        },
+        {
+          "name": "_legacy_main",
+          "qualified_name": "_legacy_main",
+          "signature": "def _legacy_main(argv) -> int",
+          "purpose": "Function for  legacy main.",
+          "line_start": 323,
+          "line_end": 335
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 338,
+          "line_end": 346
+        }
+      ],
+      "analysis": "18_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/stream.py",
+      "relative_path": "workbench/cli/stream.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 12,
+          "line_end": 16
+        },
+        {
+          "name": "stream_markdown",
+          "qualified_name": "stream_markdown",
+          "signature": "def stream_markdown(stdin=sys.stdin, stdout=sys.stdout) -> None",
+          "purpose": "Stream markdown content extracted from NDJSON records.",
+          "line_start": 19,
+          "line_end": 27
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 30,
+          "line_end": 37
+        }
+      ],
+      "analysis": "3_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/cli/vault_template.py",
+      "relative_path": "workbench/cli/vault_template.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 37,
+          "line_end": 60
+        },
+        {
+          "name": "_resolve_existing_markdown_path",
+          "qualified_name": "_resolve_existing_markdown_path",
+          "signature": "def _resolve_existing_markdown_path(raw_path) -> Path",
+          "purpose": "Function for  resolve existing markdown path.",
+          "line_start": 63,
+          "line_end": 70
+        },
+        {
+          "name": "_resolve_target_files",
+          "qualified_name": "_resolve_target_files",
+          "signature": "def _resolve_target_files(raw_paths) -> list[Path]",
+          "purpose": "Function for  resolve target files.",
+          "line_start": 73,
+          "line_end": 88
+        },
+        {
+          "name": "_find_vault_root_for_file",
+          "qualified_name": "_find_vault_root_for_file",
+          "signature": "def _find_vault_root_for_file(path) -> Path",
+          "purpose": "Function for  find vault root for file.",
+          "line_start": 91,
+          "line_end": 99
+        },
+        {
+          "name": "_resolve_templates_root",
+          "qualified_name": "_resolve_templates_root",
+          "signature": "def _resolve_templates_root(vault_root) -> Path",
+          "purpose": "Function for  resolve templates root.",
+          "line_start": 102,
+          "line_end": 106
+        },
+        {
+          "name": "_resolve_template_path",
+          "qualified_name": "_resolve_template_path",
+          "signature": "def _resolve_template_path(template_name, vault_root) -> Path",
+          "purpose": "Function for  resolve template path.",
+          "line_start": 109,
+          "line_end": 151
+        },
+        {
+          "name": "_load_template",
+          "qualified_name": "_load_template",
+          "signature": "def _load_template(path) -> tuple[dict[str, object], str]",
+          "purpose": "Function for  load template.",
+          "line_start": 154,
+          "line_end": 165
+        },
+        {
+          "name": "_render_markdown",
+          "qualified_name": "_render_markdown",
+          "signature": "def _render_markdown(frontmatter, body) -> str",
+          "purpose": "Function for  render markdown.",
+          "line_start": 168,
+          "line_end": 170
+        },
+        {
+          "name": "_merge_frontmatter",
+          "qualified_name": "_merge_frontmatter",
+          "signature": "def _merge_frontmatter(*, current, template, target_path) -> dict[str, object]",
+          "purpose": "Function for  merge frontmatter.",
+          "line_start": 173,
+          "line_end": 199
+        },
+        {
+          "name": "_build_change_plan",
+          "qualified_name": "_build_change_plan",
+          "signature": "def _build_change_plan(template_path, targets) -> list[PlannedChange]",
+          "purpose": "Function for  build change plan.",
+          "line_start": 202,
+          "line_end": 230
+        },
+        {
+          "name": "_apply_changes_atomically",
+          "qualified_name": "_apply_changes_atomically",
+          "signature": "def _apply_changes_atomically(changes) -> None",
+          "purpose": "Function for  apply changes atomically.",
+          "line_start": 233,
+          "line_end": 272
+        },
+        {
+          "name": "apply_template_to_files",
+          "qualified_name": "apply_template_to_files",
+          "signature": "def apply_template_to_files(*, template_name, filepaths) -> TemplateApplyResult",
+          "purpose": "Function for apply template to files.",
+          "line_start": 275,
+          "line_end": 298
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 301,
+          "line_end": 322
+        }
+      ],
+      "analysis": "13_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/config/__init__.py",
+      "relative_path": "workbench/config/__init__.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/config/roots.py",
+      "relative_path": "workbench/config/roots.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_read_env",
+          "qualified_name": "_read_env",
+          "signature": "def _read_env(name) -> str | None",
+          "purpose": "Function for  read env.",
+          "line_start": 21,
+          "line_end": 26
+        },
+        {
+          "name": "resolve_content_root",
+          "qualified_name": "resolve_content_root",
+          "signature": "def resolve_content_root(cli_root) -> Path",
+          "purpose": "Function for resolve content root.",
+          "line_start": 29,
+          "line_end": 39
+        },
+        {
+          "name": "resolve_config_dir",
+          "qualified_name": "resolve_config_dir",
+          "signature": "def resolve_config_dir() -> Path",
+          "purpose": "Function for resolve config dir.",
+          "line_start": 42,
+          "line_end": 50
+        },
+        {
+          "name": "resolve_cache_dir",
+          "qualified_name": "resolve_cache_dir",
+          "signature": "def resolve_cache_dir() -> Path",
+          "purpose": "Function for resolve cache dir.",
+          "line_start": 53,
+          "line_end": 61
+        }
+      ],
+      "analysis": "4_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/framing/__init__.py",
+      "relative_path": "workbench/framing/__init__.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/framing/markdown.py",
+      "relative_path": "workbench/framing/markdown.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_has_additional_document",
+          "qualified_name": "_has_additional_document",
+          "signature": "def _has_additional_document(text) -> bool",
+          "purpose": "Function for  has additional document.",
+          "line_start": 16,
+          "line_end": 22
+        },
+        {
+          "name": "parse_markdown_batch",
+          "qualified_name": "parse_markdown_batch",
+          "signature": "def parse_markdown_batch(text) -> list[Document]",
+          "purpose": "Function for parse markdown batch.",
+          "line_start": 25,
+          "line_end": 30
+        },
+        {
+          "name": "emit_markdown_batch",
+          "qualified_name": "emit_markdown_batch",
+          "signature": "def emit_markdown_batch(docs) -> str",
+          "purpose": "Function for emit markdown batch.",
+          "line_start": 33,
+          "line_end": 42
+        }
+      ],
+      "analysis": "3_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/interop/__init__.py",
+      "relative_path": "workbench/interop/__init__.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/interop/document.py",
+      "relative_path": "workbench/interop/document.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_to_json_value",
+          "qualified_name": "_to_json_value",
+          "signature": "def _to_json_value(value) -> Any",
+          "purpose": "Function for  to json value.",
+          "line_start": 13,
+          "line_end": 20
+        },
+        {
+          "name": "__post_init__",
+          "qualified_name": "Document.__post_init__",
+          "signature": "def __post_init__(self) -> None",
+          "purpose": "Function for   post init  .",
+          "line_start": 66,
+          "line_end": 90
+        },
+        {
+          "name": "__str__",
+          "qualified_name": "Document.__str__",
+          "signature": "def __str__(self) -> str",
+          "purpose": "Function for   str  .",
+          "line_start": 96,
+          "line_end": 97
+        },
+        {
+          "name": "__getattr__",
+          "qualified_name": "Document.__getattr__",
+          "signature": "def __getattr__(self, attr) -> Any",
+          "purpose": "Allow metadata access via attributes.",
+          "line_start": 99,
+          "line_end": 110
+        },
+        {
+          "name": "parse_metadata_block",
+          "qualified_name": "Document.parse_metadata_block",
+          "signature": "def parse_metadata_block(raw_metadata) -> dict[str, Any]",
+          "purpose": "Function for parse metadata block.",
+          "line_start": 117,
+          "line_end": 128
+        },
+        {
+          "name": "inspect_text",
+          "qualified_name": "Document.inspect_text",
+          "signature": "def inspect_text(cls, text, *, sentinel_pattern=None) -> DocumentParseResult",
+          "purpose": "Function for inspect text.",
+          "line_start": 131,
+          "line_end": 180
+        },
+        {
+          "name": "read_text",
+          "qualified_name": "Document.read_text",
+          "signature": "def read_text(cls, text, *, sentinel_pattern=None) -> Document",
+          "purpose": "Function for read text.",
+          "line_start": 187,
+          "line_end": 196
+        },
+        {
+          "name": "read_file",
+          "qualified_name": "Document.read_file",
+          "signature": "def read_file(cls, filepath, *, sentinel_pattern=None) -> Document",
+          "purpose": "Function for read file.",
+          "line_start": 199,
+          "line_end": 216
+        },
+        {
+          "name": "inspect_file",
+          "qualified_name": "Document.inspect_file",
+          "signature": "def inspect_file(cls, filepath, *, sentinel_pattern=None) -> DocumentParseResult",
+          "purpose": "Function for inspect file.",
+          "line_start": 219,
+          "line_end": 233
+        },
+        {
+          "name": "read_kwargs",
+          "qualified_name": "Document.read_kwargs",
+          "signature": "def read_kwargs(cls, **kwargs) -> Document",
+          "purpose": "Function for read kwargs.",
+          "line_start": 236,
+          "line_end": 247
+        },
+        {
+          "name": "write_text",
+          "qualified_name": "Document.write_text",
+          "signature": "def write_text(self) -> str",
+          "purpose": "Deterministic markdown serialization.",
+          "line_start": 253,
+          "line_end": 272
+        },
+        {
+          "name": "write_file",
+          "qualified_name": "Document.write_file",
+          "signature": "def write_file(self, filepath=None, overwrite=False) -> Path",
+          "purpose": "Function for write file.",
+          "line_start": 274,
+          "line_end": 292
+        },
+        {
+          "name": "word_count",
+          "qualified_name": "Document.word_count",
+          "signature": "def word_count(self) -> int",
+          "purpose": "Function for word count.",
+          "line_start": 299,
+          "line_end": 300
+        },
+        {
+          "name": "words",
+          "qualified_name": "Document.words",
+          "signature": "def words(self) -> int",
+          "purpose": "Function for words.",
+          "line_start": 303,
+          "line_end": 305
+        },
+        {
+          "name": "modified",
+          "qualified_name": "Document.modified",
+          "signature": "def modified(self) -> int | None",
+          "purpose": "Function for modified.",
+          "line_start": 307,
+          "line_end": 310
+        },
+        {
+          "name": "comments",
+          "qualified_name": "Document.comments",
+          "signature": "def comments(self) -> list[str]",
+          "purpose": "Function for comments.",
+          "line_start": 312,
+          "line_end": 313
+        },
+        {
+          "name": "get",
+          "qualified_name": "Document.get",
+          "signature": "def get(self, key, default=None) -> Any",
+          "purpose": "Function for get.",
+          "line_start": 315,
+          "line_end": 316
+        },
+        {
+          "name": "has_metadata",
+          "qualified_name": "Document.has_metadata",
+          "signature": "def has_metadata(self, key) -> bool",
+          "purpose": "Function for has metadata.",
+          "line_start": 318,
+          "line_end": 319
+        }
+      ],
+      "analysis": "18_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/interop/identity.py",
+      "relative_path": "workbench/interop/identity.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "normalize_semantic_base",
+          "qualified_name": "normalize_semantic_base",
+          "signature": "def normalize_semantic_base(filename) -> str",
+          "purpose": "Function for normalize semantic base.",
+          "line_start": 21,
+          "line_end": 30
+        },
+        {
+          "name": "generate_suffix",
+          "qualified_name": "generate_suffix",
+          "signature": "def generate_suffix(length=5) -> str",
+          "purpose": "Function for generate suffix.",
+          "line_start": 33,
+          "line_end": 36
+        },
+        {
+          "name": "compose_slug",
+          "qualified_name": "compose_slug",
+          "signature": "def compose_slug(semantic_base, suffix) -> str",
+          "purpose": "Function for compose slug.",
+          "line_start": 39,
+          "line_end": 46
+        },
+        {
+          "name": "create_slug",
+          "qualified_name": "create_slug",
+          "signature": "def create_slug(target_dir, filename_hint) -> str",
+          "purpose": "Function for create slug.",
+          "line_start": 49,
+          "line_end": 59
+        },
+        {
+          "name": "_slug_in_use",
+          "qualified_name": "_slug_in_use",
+          "signature": "def _slug_in_use(search_root, candidate_slug) -> bool",
+          "purpose": "Function for  slug in use.",
+          "line_start": 62,
+          "line_end": 74
+        },
+        {
+          "name": "_read_frontmatter_slug",
+          "qualified_name": "_read_frontmatter_slug",
+          "signature": "def _read_frontmatter_slug(path) -> str | None",
+          "purpose": "Function for  read frontmatter slug.",
+          "line_start": 77,
+          "line_end": 91
+        }
+      ],
+      "analysis": "6_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/__init__.py",
+      "relative_path": "workbench/lib/__init__.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/git.py",
+      "relative_path": "workbench/lib/git.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "run_git",
+          "qualified_name": "run_git",
+          "signature": "def run_git(repo_root, args, *, check=True) -> str",
+          "purpose": "Function for run git.",
+          "line_start": 10,
+          "line_end": 14
+        }
+      ],
+      "analysis": "1_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/ndjson_stream.py",
+      "relative_path": "workbench/lib/ndjson_stream.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "iter_ndjson",
+          "qualified_name": "iter_ndjson",
+          "signature": "def iter_ndjson(stream) -> Iterator[dict[str, Any]]",
+          "purpose": "Function for iter ndjson.",
+          "line_start": 9,
+          "line_end": 17
+        }
+      ],
+      "analysis": "1_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/paths.py",
+      "relative_path": "workbench/lib/paths.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "ensure_within",
+          "qualified_name": "ensure_within",
+          "signature": "def ensure_within(root, candidate, *, raw=None) -> None",
+          "purpose": "Function for ensure within.",
+          "line_start": 12,
+          "line_end": 17
+        },
+        {
+          "name": "resolve_under",
+          "qualified_name": "resolve_under",
+          "signature": "def resolve_under(base_dir, rel_path) -> Path",
+          "purpose": "Function for resolve under.",
+          "line_start": 20,
+          "line_end": 28
+        },
+        {
+          "name": "normalize_vault_name",
+          "qualified_name": "normalize_vault_name",
+          "signature": "def normalize_vault_name(vault_name) -> str",
+          "purpose": "Normalize vault directory names.",
+          "line_start": 31,
+          "line_end": 38
+        },
+        {
+          "name": "normalize_project_name",
+          "qualified_name": "normalize_project_name",
+          "signature": "def normalize_project_name(project_name) -> str",
+          "purpose": "Normalize project identifiers.",
+          "line_start": 41,
+          "line_end": 48
+        }
+      ],
+      "analysis": "4_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/sentinel.py",
+      "relative_path": "workbench/lib/sentinel.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_first_non_empty_line",
+          "qualified_name": "_first_non_empty_line",
+          "signature": "def _first_non_empty_line(lines) -> tuple[int, str] | None",
+          "purpose": "Function for  first non empty line.",
+          "line_start": 11,
+          "line_end": 16
+        },
+        {
+          "name": "read_batch_sentinel",
+          "qualified_name": "read_batch_sentinel",
+          "signature": "def read_batch_sentinel(path) -> str | None",
+          "purpose": "Function for read batch sentinel.",
+          "line_start": 19,
+          "line_end": 30
+        },
+        {
+          "name": "strip_batch_sentinel",
+          "qualified_name": "strip_batch_sentinel",
+          "signature": "def strip_batch_sentinel(text) -> str",
+          "purpose": "Function for strip batch sentinel.",
+          "line_start": 33,
+          "line_end": 43
+        },
+        {
+          "name": "insert_batch_sentinel",
+          "qualified_name": "insert_batch_sentinel",
+          "signature": "def insert_batch_sentinel(text, slug) -> str",
+          "purpose": "Function for insert batch sentinel.",
+          "line_start": 46,
+          "line_end": 53
+        }
+      ],
+      "analysis": "4_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/sentinel_scan.py",
+      "relative_path": "workbench/lib/sentinel_scan.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "is_valid_batch_slug",
+          "qualified_name": "is_valid_batch_slug",
+          "signature": "def is_valid_batch_slug(value) -> bool",
+          "purpose": "Function for is valid batch slug.",
+          "line_start": 24,
+          "line_end": 25
+        },
+        {
+          "name": "default_pattern",
+          "qualified_name": "default_pattern",
+          "signature": "def default_pattern() -> str",
+          "purpose": "Function for default pattern.",
+          "line_start": 32,
+          "line_end": 33
+        },
+        {
+          "name": "expand_paths",
+          "qualified_name": "expand_paths",
+          "signature": "def expand_paths(*, cwd, raw_paths, follow_symlinks=False) -> list[Path]",
+          "purpose": "Resolve query paths into a sorted list of files under `cwd`.",
+          "line_start": 36,
+          "line_end": 66
+        },
+        {
+          "name": "scan_paths_for_pattern",
+          "qualified_name": "scan_paths_for_pattern",
+          "signature": "def scan_paths_for_pattern(*, cwd, raw_paths, pattern, follow_symlinks=False) -> list[str]",
+          "purpose": "Function for scan paths for pattern.",
+          "line_start": 69,
+          "line_end": 87
+        },
+        {
+          "name": "scan_paths_for_batch_sentinel",
+          "qualified_name": "scan_paths_for_batch_sentinel",
+          "signature": "def scan_paths_for_batch_sentinel(*, cwd, raw_paths, follow_symlinks=False) -> list[str]",
+          "purpose": "Function for scan paths for batch sentinel.",
+          "line_start": 90,
+          "line_end": 102
+        },
+        {
+          "name": "_normalize_query_paths",
+          "qualified_name": "_normalize_query_paths",
+          "signature": "def _normalize_query_paths(*, cwd, raw_paths) -> list[str]",
+          "purpose": "Function for  normalize query paths.",
+          "line_start": 105,
+          "line_end": 129
+        },
+        {
+          "name": "_scan_with_rg",
+          "qualified_name": "_scan_with_rg",
+          "signature": "def _scan_with_rg(*, cwd, query_paths, follow_symlinks) -> list[str]",
+          "purpose": "Function for  scan with rg.",
+          "line_start": 132,
+          "line_end": 206
+        },
+        {
+          "name": "_normalize_match_path",
+          "qualified_name": "_normalize_match_path",
+          "signature": "def _normalize_match_path(path_text) -> str",
+          "purpose": "Function for  normalize match path.",
+          "line_start": 209,
+          "line_end": 213
+        },
+        {
+          "name": "_walk_files",
+          "qualified_name": "_walk_files",
+          "signature": "def _walk_files(root, *, follow_symlinks) -> list[Path]",
+          "purpose": "Function for  walk files.",
+          "line_start": 216,
+          "line_end": 238
+        },
+        {
+          "name": "_matches_start_of_file",
+          "qualified_name": "_matches_start_of_file",
+          "signature": "def _matches_start_of_file(path, pattern) -> bool",
+          "purpose": "Function for  matches start of file.",
+          "line_start": 241,
+          "line_end": 256
+        },
+        {
+          "name": "extract_batch_slug",
+          "qualified_name": "extract_batch_slug",
+          "signature": "def extract_batch_slug(path) -> str | None",
+          "purpose": "Function for extract batch slug.",
+          "line_start": 259,
+          "line_end": 278
+        },
+        {
+          "name": "extract_batch_slug_from_first_line",
+          "qualified_name": "extract_batch_slug_from_first_line",
+          "signature": "def extract_batch_slug_from_first_line(first_line) -> str | None",
+          "purpose": "Function for extract batch slug from first line.",
+          "line_start": 281,
+          "line_end": 288
+        }
+      ],
+      "analysis": "12_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/streams.py",
+      "relative_path": "workbench/lib/streams.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "read_stdin_text",
+          "qualified_name": "read_stdin_text",
+          "signature": "def read_stdin_text() -> str",
+          "purpose": "Function for read stdin text.",
+          "line_start": 8,
+          "line_end": 9
+        },
+        {
+          "name": "write_stdout_text",
+          "qualified_name": "write_stdout_text",
+          "signature": "def write_stdout_text(text) -> None",
+          "purpose": "Function for write stdout text.",
+          "line_start": 12,
+          "line_end": 13
+        }
+      ],
+      "analysis": "2_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/subprocess.py",
+      "relative_path": "workbench/lib/subprocess.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "run_text",
+          "qualified_name": "run_text",
+          "signature": "def run_text(args, *, cwd=None, check=True) -> str",
+          "purpose": "Function for run text.",
+          "line_start": 14,
+          "line_end": 25
+        },
+        {
+          "name": "iter_stdout_lines",
+          "qualified_name": "iter_stdout_lines",
+          "signature": "def iter_stdout_lines(args, *, cwd=None, check=True) -> Iterator[str]",
+          "purpose": "Function for iter stdout lines.",
+          "line_start": 28,
+          "line_end": 52
+        }
+      ],
+      "analysis": "2_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/lib/text.py",
+      "relative_path": "workbench/lib/text.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "snake_case",
+          "qualified_name": "snake_case",
+          "signature": "def snake_case(value) -> str",
+          "purpose": "Function for snake case.",
+          "line_start": 8,
+          "line_end": 12
+        },
+        {
+          "name": "kebab_case",
+          "qualified_name": "kebab_case",
+          "signature": "def kebab_case(value) -> str",
+          "purpose": "Function for kebab case.",
+          "line_start": 15,
+          "line_end": 20
+        },
+        {
+          "name": "strip_utf8_bom",
+          "qualified_name": "strip_utf8_bom",
+          "signature": "def strip_utf8_bom(text) -> str",
+          "purpose": "Function for strip utf8 bom.",
+          "line_start": 23,
+          "line_end": 24
+        }
+      ],
+      "analysis": "3_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/slug/__init__.py",
+      "relative_path": "workbench/slug/__init__.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/slug/builder.py",
+      "relative_path": "workbench/slug/builder.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "build_slug",
+          "qualified_name": "build_slug",
+          "signature": "def build_slug(*, namespace, class_name, seed, context=None) -> str",
+          "purpose": "Build canonical slug for content or instruction objects.",
+          "line_start": 9,
+          "line_end": 54
+        }
+      ],
+      "analysis": "1_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/slug/normalize.py",
+      "relative_path": "workbench/slug/normalize.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "normalize_segment",
+          "qualified_name": "normalize_segment",
+          "signature": "def normalize_segment(value) -> str",
+          "purpose": "Normalize one slug segment to canonical ASCII-hyphen form.",
+          "line_start": 12,
+          "line_end": 25
+        }
+      ],
+      "analysis": "1_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/slug/validator.py",
+      "relative_path": "workbench/slug/validator.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "validate_slug",
+          "qualified_name": "validate_slug",
+          "signature": "def validate_slug(slug) -> None",
+          "purpose": "Raise ValueError when slug violates frozen grammar/structure.",
+          "line_start": 13,
+          "line_end": 34
+        }
+      ],
+      "analysis": "1_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/slug/writer.py",
+      "relative_path": "workbench/slug/writer.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "write_slug",
+          "qualified_name": "write_slug",
+          "signature": "def write_slug(filepath, slug, *, require_placeholder=True) -> str",
+          "purpose": "Function for write slug.",
+          "line_start": 15,
+          "line_end": 41
+        },
+        {
+          "name": "ensure_slug",
+          "qualified_name": "ensure_slug",
+          "signature": "def ensure_slug(filepath, *, namespace=None) -> str",
+          "purpose": "Ensure a file has a valid slug.",
+          "line_start": 44,
+          "line_end": 105
+        },
+        {
+          "name": "_collect_sibling_slugs",
+          "qualified_name": "_collect_sibling_slugs",
+          "signature": "def _collect_sibling_slugs(filepath) -> set[str]",
+          "purpose": "Function for  collect sibling slugs.",
+          "line_start": 108,
+          "line_end": 136
+        }
+      ],
+      "analysis": "3_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/write/__init__.py",
+      "relative_path": "workbench/write/__init__.py",
+      "language": "python",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/write/common.py",
+      "relative_path": "workbench/write/common.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "atomic_write_text",
+          "qualified_name": "atomic_write_text",
+          "signature": "def atomic_write_text(path, content, encoding='utf-8') -> None",
+          "purpose": "Function for atomic write text.",
+          "line_start": 31,
+          "line_end": 45
+        },
+        {
+          "name": "normalize_batch_slug",
+          "qualified_name": "normalize_batch_slug",
+          "signature": "def normalize_batch_slug(value, *, field='batch slug') -> str",
+          "purpose": "Normalize batch identifiers.",
+          "line_start": 48,
+          "line_end": 56
+        },
+        {
+          "name": "fetch_batch_records",
+          "qualified_name": "fetch_batch_records",
+          "signature": "def fetch_batch_records(batch_slug, *, asc_bin='asc') -> Iterator[WriteRecord]",
+          "purpose": "Function for fetch batch records.",
+          "line_start": 59,
+          "line_end": 74
+        },
+        {
+          "name": "_coerce_record",
+          "qualified_name": "_coerce_record",
+          "signature": "def _coerce_record(*, record, index) -> WriteRecord",
+          "purpose": "Function for  coerce record.",
+          "line_start": 77,
+          "line_end": 103
+        },
+        {
+          "name": "resolve_writenew_target_path",
+          "qualified_name": "resolve_writenew_target_path",
+          "signature": "def resolve_writenew_target_path(*, record, record_index) -> Path",
+          "purpose": "Function for resolve writenew target path.",
+          "line_start": 106,
+          "line_end": 107
+        },
+        {
+          "name": "resolve_writeback_target_path",
+          "qualified_name": "resolve_writeback_target_path",
+          "signature": "def resolve_writeback_target_path(*, record, record_index) -> Path",
+          "purpose": "Function for resolve writeback target path.",
+          "line_start": 110,
+          "line_end": 111
+        },
+        {
+          "name": "resolve_origin_slug",
+          "qualified_name": "resolve_origin_slug",
+          "signature": "def resolve_origin_slug(*, record, record_index) -> str | None",
+          "purpose": "Function for resolve origin slug.",
+          "line_start": 114,
+          "line_end": 122
+        },
+        {
+          "name": "validate_record_batch_slug",
+          "qualified_name": "validate_record_batch_slug",
+          "signature": "def validate_record_batch_slug(*, record, requested_batch_slug, record_index) -> None",
+          "purpose": "Function for validate record batch slug.",
+          "line_start": 125,
+          "line_end": 134
+        },
+        {
+          "name": "serialize_record",
+          "qualified_name": "serialize_record",
+          "signature": "def serialize_record(record) -> str",
+          "purpose": "Function for serialize record.",
+          "line_start": 137,
+          "line_end": 142
+        },
+        {
+          "name": "_resolve_origin_path",
+          "qualified_name": "_resolve_origin_path",
+          "signature": "def _resolve_origin_path(*, record, record_index) -> Path",
+          "purpose": "Function for  resolve origin path.",
+          "line_start": 145,
+          "line_end": 162
+        }
+      ],
+      "analysis": "10_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/write/writeback.py",
+      "relative_path": "workbench/write/writeback.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 26,
+          "line_end": 45
+        },
+        {
+          "name": "write_back_batch",
+          "qualified_name": "write_back_batch",
+          "signature": "def write_back_batch(batch_slug, *, asc_bin, debug_routing) -> None",
+          "purpose": "Function for write back batch.",
+          "line_start": 48,
+          "line_end": 103
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 106,
+          "line_end": 120
+        }
+      ],
+      "analysis": "3_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/write/writenew.py",
+      "relative_path": "workbench/write/writenew.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 19,
+          "line_end": 38
+        },
+        {
+          "name": "write_new_batch",
+          "qualified_name": "write_new_batch",
+          "signature": "def write_new_batch(batch_slug, *, asc_bin, debug_routing) -> None",
+          "purpose": "Function for write new batch.",
+          "line_start": 41,
+          "line_end": 66
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 69,
+          "line_end": 83
+        }
+      ],
+      "analysis": "3_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench/write/writestream.py",
+      "relative_path": "workbench/write/writestream.py",
+      "language": "python",
+      "functions": [
+        {
+          "name": "_parser",
+          "qualified_name": "_parser",
+          "signature": "def _parser() -> argparse.ArgumentParser",
+          "purpose": "Function for  parser.",
+          "line_start": 12,
+          "line_end": 16
+        },
+        {
+          "name": "main",
+          "qualified_name": "main",
+          "signature": "def main(argv=None) -> int",
+          "purpose": "Function for main.",
+          "line_start": 19,
+          "line_end": 28
+        }
+      ],
+      "analysis": "2_function(s)_detected"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench.egg-info/PKG-INFO",
+      "relative_path": "workbench.egg-info/PKG-INFO",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench.egg-info/SOURCES.txt",
+      "relative_path": "workbench.egg-info/SOURCES.txt",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench.egg-info/dependency_links.txt",
+      "relative_path": "workbench.egg-info/dependency_links.txt",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench.egg-info/entry_points.txt",
+      "relative_path": "workbench.egg-info/entry_points.txt",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench.egg-info/top_level.txt",
+      "relative_path": "workbench.egg-info/top_level.txt",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    },
+    {
+      "path": "/home/jeremy/Workbench/workbench_package_function_report.json",
+      "relative_path": "workbench_package_function_report.json",
+      "language": "other",
+      "functions": [],
+      "analysis": "no_detected_functions"
+    }
+  ]
+}

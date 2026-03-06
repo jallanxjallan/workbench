@@ -30,7 +30,6 @@ Obsidian scaffolding roots used by `create-vault`:
 - `~/Workbench/obsidian/vault-template` (template source)
 - `~/Workbench/obsidian/vault-common` (symlink target for `_common`)
 - Per-vault registry file: `_vault_registry` (single-record NDJSON)
-- Migration helper: `bin/migrate_studio_obsidian_layout [<studio_root>]`
 
 Vault template command:
 
