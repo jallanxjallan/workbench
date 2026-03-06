@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from workbench.lib.ndjson import StreamError, parse_ndjson
+from workbench.lib.ndjson_stream import iter_ndjson
 from workbench.lib.paths import PathError, ensure_within
 from workbench.lib.text import strip_utf8_bom
 
@@ -169,7 +169,7 @@ def _scan_with_rg(
     rows: list[str] = []
     try:
         input_stream = proc.stdout.splitlines()
-        for input_record in parse_ndjson(input_stream):
+        for input_record in iter_ndjson(input_stream):
             if input_record.get("type") != "match":
                 continue
 
@@ -200,7 +200,7 @@ def _scan_with_rg(
                 continue
 
             rows.append(_normalize_match_path(path_text))
-    except StreamError as exc:
+    except ValueError as exc:
         raise SentinelScanError("invalid rg output") from exc
 
     return rows

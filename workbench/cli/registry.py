@@ -29,6 +29,10 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "workbench.write.writestream",
         "Pass markdown batch through unchanged to stdout.",
     ),
+    "stream": CommandEntry(
+        "workbench.cli.stream",
+        "Extract markdown content fields from NDJSON and emit a concatenated markdown stream.",
+    ),
     "slug": CommandEntry(
         "workbench.cli.slug",
         "Generate deterministic slugs for vault markdown files (supports legacy subcommands).",

@@ -20,6 +20,7 @@ Top-level commands:
 - `wkb writenew <batch-slug>`
 - `wkb writeback <batch-slug>`
 - `wkb writestream`
+- `wkb stream`
 - `wkb scan-sentinel [paths...]`
 - `wkb slug <file> [--write]`
 - `wkb create-vault <vault-name-or-path>`
@@ -37,6 +38,9 @@ Vault template command:
 - `wkb vault template apply --template <template_name> --files file1.md file2.md`
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
+
+`wkb stream` reads NDJSON from stdin, extracts each record `content`, and writes a concatenated
+bare markdown stream (for example: `asc emit <batch> --ndjson | wkb stream | pandoc ...`).
 
 `wkb slug` also keeps legacy compatibility with:
 
@@ -95,6 +99,7 @@ Layer responsibilities:
 | Layer | Responsibility |
 | --- | --- |
 | Providers / AutoScribe | Produce and transform NDJSON records |
+| `wkb stream` | Extract `content` from NDJSON records and emit concatenated bare markdown in record order |
 | `wkb scan-sentinel` | Select markdown files whose first line contains a valid ASC batch sentinel and emit path NDJSON rows |
 | `wkb writenew` / `wkb writeback` | Consume NDJSON records and persist markdown files |
 | `wkb writestream` | Pass markdown through unchanged |

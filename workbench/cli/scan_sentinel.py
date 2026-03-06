@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
 
-from workbench.lib.ndjson import emit_ndjson
 from workbench.lib.sentinel_scan import SentinelScanError, scan_paths_for_batch_sentinel
 
 
@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
             follow_symlinks=args.follow_symlinks,
         )
         for path in rows:
-            sys.stdout.write(emit_ndjson({"path": path}) + "\n")
+            sys.stdout.write(json.dumps({"path": path}, ensure_ascii=False) + "\n")
         return 0
     except SentinelScanError as exc:
         print(f"[scan-sentinel] error: {exc}", file=sys.stderr)
