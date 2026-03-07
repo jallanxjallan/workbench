@@ -45,6 +45,10 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "workbench.cli.scan_sentinel",
         "Select markdown paths whose first line is a valid ASC batch sentinel.",
     ),
+    "generate_thumbs": CommandEntry(
+        "workbench.cli.generate_thumbs",
+        "Generate thumbnails for markdown image links (default root: ~/Studio).",
+    ),
 }
 
 

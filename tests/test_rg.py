@@ -42,10 +42,10 @@ def test_build_slug_index_detects_markdown_slugs(
             "rg",
             "--json",
             "--pcre2",
-            "--glob",
-            "*.md",
             r"^slug:\s*(\S+)",
             str(studio_root.resolve()),
+            "--glob",
+            "*.md",
         ]
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
 
@@ -107,3 +107,92 @@ def test_build_slug_index_ignores_non_markdown_files(
 
     assert "md.slug" in index
     assert "txt.slug" not in index
+
+
+def test_rg_search_supports_include_exclude_and_match_filtering(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir(parents=True)
+    stdout = "\n".join(
+        [
+            json.dumps({"type": "begin", "data": {"path": {"text": str(studio_root / "note.md")}}}),
+            _match_event(studio_root / "note.md", "slug: alpha.slug\n"),
+        ]
+    )
+
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert args == [
+            "rg",
+            "--json",
+            "--pcre2",
+            "slug",
+            str(studio_root.resolve()),
+            "--glob",
+            "*.md",
+            "--glob",
+            "!**/_archive/**",
+        ]
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
+
+    events = rg_module.rg_search(
+        "slug",
+        root=studio_root,
+        include=["*.md"],
+        exclude=["**/_archive/**"],
+    )
+
+    assert len(events) == 1
+    assert events[0]["type"] == "match"
+
+
+def test_find_markdown_images_uses_thumb_excluding_pattern(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir(parents=True)
+    note_path = studio_root / "note.md"
+    stdout = _match_event(note_path, "![alt](images/photo.jpg)\n")
+
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert args == [
+            "rg",
+            "--json",
+            "--pcre2",
+            rg_module.IMAGE_PATTERN,
+            str(studio_root.resolve()),
+            "--glob",
+            "*.md",
+        ]
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
+
+    results = rg_module.find_markdown_images(root=studio_root)
+
+    assert results == [
+        {
+            "file": note_path.resolve(),
+            "line": "![alt](images/photo.jpg)\n",
+        }
+    ]
+
+
+def test_ensure_pcre2_available_raises_without_feature(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert args == ["rg", "--version"]
+        return subprocess.CompletedProcess(args, 0, stdout="ripgrep 13.0.0\nfeatures:-simd\n", stderr="")
+
+    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
+
+    with pytest.raises(
+        RipgrepError,
+        match="PCRE2 is not available in this build of ripgrep",
+    ):
+        rg_module._ensure_pcre2_available()

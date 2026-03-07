@@ -11,6 +11,11 @@ def test_stream_command_points_to_stream_module() -> None:
     assert entry.module == "workbench.cli.stream"
 
 
+def test_generate_thumbs_command_points_to_generate_thumbs_module() -> None:
+    entry = ROOT_COMMANDS["generate_thumbs"]
+    assert entry.module == "workbench.cli.generate_thumbs"
+
+
 def test_legacy_ingest_namespace_removed() -> None:
     assert "ingest" not in REGISTRY
 
