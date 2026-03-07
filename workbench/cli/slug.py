@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -18,7 +16,6 @@ from workbench.slug.writer import ensure_slug, write_slug
 MARKDOWN_SUFFIXES = (".md", ".markdown")
 LEGACY_ACTIONS = {"build", "ensure", "validate"}
 STUDIO_ROOT = Path.home().resolve() / "Studio"
-SLUG_LINE_RE = re.compile(r"^slug:\s*(.+?)\s*$")
 PLACEHOLDER_SLUGS = {"", "__slug__", "null", "~"}
 
 
@@ -132,42 +129,24 @@ def _kebab(text: str) -> str:
 
 
 def _extract_existing_slugs(studio_root: Path) -> dict[str, set[Path]]:
-    result = subprocess.run(
-        ["rg", "--no-heading", "--line-number", "^slug:\\s*", str(studio_root)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    # Exit code 1 means no matches.
-    if result.returncode not in {0, 1}:
-        stderr = (result.stderr or "").strip()
-        detail = f": {stderr}" if stderr else ""
-        raise RuntimeError(f"Failed slug collision scan with rg{detail}")
-
     indexed: dict[str, set[Path]] = {}
-    for line in (result.stdout or "").splitlines():
-        parts = line.split(":", 2)
-        if len(parts) != 3:
+    for path in sorted(studio_root.rglob("*")):
+        if path.suffix.lower() not in MARKDOWN_SUFFIXES:
+            continue
+        try:
+            doc = Document.read_file(path)
+        except ValueError:
             continue
 
-        file_part, _line_number, text_part = parts
-        match = SLUG_LINE_RE.match(text_part.strip())
-        if match is None:
+        metadata = dict(doc.metadata or {})
+        raw_slug = metadata.get("slug")
+        if not isinstance(raw_slug, str):
+            continue
+        normalized = raw_slug.strip()
+        if normalized.lower() in PLACEHOLDER_SLUGS:
             continue
 
-        raw_slug = match.group(1).strip()
-        if (
-            len(raw_slug) >= 2
-            and raw_slug[0] == raw_slug[-1]
-            and raw_slug[0] in {'"', "'"}
-        ):
-            raw_slug = raw_slug[1:-1]
-
-        if raw_slug.lower() in PLACEHOLDER_SLUGS:
-            continue
-
-        indexed.setdefault(raw_slug, set()).add(Path(file_part).expanduser().resolve())
+        indexed.setdefault(normalized, set()).add(path.resolve())
 
     return indexed
 

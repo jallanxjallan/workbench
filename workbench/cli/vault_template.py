@@ -206,7 +206,7 @@ def _build_change_plan(template_path: Path, targets: list[Path]) -> list[Planned
     for target in targets:
         original = target.read_text(encoding="utf-8")
         try:
-            current_doc = Document.read_text(original)
+            current_doc = Document.read_file(target)
         except ValueError as exc:
             raise VaultTemplateError(f"ERROR: File parse failed ({target}): {exc}") from exc
 

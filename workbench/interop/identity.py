@@ -76,11 +76,10 @@ def _slug_in_use(search_root: Path, candidate_slug: str) -> bool:
 
 def _read_frontmatter_slug(path: Path) -> str | None:
     try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
+        inspected = Document.inspect_file(path)
+    except (OSError, ValueError, FileNotFoundError):
         return None
 
-    inspected = Document.inspect_text(text)
     if inspected.error:
         return None
 
