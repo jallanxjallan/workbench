@@ -1,6 +1,16 @@
-```dataviewjs
+// DataviewJS — Content Status (persistent row selection)
+// Drop-in replacement for your current Content Status query.
+// Adds:
+// - persistent checked rows across filter changes
+// - selection count
+// - Clear Selection button
+// - Process/Submit operate on the persistent selection set (not just visible rows)
+
+dataviewjs
 (() => {
   const STORAGE_KEY = "contentStatusFilters_v2";
+  const CHECKED_KEY = "contentStatusChecked_v1";
+
   const FIELDS = [
     { key: "class", label: "Class" },
     { key: "stage", label: "Stage" },
@@ -13,6 +23,9 @@
     return;
   }
 
+  // ==============================
+  // DATA
+  // ==============================
   const rows = app.vault
     .getMarkdownFiles()
     .filter((file) => String(file.path || "").startsWith("content/"))
@@ -37,19 +50,28 @@
   const values = Object.fromEntries(
     FIELDS.map(({ key }) => [key, collectUniqueValues(rows, key)]),
   );
+
   const selected = loadSelected(values);
+  const checkedSet = loadChecked();
+
+  // Keep selection set tidy: if a file no longer exists, drop it.
+  {
+    const existing = new Set(rows.map((r) => r.path));
+    let changed = false;
+    for (const p of [...checkedSet]) {
+      if (!existing.has(p)) {
+        checkedSet.delete(p);
+        changed = true;
+      }
+    }
+    if (changed) saveChecked(checkedSet);
+  }
 
   // ==============================
-  // SHARED COMMAND HANDLERS
+  // COMMAND HANDLERS
   // ==============================
   function getCheckedFileLinks() {
-    const checked = [];
-    container.querySelectorAll("li[data-file-path]").forEach((row) => {
-      const checkbox = row.querySelector("input[type='checkbox']");
-      const path = String(row.getAttribute("data-file-path") || "").trim();
-      if (checkbox?.checked && path) checked.push(path);
-    });
-    return checked;
+    return [...checkedSet];
   }
 
   async function handleProcess() {
@@ -76,6 +98,9 @@
 
   render();
 
+  // ==============================
+  // RENDER
+  // ==============================
   function render() {
     container.empty();
 
@@ -95,25 +120,35 @@
     const summary = container.createDiv();
     Object.assign(summary.style, { marginBottom: "0.5rem" });
 
-    const selectedInAllFields = FIELDS.every(
-      ({ key }) => (selected[key]?.size ?? 0) > 0,
-    );
+    const selectedInAllFields = FIELDS.every(({ key }) => (selected[key]?.size ?? 0) > 0);
+
+    // Compute current matches.
+    const matches = selectedInAllFields
+      ? rows.filter((row) => FIELDS.every(({ key }) => valueMatchesSelection(row[key], selected[key])))
+      : [];
+
+    // Count selected (global) and selected that are currently visible.
+    const visiblePaths = new Set(matches.map((m) => m.path));
+    const selectedTotal = checkedSet.size;
+    let selectedVisible = 0;
+    for (const p of checkedSet) if (visiblePaths.has(p)) selectedVisible++;
+
     if (!selectedInAllFields) {
-      summary.setText("Select one or more values in Class, Stage, and State.");
-      renderFooter(container);
+      summary.setText(
+        `Select one or more values in Class, Stage, and State. ` +
+          `(Selected: ${selectedTotal} total)`
+      );
+      renderFooter(container, { selectedTotal, selectedVisible, visibleCount: 0 });
       return;
     }
 
-    const matches = rows.filter((row) =>
-      FIELDS.every(({ key }) => valueMatchesSelection(row[key], selected[key])),
-    );
-
     summary.setText(
-      `${matches.length} file${matches.length === 1 ? "" : "s"} in content/ matching intersection.`,
+      `${matches.length} file${matches.length === 1 ? "" : "s"} in content/ matching intersection. ` +
+        `(Selected: ${selectedTotal} total, ${selectedVisible} visible)`
     );
 
     if (matches.length === 0) {
-      renderFooter(container);
+      renderFooter(container, { selectedTotal, selectedVisible, visibleCount: 0 });
       return;
     }
 
@@ -134,7 +169,24 @@
         marginBottom: "0.3rem",
       });
 
-      item.createEl("input", { type: "checkbox" });
+      const checkbox = item.createEl("input", { type: "checkbox" });
+      if (checkedSet.has(row.path)) checkbox.checked = true;
+
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) checkedSet.add(row.path);
+        else checkedSet.delete(row.path);
+        saveChecked(checkedSet);
+
+        // Update the summary line without a full rerender.
+        // (Rerendering would be fine too, but this keeps the UI snappy.)
+        const selectedTotalNow = checkedSet.size;
+        let selectedVisibleNow = 0;
+        for (const p of checkedSet) if (visiblePaths.has(p)) selectedVisibleNow++;
+        summary.setText(
+          `${matches.length} file${matches.length === 1 ? "" : "s"} in content/ matching intersection. ` +
+            `(Selected: ${selectedTotalNow} total, ${selectedVisibleNow} visible)`
+        );
+      });
 
       const target = String(row.path || "").replace(/\.md$/i, "");
       const link = item.createEl("a", {
@@ -145,7 +197,11 @@
       link.setAttr("data-href", target);
     }
 
-    renderFooter(container);
+    renderFooter(container, {
+      selectedTotal,
+      selectedVisible,
+      visibleCount: matches.length,
+    });
   }
 
   function renderFilterHeader({ parent, fields, values, selected, onChange }) {
@@ -202,22 +258,46 @@
     }
   }
 
-  function renderFooter(parent) {
+  function renderFooter(parent, { selectedTotal, selectedVisible, visibleCount }) {
     parent.createEl("hr");
 
-    const buttonRow = parent.createDiv();
-    Object.assign(buttonRow.style, {
+    const footerRow = parent.createDiv();
+    Object.assign(footerRow.style, {
       display: "flex",
-      gap: "0.4rem",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "0.75rem",
       marginTop: "0.5rem",
+      flexWrap: "wrap",
     });
 
-    const processBtn = buttonRow.createEl("button", { text: "Process" });
+    const left = footerRow.createDiv();
+    Object.assign(left.style, { display: "flex", gap: "0.4rem", alignItems: "center" });
+
+    const right = footerRow.createDiv();
+    Object.assign(right.style, { display: "flex", gap: "0.4rem", alignItems: "center" });
+
+    const meta = left.createSpan({
+      text: `Selected: ${selectedTotal} total${visibleCount ? `, ${selectedVisible} visible` : ""}`,
+    });
+    Object.assign(meta.style, { opacity: "0.8" });
+
+    const clearSelBtn = left.createEl("button", { text: "Clear Selection" });
+    clearSelBtn.type = "button";
+    styleCommandButton(clearSelBtn);
+    clearSelBtn.addEventListener("click", () => {
+      checkedSet.clear();
+      saveChecked(checkedSet);
+      render();
+      if (typeof Notice === "function") new Notice("Selection cleared.");
+    });
+
+    const processBtn = right.createEl("button", { text: "Process" });
     processBtn.type = "button";
     styleCommandButton(processBtn);
     processBtn.addEventListener("click", handleProcess);
 
-    const submitBtn = buttonRow.createEl("button", { text: "Submit" });
+    const submitBtn = right.createEl("button", { text: "Submit" });
     submitBtn.type = "button";
     styleCommandButton(submitBtn);
     submitBtn.addEventListener("click", handleSubmit);
@@ -230,6 +310,9 @@
     });
   }
 
+  // ==============================
+  // STATE: FILTER SELECTIONS
+  // ==============================
   function loadSelected(valuesByField) {
     let parsed = null;
     try {
@@ -240,10 +323,12 @@
 
     const out = {};
     for (const { key } of FIELDS) {
-      const stored = Array.isArray(parsed?.[key]) ? parsed[key] : valuesByField[key];
-      const set = new Set(stored.map(normalizeValue).filter(Boolean));
-      for (const value of valuesByField[key]) set.add(value);
-      out[key] = set;
+      const stored = Array.isArray(parsed?.[key]) ? parsed[key] : [];
+      out[key] = new Set(stored.map(normalizeValue).filter(Boolean));
+
+      // Important: DO NOT auto-select everything by default.
+      // If nothing is stored, the user sees the "Select one or more" prompt.
+      // (This matches the current UX.)
     }
     return out;
   }
@@ -256,6 +341,25 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
   }
 
+  // ==============================
+  // STATE: CHECKED ROWS
+  // ==============================
+  function loadChecked() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(CHECKED_KEY) || "[]");
+      return new Set((Array.isArray(parsed) ? parsed : []).map(String));
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveChecked(set) {
+    localStorage.setItem(CHECKED_KEY, JSON.stringify([...set]));
+  }
+
+  // ==============================
+  // HELPERS
+  // ==============================
   function collectUniqueValues(sourceRows, field) {
     const set = new Set();
     for (const row of sourceRows) {
@@ -281,4 +385,3 @@
     return String(value).trim();
   }
 })();
-```
