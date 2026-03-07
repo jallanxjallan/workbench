@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from workbench.cli.create_vault import load_registry
 from workbench.interop.document import Document
+from workbench.lib.rg import (
+    RipgrepError,
+    find_files_with_slug,
+    find_markdown_slug_candidates,
+)
 from workbench.slug.builder import build_slug
 from workbench.slug.normalize import normalize_segment
 from workbench.slug.validator import validate_slug
@@ -16,7 +22,6 @@ from workbench.slug.writer import ensure_slug, write_slug
 MARKDOWN_SUFFIXES = (".md", ".markdown")
 LEGACY_ACTIONS = {"build", "ensure", "validate"}
 STUDIO_ROOT = Path.home().resolve() / "Studio"
-PLACEHOLDER_SLUGS = {"", "__slug__", "null", "~"}
 
 
 def _legacy_parser() -> argparse.ArgumentParser:
@@ -128,29 +133,6 @@ def _kebab(text: str) -> str:
     return normalize_segment(text)
 
 
-def _extract_existing_slugs(studio_root: Path) -> dict[str, set[Path]]:
-    indexed: dict[str, set[Path]] = {}
-    for path in sorted(studio_root.rglob("*")):
-        if path.suffix.lower() not in MARKDOWN_SUFFIXES:
-            continue
-        try:
-            doc = Document.read_file(path)
-        except ValueError:
-            continue
-
-        metadata = dict(doc.metadata or {})
-        raw_slug = metadata.get("slug")
-        if not isinstance(raw_slug, str):
-            continue
-        normalized = raw_slug.strip()
-        if normalized.lower() in PLACEHOLDER_SLUGS:
-            continue
-
-        indexed.setdefault(normalized, set()).add(path.resolve())
-
-    return indexed
-
-
 def _slug_for_file(filepath: Path) -> str:
     doc = Document.read_file(filepath)
     metadata = dict(doc.metadata or {})
@@ -168,9 +150,12 @@ def _slug_for_file(filepath: Path) -> str:
 
 
 def _check_collision(*, slug: str, filepath: Path) -> None:
-    existing = _extract_existing_slugs(STUDIO_ROOT)
-    owners = existing.get(slug, set())
-    conflicting = sorted(path for path in owners if path != filepath)
+    try:
+        owners = find_files_with_slug(slug, root=STUDIO_ROOT)
+    except RipgrepError as exc:
+        raise RuntimeError(str(exc)) from exc
+    target = filepath.resolve()
+    conflicting = sorted(path for path in owners if path != target)
     if conflicting:
         raise RuntimeError(f"Slug collision detected: {slug}")
 
@@ -224,12 +209,34 @@ def ensure_slug_command(args: argparse.Namespace) -> int:
     created = 0
     validated = 0
     failed = 0
+    paths = [Path(raw_path).expanduser().resolve() for raw_path in raw_paths]
 
-    for raw_path in raw_paths:
-        path = Path(raw_path).expanduser().resolve()
+    slug_owner_index: dict[str, set[Path]] = {}
+    scan_roots = [str((path if path.is_dir() else path.parent).resolve()) for path in paths]
+    if scan_roots:
+        common_root = Path(os.path.commonpath(scan_roots)).resolve()
+        try:
+            for row in find_markdown_slug_candidates(root=common_root):
+                file_path = row["file"]
+                slug_value = row["slug"]
+                if not isinstance(slug_value, str):
+                    continue
+                normalized = slug_value.strip()
+                if not normalized or normalized.lower() in {"__slug__", "null", "~"}:
+                    continue
+                slug_owner_index.setdefault(normalized, set()).add(file_path)
+        except RipgrepError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+
+    for path in paths:
         try:
             had_slug = _has_slug(path)
-            ensure_slug(path, namespace=args.namespace)
+            ensure_slug(
+                path,
+                namespace=args.namespace,
+                slug_owner_index=slug_owner_index,
+            )
             if had_slug:
                 validated += 1
             else:
@@ -252,26 +259,33 @@ def _validate(args: argparse.Namespace) -> int:
 
     errors: list[str] = []
     seen_slugs: dict[str, Path] = {}
-    markdown_files = sorted(
-        path for path in root.rglob("*") if path.suffix.lower() in MARKDOWN_SUFFIXES
-    )
+    try:
+        candidates = find_markdown_slug_candidates(
+            root=root,
+        )
+    except RipgrepError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    markdown_files = sorted(row["file"] for row in candidates)
+    slug_values_by_file: dict[Path, list[str]] = {}
+    for row in candidates:
+        slug_value = row["slug"]
+        if not isinstance(slug_value, str):
+            continue
+        slug_values_by_file.setdefault(row["file"], []).append(slug_value)
 
     for path in markdown_files:
-        try:
-            doc = Document.read_file(path)
-        except ValueError as exc:
-            errors.append(f"{path}: markdown parse failed: {exc}")
-            continue
-
-        data = dict(doc.metadata or {})
-        if "slug" not in data:
+        values = slug_values_by_file.get(path.resolve(), [])
+        if not values:
             errors.append(f"{path}: missing slug")
             continue
 
-        slug_value = data["slug"]
-        if not isinstance(slug_value, str):
-            errors.append(f"{path}: slug must be a string")
+        if len(values) > 1:
+            errors.append(f"{path}: multiple slug fields in frontmatter")
             continue
+
+        slug_value = values[0]
 
         try:
             validate_slug(slug_value)

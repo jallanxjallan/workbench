@@ -13,7 +13,7 @@ _BATCH_SENTINEL_LINE_RE = re.compile(
     r"^---\s*ASC\s+BATCH:\s*(?P<slug>.+?)\s*---\s*$",
     re.IGNORECASE,
 )
-_RG_BATCH_SENTINEL_REGEX = r"^\s*---\s*ASC\s+BATCH:\s*.+\s*---\s*$"
+_RG_BATCH_SENTINEL_REGEX = r"(?im)\A\s*---\s*ASC\s+BATCH:\s*[a-z0-9._-]+\s*---\s*$"
 
 
 def is_valid_batch_slug(value: str) -> bool:
@@ -73,10 +73,8 @@ def _scan_with_rg(
     cmd = [
         "rg",
         "--json",
-        "--line-number",
-        "--no-heading",
-        "--color",
-        "never",
+        "--pcre2",
+        "--multiline",
         "--glob",
         "*.md",
         _RG_BATCH_SENTINEL_REGEX,
@@ -109,25 +107,11 @@ def _scan_with_rg(
             if not isinstance(data, dict):
                 continue
 
-            if data.get("line_number") != 1:
-                continue
-
             path_data = data.get("path")
             if not isinstance(path_data, dict):
                 continue
             path_text = path_data.get("text")
             if not isinstance(path_text, str) or not path_text:
-                continue
-
-            lines_data = data.get("lines")
-            if not isinstance(lines_data, dict):
-                continue
-            lines_text = lines_data.get("text")
-            if not isinstance(lines_text, str) or not lines_text:
-                continue
-
-            first_line = lines_text.splitlines()[0].strip()
-            if extract_batch_slug_from_first_line(first_line) is None:
                 continue
 
             rows.append(_normalize_match_path(path_text))

@@ -38,15 +38,11 @@ def test_build_slug_index_detects_markdown_slugs(
     )
 
     def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        assert args == [
-            "rg",
-            "--json",
-            "--pcre2",
-            r"^slug:\s*(\S+)",
-            str(studio_root.resolve()),
-            "--glob",
-            "*.md",
-        ]
+        assert args[:4] == ["rg", "--json", "--pcre2", "--multiline"]
+        assert "--glob" in args
+        assert "*.md" in args
+        assert "*.markdown" in args
+        assert args[-1] == str(studio_root.resolve())
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
@@ -127,12 +123,12 @@ def test_rg_search_supports_include_exclude_and_match_filtering(
             "rg",
             "--json",
             "--pcre2",
-            "slug",
-            str(studio_root.resolve()),
             "--glob",
             "*.md",
             "--glob",
             "!**/_archive/**",
+            "slug",
+            str(studio_root.resolve()),
         ]
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
 
@@ -163,10 +159,10 @@ def test_find_markdown_images_uses_thumb_excluding_pattern(
             "rg",
             "--json",
             "--pcre2",
-            rg_module.IMAGE_PATTERN,
-            str(studio_root.resolve()),
             "--glob",
             "*.md",
+            rg_module.IMAGE_PATTERN,
+            str(studio_root.resolve()),
         ]
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
 
@@ -196,3 +192,52 @@ def test_ensure_pcre2_available_raises_without_feature(
         match="PCRE2 is not available in this build of ripgrep",
     ):
         rg_module._ensure_pcre2_available()
+
+
+def test_find_files_with_slug_uses_frontmatter_pattern(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir(parents=True)
+    note_path = studio_root / "vault" / "note.md"
+    stdout = _match_event(note_path, "slug: omaf.passage.note\n")
+
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert args[:4] == ["rg", "--json", "--pcre2", "--multiline"]
+        pattern = args[-2]
+        assert "slug:" in pattern
+        assert "omaf\\.passage\\.note" in pattern
+        assert args[-1] == str(studio_root.resolve())
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
+
+    files = rg_module.find_files_with_slug("omaf.passage.note", root=studio_root)
+
+    assert files == [note_path.resolve()]
+
+
+def test_find_markdown_slugs_can_include_placeholders(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir(parents=True)
+    note_path = studio_root / "note.md"
+    stdout = _match_event(note_path, "slug: __SLUG__\n")
+
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        pattern = args[-2]
+        assert "(?!(?i:__slug__|null|~)\\s*$)" not in pattern
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
+
+    rows = rg_module.find_markdown_slugs(
+        root=studio_root,
+        canonical_only=False,
+        exclude_placeholders=False,
+    )
+
+    assert rows == [{"file": note_path.resolve(), "slug": "__SLUG__"}]

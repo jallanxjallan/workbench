@@ -9,7 +9,7 @@ import secrets
 import string
 import unicodedata
 
-from workbench.interop.document import Document
+from workbench.lib.rg import RipgrepError, find_files_with_slug
 
 _MAX_COLLISION_RETRIES = 1024
 _BASE36_ALPHABET = string.digits + string.ascii_lowercase
@@ -67,24 +67,10 @@ def _slug_in_use(search_root: Path, candidate_slug: str) -> bool:
         if path.stem == candidate_slug:
             return True
 
-        existing_slug = _read_frontmatter_slug(path)
-        if existing_slug == candidate_slug:
+    try:
+        if find_files_with_slug(candidate_slug, root=scan_root):
             return True
+    except RipgrepError:
+        return False
 
     return False
-
-
-def _read_frontmatter_slug(path: Path) -> str | None:
-    try:
-        inspected = Document.inspect_file(path)
-    except (OSError, ValueError, FileNotFoundError):
-        return None
-
-    if inspected.error:
-        return None
-
-    metadata = inspected.metadata or {}
-    slug = metadata.get("slug")
-    if isinstance(slug, str) and slug.strip():
-        return slug.strip()
-    return None

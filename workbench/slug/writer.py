@@ -5,11 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from workbench.interop.document import Document
+from workbench.lib.rg import RipgrepError, find_files_with_slug
 from workbench.slug.builder import build_slug
 from workbench.slug.normalize import normalize_segment
 from workbench.slug.validator import validate_slug
 
 MARKDOWN_SUFFIXES = (".md", ".markdown")
+
+
+def _is_within_root(path: Path, root: Path) -> bool:
+    return path == root or root in path.parents
 
 
 def write_slug(filepath: Path, slug: str, *, require_placeholder: bool = True) -> str:
@@ -41,7 +46,12 @@ def write_slug(filepath: Path, slug: str, *, require_placeholder: bool = True) -
     return slug
 
 
-def ensure_slug(filepath: Path, *, namespace: str | None = None) -> str:
+def ensure_slug(
+    filepath: Path,
+    *,
+    namespace: str | None = None,
+    slug_owner_index: dict[str, set[Path]] | None = None,
+) -> str:
     """
     Ensure a file has a valid slug.
 
@@ -73,6 +83,8 @@ def ensure_slug(filepath: Path, *, namespace: str | None = None) -> str:
                 del metadata["slug"]
             else:
                 validate_slug(existing)
+                if slug_owner_index is not None:
+                    slug_owner_index.setdefault(existing_text, set()).add(path)
                 return existing
         else:
             raise ValueError("existing slug must be a string")
@@ -96,41 +108,22 @@ def ensure_slug(filepath: Path, *, namespace: str | None = None) -> str:
         context=context,
     )
 
-    sibling_slugs = _collect_sibling_slugs(path)
-    if slug in sibling_slugs:
+    if slug_owner_index is not None:
+        owners = {
+            owner
+            for owner in slug_owner_index.get(slug, set())
+            if _is_within_root(owner, path.parent)
+        }
+    else:
+        try:
+            owners = set(find_files_with_slug(slug, root=path.parent))
+        except RipgrepError as exc:
+            raise ValueError(str(exc)) from exc
+    if any(owner != path for owner in owners):
         raise ValueError(f"slug collision detected: {slug}")
 
     metadata["slug"] = slug
     Document(content=doc.content, metadata=metadata).write_file(path, overwrite=True)
+    if slug_owner_index is not None:
+        slug_owner_index.setdefault(slug, set()).add(path)
     return slug
-
-
-def _collect_sibling_slugs(filepath: Path) -> set[str]:
-    slugs: set[str] = set()
-    target = filepath.resolve()
-
-    for path in target.parent.rglob("*"):
-        if path.suffix.lower() not in MARKDOWN_SUFFIXES:
-            continue
-        resolved = path.resolve()
-        if resolved == target:
-            continue
-
-        try:
-            doc = Document.read_file(resolved)
-        except ValueError as exc:
-            raise ValueError(f"failed to parse sibling markdown: {resolved}: {exc}") from exc
-
-        data = dict(doc.metadata or {})
-        value = data.get("slug")
-        if not isinstance(value, str):
-            continue
-
-        value_text = value.strip()
-        if not value_text or value_text.lower() in {"__slug__", "null", "~"}:
-            continue
-
-        validate_slug(value_text)
-        slugs.add(value_text)
-
-    return slugs

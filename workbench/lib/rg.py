@@ -41,7 +41,17 @@ def _ensure_pcre2_available() -> None:
 _ensure_pcre2_available()
 
 
-_SLUG_LINE_PATTERN = re.compile(r"^slug:\s*(\S+)")
+_SLUG_LINE_PATTERN = re.compile(r"^slug:\s*(\S+)", re.MULTILINE)
+_SLUG_SEGMENT_PATTERN = r"[a-z0-9]+(?:-[a-z0-9]+)*"
+_CANONICAL_SLUG_VALUE_PATTERN = (
+    rf"{_SLUG_SEGMENT_PATTERN}\.{_SLUG_SEGMENT_PATTERN}\.(?:{_SLUG_SEGMENT_PATTERN}\.)?{_SLUG_SEGMENT_PATTERN}"
+)
+_FRONTMATTER_SLUG_VALUE_PREFIX_PATTERN = (
+    r"(?m)\A---\s*\n(?:(?!^---\s*$)[^\n]*\n)*^slug:\s*\K"
+)
+_MARKDOWN_FILE_SLUG_CANDIDATE_PATTERN = (
+    r"(?m)\A---\s*\n(?:(?!^---\s*$)[^\n]*\n)*^slug:\s*(\S+)\s*$|\A"
+)
 IMAGE_PATTERN = r"!\[[^\]]*\]\((?![^)]*_thumb\.)[^)]+\)"
 _IMAGE_PATTERN_ALL = r"!\[[^\]]*\]\([^)]+\)"
 DEFAULT_STUDIO_ROOT = Path("~/Studio").expanduser().resolve()
@@ -57,6 +67,7 @@ def rg_search(
     root: Path | None = None,
     include: list[str] | None = None,
     exclude: list[str] | None = None,
+    multiline: bool = False,
 ) -> list[dict[str, Any]]:
     root_path = _normalize_root(root)
     if not root_path.exists():
@@ -66,9 +77,9 @@ def rg_search(
         "rg",
         "--json",
         "--pcre2",
-        pattern,
-        str(root_path),
     ]
+    if multiline:
+        args.append("--multiline")
 
     if include:
         for glob_pattern in include:
@@ -77,6 +88,8 @@ def rg_search(
     if exclude:
         for glob_pattern in exclude:
             args.extend(["--glob", f"!{glob_pattern}"])
+
+    args.extend([pattern, str(root_path)])
 
     try:
         proc = subprocess.run(
@@ -105,29 +118,16 @@ def rg_search(
 
 def build_slug_index(root: Path | None = None) -> dict[str, Path]:
     root_path = _normalize_root(root)
-    events = rg_search(
-        r"^slug:\s*(\S+)",
+    rows = find_markdown_slugs(
         root=root_path,
-        include=["*.md"],
+        canonical_only=False,
+        exclude_placeholders=True,
     )
 
     index: dict[str, Path] = {}
-    for event in events:
-        data = event.get("data")
-        if not isinstance(data, dict):
-            continue
-
-        slug = _extract_slug(data)
-        if slug is None:
-            continue
-
-        matched_path = _extract_path(data)
-        if matched_path is None:
-            continue
-
-        absolute_path = _resolve_match_path(root=root_path, matched_path=matched_path)
-        if absolute_path.suffix.lower() != ".md":
-            continue
+    for row in rows:
+        slug = row["slug"]
+        absolute_path = row["file"]
         if slug in index:
             raise RipgrepError("duplicate slug detected")
         index[slug] = absolute_path
@@ -172,6 +172,111 @@ def find_markdown_images(
         )
 
     return results
+
+
+def find_markdown_slugs(
+    *,
+    root: Path | None = None,
+    canonical_only: bool = False,
+    exclude_placeholders: bool = True,
+) -> list[dict[str, Any]]:
+    root_path = _normalize_root(root)
+
+    value_pattern = _CANONICAL_SLUG_VALUE_PATTERN if canonical_only else r"\S+"
+    if exclude_placeholders:
+        value_pattern = rf"(?!(?i:__slug__|null|~)\s*$){value_pattern}"
+
+    pattern = rf"{_FRONTMATTER_SLUG_VALUE_PREFIX_PATTERN}{value_pattern}\s*$"
+    events = rg_search(
+        pattern,
+        root=root_path,
+        include=["*.md", "*.markdown"],
+        multiline=True,
+    )
+
+    rows: list[dict[str, Any]] = []
+    for event in events:
+        data = event.get("data", {})
+        if not isinstance(data, dict):
+            continue
+
+        slug = _extract_slug(data)
+        if slug is None:
+            continue
+
+        file_path = _extract_path(data)
+        if file_path is None:
+            continue
+
+        resolved = _resolve_match_path(root=root_path, matched_path=file_path)
+        if resolved.suffix.lower() not in {".md", ".markdown"}:
+            continue
+
+        rows.append({"file": resolved, "slug": slug})
+
+    return rows
+
+
+def find_files_with_slug(slug: str, *, root: Path | None = None) -> list[Path]:
+    root_path = _normalize_root(root)
+    escaped = re.escape(slug.strip())
+    pattern = rf"{_FRONTMATTER_SLUG_VALUE_PREFIX_PATTERN}{escaped}\s*$"
+    events = rg_search(
+        pattern,
+        root=root_path,
+        include=["*.md", "*.markdown"],
+        multiline=True,
+    )
+
+    files: list[Path] = []
+    for event in events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        file_path = _extract_path(data)
+        if file_path is None:
+            continue
+
+        resolved = _resolve_match_path(root=root_path, matched_path=file_path)
+        if resolved.suffix.lower() not in {".md", ".markdown"}:
+            continue
+        files.append(resolved)
+
+    return sorted(set(files))
+
+
+def find_markdown_slug_candidates(
+    *,
+    root: Path | None = None,
+) -> list[dict[str, Any]]:
+    root_path = _normalize_root(root)
+    events = rg_search(
+        _MARKDOWN_FILE_SLUG_CANDIDATE_PATTERN,
+        root=root_path,
+        include=["*.md", "*.markdown"],
+        multiline=True,
+    )
+
+    rows: list[dict[str, Any]] = []
+    seen_files: set[Path] = set()
+    for event in events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+
+        file_path = _extract_path(data)
+        if file_path is None:
+            continue
+        resolved = _resolve_match_path(root=root_path, matched_path=file_path)
+        if resolved in seen_files:
+            continue
+        if resolved.suffix.lower() not in {".md", ".markdown"}:
+            continue
+
+        seen_files.add(resolved)
+        rows.append({"file": resolved, "slug": _extract_slug(data)})
+
+    return rows
 
 
 def _parse_event(line: str) -> dict[str, Any]:
