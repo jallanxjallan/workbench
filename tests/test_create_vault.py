@@ -28,6 +28,16 @@ def _configure_roots(
     _write_file(common_root / "templates" / "passage.md", content="# passage\n")
 
     monkeypatch.setattr(create_vault_module, "STUDIO_ROOT", studio_root)
+    monkeypatch.setattr(
+        create_vault_module,
+        "EDITORIAL_REGISTRY_JSON_PATH",
+        tmp_path / "Workbench" / "obsidian" / "registries" / "studio" / "editorial.json",
+    )
+    monkeypatch.setattr(
+        create_vault_module,
+        "EDITORIAL_REGISTRY_YAML_PATH",
+        studio_root / "registries" / "editorial.yaml",
+    )
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_ROOT", obsidian_root)
     monkeypatch.setattr(create_vault_module, "VAULT_TEMPLATE_ROOT", template_root)
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_COMMON_ROOT", common_root)
@@ -63,12 +73,29 @@ def test_create_vault_new_path_creates_registry_template_and_common_link(
     )
 
     registry = _read_registry(vault_path)
-    assert set(registry.keys()) == {"vault_id", "created", "tool", "version"}
+    assert set(registry.keys()) == {
+        "vault_id",
+        "created",
+        "tool",
+        "version",
+        "editorial_registry_json",
+        "editorial_registry_yaml",
+        "registry_paths",
+    }
     assert isinstance(registry["vault_id"], str)
     assert len(registry["vault_id"]) == 26
     assert registry["tool"] == "workbench"
     assert registry["version"] == 1
     assert str(registry["created"]).endswith("Z")
+    assert registry["editorial_registry_json"] == str(
+        tmp_path / "Workbench" / "obsidian" / "registries" / "studio" / "editorial.json"
+    )
+    assert registry["editorial_registry_yaml"] == str(
+        studio_root / "registries" / "editorial.yaml"
+    )
+    assert registry["registry_paths"]["editorial"] == registry["editorial_registry_json"]
+    assert registry["registry_paths"]["editorial_json"] == registry["editorial_registry_json"]
+    assert registry["registry_paths"]["editorial_yaml"] == registry["editorial_registry_yaml"]
 
 
 def test_create_vault_existing_folder_preserves_existing_files(

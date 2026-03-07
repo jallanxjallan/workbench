@@ -23,6 +23,12 @@ from workbench.lib.paths import normalize_vault_name
 from workbench.write.common import atomic_write_text
 
 STUDIO_ROOT = Path.home().resolve() / "Studio"
+EDITORIAL_REGISTRY_JSON_PATH = (
+    Path.home().resolve() / "Workbench" / "obsidian" / "registries" / "studio" / "editorial.json"
+)
+EDITORIAL_REGISTRY_YAML_PATH = (
+    Path.home().resolve() / "Studio" / "registries" / "editorial.yaml"
+)
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
 VAULT_TEMPLATE_ROOT = DEFAULT_VAULT_TEMPLATE_ROOT
 OBSIDIAN_COMMON_ROOT = DEFAULT_OBSIDIAN_COMMON_ROOT
@@ -187,6 +193,13 @@ def _create_vault_registry(vault_path: Path) -> bool:
         "created": _utc_now_iso(),
         "tool": "workbench",
         "version": 1,
+        "editorial_registry_json": str(EDITORIAL_REGISTRY_JSON_PATH),
+        "editorial_registry_yaml": str(EDITORIAL_REGISTRY_YAML_PATH),
+        "registry_paths": {
+            "editorial": str(EDITORIAL_REGISTRY_JSON_PATH),
+            "editorial_json": str(EDITORIAL_REGISTRY_JSON_PATH),
+            "editorial_yaml": str(EDITORIAL_REGISTRY_YAML_PATH),
+        },
     }
     atomic_write_text(registry_path, json.dumps(record, separators=(",", ":")) + "\n")
     return True
