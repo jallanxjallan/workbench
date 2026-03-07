@@ -5,22 +5,13 @@ from __future__ import annotations
 import copy
 import json
 import os
-import secrets
-import string
 import tempfile
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
 from workbench.interop.identity import normalize_semantic_base
 from workbench.lib.ndjson_stream import iter_ndjson
-
-ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
-ULID_TIMESTAMP_BITS = 48
-ULID_RANDOM_BITS = 80
-ULID_LENGTH = 26
-_BASE36_ALPHABET = string.digits + string.ascii_lowercase
 
 
 class WriteError(RuntimeError):
@@ -109,30 +100,6 @@ def resolve_unique_markdown_path(directory: Path, stem: str) -> Path:
         if not candidate.exists():
             return candidate
         suffix += 1
-
-
-def generate_ulid() -> str:
-    timestamp_ms = int(time.time() * 1000)
-    if timestamp_ms >= (1 << ULID_TIMESTAMP_BITS):
-        raise WriteError("ULID timestamp overflow")
-    randomness = secrets.randbits(ULID_RANDOM_BITS)
-    value = (timestamp_ms << ULID_RANDOM_BITS) | randomness
-    return _encode_ulid(value)
-
-
-def _encode_ulid(value: int) -> str:
-    chars: list[str] = []
-    remaining = value
-    for _ in range(ULID_LENGTH):
-        chars.append(ULID_ALPHABET[remaining & 0x1F])
-        remaining >>= 5
-    return "".join(reversed(chars))
-
-
-def generate_random_suffix(length: int = 5) -> str:
-    if length < 1:
-        raise WriteError("suffix length must be positive")
-    return "".join(secrets.choice(_BASE36_ALPHABET) for _ in range(length))
 
 
 def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:
