@@ -17,8 +17,8 @@ Namespaces:
 
 Top-level commands:
 
-- `wkb writenew <batch-slug>`
-- `wkb writeback <batch-slug>`
+- `wkb writenew --schema <name> --path <dir>`
+- `wkb writeback [--studio-root <path>]`
 - `wkb writestream`
 - `wkb stream`
 - `wkb scan-sentinel [paths...]`
@@ -75,11 +75,12 @@ Workbench is an NDJSON consumer and Markdown writer.
 Workbench reads only these record envelope fields when writing files:
 
 - `content`
-- `origin.slug`
-- `origin.path` (optional in the envelope, required when a write target must be resolved)
 - `batch_slug`
+- `slug` (required for `writeback`)
+- `filename_hint` (optional for `writenew`)
+- `provenance` (optional for `writenew`)
 
-All other record fields are treated as opaque and preserved under frontmatter `autoscribe`.
+All other record fields are ignored by the writer commands.
 
 Workbench is not responsible for:
 

@@ -1,25 +1,23 @@
-"""Write AutoScribe batch records back to existing files."""
+"""Write NDJSON records back to existing vault artifacts."""
 
 from __future__ import annotations
 
 import argparse
-import copy
 import sys
+from pathlib import Path
+from typing import Iterable
 
 from workbench.interop.document import Document
+from workbench.lib.rg import RipgrepError, build_slug_index
 from workbench.lib.sentinel import (
     BATCH_SENTINEL_PATTERN,
-    insert_batch_sentinel,
     read_batch_sentinel,
 )
 from workbench.write.common import (
     WriteError,
     atomic_write_text,
-    fetch_batch_records,
-    normalize_batch_slug,
-    resolve_origin_slug,
-    resolve_writeback_target_path,
-    validate_record_batch_slug,
+    has_piped_stdin,
+    iter_input_records,
 )
 
 
@@ -29,87 +27,68 @@ def _parser() -> argparse.ArgumentParser:
         description=__doc__,
     )
     parser.add_argument(
-        "batch_slug",
-        help="Opaque AutoScribe batch slug.",
-    )
-    parser.add_argument(
-        "--asc-bin",
-        default="asc",
-        help="AutoScribe CLI executable used for fetching records (default: asc).",
-    )
-    parser.add_argument(
-        "--debug-routing",
-        action="store_true",
-        help="Print resolved routing targets for each record to stderr.",
+        "--studio-root",
+        default=str(Path.home().resolve() / "Studio"),
+        help="Studio root used for ripgrep slug resolution (default: ~/Studio).",
     )
     return parser
 
 
-def write_back_batch(
-    batch_slug: str,
+def write_back_records(
     *,
-    asc_bin: str,
+    studio_root: str,
     debug_routing: bool,
+    input_stream: Iterable[str],
 ) -> None:
-    requested_batch_slug = normalize_batch_slug(batch_slug)
+    try:
+        slug_index = build_slug_index(Path(studio_root))
+    except RipgrepError as exc:
+        raise WriteError(str(exc)) from exc
 
-    for index, record in enumerate(
-        fetch_batch_records(requested_batch_slug, asc_bin=asc_bin),
-        start=1,
-    ):
-        validate_record_batch_slug(
-            record=record,
-            requested_batch_slug=requested_batch_slug,
-            record_index=index,
-        )
+    for index, record in enumerate(iter_input_records(input_stream), start=1):
+        if record.slug is None:
+            raise WriteError(f"record {index}: missing required record field: slug")
 
-        target_path = resolve_writeback_target_path(
-            record=record,
-            record_index=index,
-        )
-        if not target_path.exists():
-            raise WriteError(f"target does not exist: {target_path}")
-        if target_path.is_dir():
-            raise WriteError(f"target path is a directory: {target_path}")
-
+        target_path = slug_index.get(record.slug)
+        if target_path is None:
+            raise WriteError(f"slug not found: {record.slug}")
         existing_doc = Document.read_file(
             target_path,
             sentinel_pattern=BATCH_SENTINEL_PATTERN,
         )
 
-        origin_slug = resolve_origin_slug(record=record, record_index=index)
-        if origin_slug is not None:
-            file_slug = existing_doc.metadata.get("slug")
-            if not isinstance(file_slug, str) or not file_slug.strip():
-                raise WriteError("frontmatter slug does not match record origin.slug")
-            if file_slug.strip() != origin_slug:
-                raise WriteError("frontmatter slug does not match record origin.slug")
+        file_slug = existing_doc.metadata.get("slug")
+        if not isinstance(file_slug, str) or not file_slug.strip():
+            raise WriteError("frontmatter slug does not match record.slug")
+        if file_slug.strip() != record.slug:
+            raise WriteError("frontmatter slug does not match record.slug")
 
         sentinel_slug = read_batch_sentinel(target_path)
+        if sentinel_slug is None:
+            raise WriteError("batch sentinel missing")
         if sentinel_slug != record.batch_slug:
             raise WriteError("batch sentinel does not match record batch_slug")
 
-        existing_doc.metadata["autoscribe"] = copy.deepcopy(record.envelope)
         existing_doc.content = record.content
 
         if debug_routing:
             print(f"[writeback] record {index} overwrite -> {target_path}", file=sys.stderr)
-        atomic_write_text(
-            target_path,
-            insert_batch_sentinel(
-                existing_doc.write_text(),
-                record.batch_slug,
-            ),
-        )
+
+        atomic_write_text(target_path, existing_doc.write_text())
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    if not has_piped_stdin(sys.stdin):
+        parser.print_usage(sys.stderr)
+        print("ERROR: expected NDJSON input from stdin (pipe or < file)", file=sys.stderr)
+        return 1
     try:
-        write_back_batch(
-            args.batch_slug,
-            asc_bin=args.asc_bin,
-            debug_routing=args.debug_routing,
+        write_back_records(
+            studio_root=args.studio_root,
+            debug_routing=False,
+            input_stream=sys.stdin,
         )
         return 0
     except WriteError as exc:
