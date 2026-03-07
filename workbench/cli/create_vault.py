@@ -14,13 +14,18 @@ from pathlib import Path
 
 import yaml
 
+from workbench.config.roots import (
+    OBSIDIAN_COMMON_ROOT as DEFAULT_OBSIDIAN_COMMON_ROOT,
+    OBSIDIAN_ROOT as DEFAULT_OBSIDIAN_ROOT,
+    VAULT_TEMPLATE_ROOT as DEFAULT_VAULT_TEMPLATE_ROOT,
+)
 from workbench.lib.paths import normalize_vault_name
 from workbench.write.common import atomic_write_text
 
 STUDIO_ROOT = Path.home().resolve() / "Studio"
-OBSIDIAN_ROOT = STUDIO_ROOT / "Obsidian"
-VAULT_TEMPLATE_ROOT = OBSIDIAN_ROOT / "vault"
-OBSIDIAN_COMMON_ROOT = OBSIDIAN_ROOT / "common"
+OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
+VAULT_TEMPLATE_ROOT = DEFAULT_VAULT_TEMPLATE_ROOT
+OBSIDIAN_COMMON_ROOT = DEFAULT_OBSIDIAN_COMMON_ROOT
 
 ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
