@@ -5,15 +5,22 @@ from __future__ import annotations
 import copy
 import json
 import os
+import secrets
+import string
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterable, Iterator
 
-from workbench.interop.document import Document
+from workbench.interop.identity import normalize_semantic_base
 from workbench.lib.ndjson_stream import iter_ndjson
-from workbench.lib.sentinel import insert_batch_sentinel
-from workbench.lib.subprocess import CommandError, iter_stdout_lines
+
+ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+ULID_TIMESTAMP_BITS = 48
+ULID_RANDOM_BITS = 80
+ULID_LENGTH = 26
+_BASE36_ALPHABET = string.digits + string.ascii_lowercase
 
 
 class WriteError(RuntimeError):
@@ -24,8 +31,11 @@ class WriteError(RuntimeError):
 class WriteRecord:
     envelope: dict[str, Any]
     content: str
-    origin: dict[str, Any]
     batch_slug: str
+    slug: str | None
+    filename_hint: str | None
+    provenance: dict[str, Any] | None
+    origin: dict[str, Any] | None
 
 
 def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None:
@@ -45,118 +55,126 @@ def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None
     os.replace(tmp_name, path)
 
 
-def normalize_batch_slug(value: Any, *, field: str = "batch slug") -> str:
-    """Normalize batch identifiers."""
+def normalize_non_empty_string(value: Any, *, field: str) -> str:
     if not isinstance(value, str):
         raise WriteError(f"{field} must be a non-empty string")
-
     normalized = value.strip()
     if not normalized:
         raise WriteError(f"{field} must be a non-empty string")
     return normalized
 
 
-def fetch_batch_records(batch_slug: str, *, asc_bin: str = "asc") -> Iterator[WriteRecord]:
-    requested_batch_slug = normalize_batch_slug(batch_slug)
+def iter_input_records(stream: Iterable[str]) -> Iterator[WriteRecord]:
     try:
-        for index, record in enumerate(
-            iter_ndjson(iter_stdout_lines([asc_bin, "emit", requested_batch_slug], check=True)),
-            start=1,
-        ):
+        for index, record in enumerate(iter_ndjson(stream), start=1):
             yield _coerce_record(record=record, index=index)
-    except CommandError as exc:
-        raise WriteError(
-            f"failed to fetch records for batch '{requested_batch_slug}': {exc}"
-        ) from exc
     except (ValueError, json.JSONDecodeError) as exc:
-        raise WriteError(
-            f"invalid NDJSON emitted for batch '{requested_batch_slug}': {exc}"
-        ) from exc
+        raise WriteError(f"invalid NDJSON input: {exc}") from exc
+
+
+def has_piped_stdin(stream: Any) -> bool:
+    isatty = getattr(stream, "isatty", None)
+    if not callable(isatty):
+        return True
+    try:
+        return not bool(isatty())
+    except OSError:
+        return True
+
+
+def ensure_directory(path_value: str) -> Path:
+    target = Path(path_value).expanduser().resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    if not target.is_dir():
+        raise WriteError(f"path is not a directory: {target}")
+    return target
+
+
+def preferred_filename_stem(record: WriteRecord) -> str:
+    hint = record.filename_hint
+    if hint:
+        return normalize_semantic_base(hint)
+    return "unknown"
+
+
+def resolve_unique_markdown_path(directory: Path, stem: str) -> Path:
+    clean_stem = normalize_semantic_base(stem)
+    candidate = directory / f"{clean_stem}.md"
+    if not candidate.exists():
+        return candidate
+
+    suffix = 2
+    while True:
+        candidate = directory / f"{clean_stem}-{suffix}.md"
+        if not candidate.exists():
+            return candidate
+        suffix += 1
+
+
+def generate_ulid() -> str:
+    timestamp_ms = int(time.time() * 1000)
+    if timestamp_ms >= (1 << ULID_TIMESTAMP_BITS):
+        raise WriteError("ULID timestamp overflow")
+    randomness = secrets.randbits(ULID_RANDOM_BITS)
+    value = (timestamp_ms << ULID_RANDOM_BITS) | randomness
+    return _encode_ulid(value)
+
+
+def _encode_ulid(value: int) -> str:
+    chars: list[str] = []
+    remaining = value
+    for _ in range(ULID_LENGTH):
+        chars.append(ULID_ALPHABET[remaining & 0x1F])
+        remaining >>= 5
+    return "".join(reversed(chars))
+
+
+def generate_random_suffix(length: int = 5) -> str:
+    if length < 1:
+        raise WriteError("suffix length must be positive")
+    return "".join(secrets.choice(_BASE36_ALPHABET) for _ in range(length))
 
 
 def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:
     content = record.get("content")
     if not isinstance(content, str):
-        raise WriteError(
-            f"record {index}: missing required record field: content"
-        )
+        raise WriteError(f"record {index}: missing required record field: content")
 
-    origin_raw = record.get("origin")
-    if not isinstance(origin_raw, dict):
-        raise WriteError(
-            f"record {index}: missing required record field: origin"
-        )
+    batch_slug = normalize_non_empty_string(
+        record.get("batch_slug"), field=f"record {index} batch_slug"
+    )
 
-    batch_slug_raw = record.get("batch_slug")
-    if not isinstance(batch_slug_raw, str) or not batch_slug_raw.strip():
-        raise WriteError(
-            f"record {index}: missing required record field: batch_slug"
-        )
-
-    batch_slug = normalize_batch_slug(batch_slug_raw, field="record batch_slug")
+    slug = _optional_string(record.get("slug"), index=index, field="slug")
+    filename_hint = _optional_string(
+        record.get("filename_hint"), index=index, field="filename_hint"
+    )
+    provenance = _optional_mapping(
+        record.get("provenance"), index=index, field="provenance"
+    )
+    origin = _optional_mapping(record.get("origin"), index=index, field="origin")
 
     return WriteRecord(
         envelope=copy.deepcopy(record),
         content=content,
-        origin=copy.deepcopy(origin_raw),
         batch_slug=batch_slug,
+        slug=slug,
+        filename_hint=filename_hint,
+        provenance=provenance,
+        origin=origin,
     )
 
 
-def resolve_writenew_target_path(*, record: WriteRecord, record_index: int) -> Path:
-    return _resolve_origin_path(record=record, record_index=record_index)
-
-
-def resolve_writeback_target_path(*, record: WriteRecord, record_index: int) -> Path:
-    return _resolve_origin_path(record=record, record_index=record_index)
-
-
-def resolve_origin_slug(*, record: WriteRecord, record_index: int) -> str | None:
-    value = record.origin.get("slug")
+def _optional_string(value: Any, *, index: int, field: str) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str) or not value.strip():
-        raise WriteError(
-            f"record {record_index}: invalid record field: origin.slug must be a non-empty string"
-        )
+        raise WriteError(f"record {index}: invalid record field: {field}")
     return value.strip()
 
 
-def validate_record_batch_slug(
-    *,
-    record: WriteRecord,
-    requested_batch_slug: str,
-    record_index: int,
-) -> None:
-    if record.batch_slug != requested_batch_slug:
-        raise WriteError(
-            f"record {record_index}: record batch_slug does not match requested batch slug"
-        )
-
-
-def serialize_record(record: WriteRecord) -> str:
-    document = Document(
-        metadata={"autoscribe": copy.deepcopy(record.envelope)},
-        content=record.content,
-    )
-    return insert_batch_sentinel(document.write_text(), record.batch_slug)
-
-
-def _resolve_origin_path(*, record: WriteRecord, record_index: int) -> Path:
-    path_value = record.origin.get("path")
-    if path_value is None:
-        raise WriteError(
-            f"record {record_index}: missing required record field: origin.path"
-        )
-
-    if not isinstance(path_value, str) or not path_value.strip():
-        raise WriteError(
-            f"record {record_index}: invalid record field: origin.path must be a non-empty string"
-        )
-
-    target_path = Path(path_value.strip()).expanduser()
-    if not target_path.is_absolute():
-        raise WriteError(
-            f"record {record_index}: origin.path must be an absolute path: {path_value!r}"
-        )
-    return target_path.resolve()
+def _optional_mapping(value: Any, *, index: int, field: str) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise WriteError(f"record {index}: invalid record field: {field}")
+    return copy.deepcopy(value)

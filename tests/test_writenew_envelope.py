@@ -1,84 +1,143 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
-
-import pytest
 
 import workbench.write.writenew as writenew_module
 from workbench.interop.document import Document
-from workbench.lib.sentinel import read_batch_sentinel, strip_batch_sentinel
-from workbench.write.common import WriteError, WriteRecord
 
 
-def test_writenew_writes_autoscribe_envelope_preserving_unknown_fields(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    target = tmp_path / "hornbill.md"
-    envelope: dict[str, object] = {
-        "batch_slug": "caption.generate",
-        "content": "Generated body",
-        "origin": {
-            "slug": "hornbill",
-            "path": str(target),
-            "nested": {"id": "abc", "flags": [1, 2, 3]},
-        },
-        "images": ["/Studio/images/hornbill.jpg"],
-        "metadata": {"owner": "jeremy", "reviewed": True},
-    }
-    origin = envelope["origin"]
-    assert isinstance(origin, dict)
-
-    record = WriteRecord(
-        envelope=envelope,
-        content="Generated body",
-        origin=origin,
-        batch_slug="caption.generate",
-    )
-
-    monkeypatch.setattr(
-        writenew_module,
-        "fetch_batch_records",
-        lambda *_args, **_kwargs: iter([record]),
-    )
-
-    writenew_module.write_new_batch(
-        "caption.generate",
-        asc_bin="asc",
-        debug_routing=False,
-    )
-
-    assert target.exists()
-    assert read_batch_sentinel(target) == "caption.generate"
-
-    parsed = Document.read_text(strip_batch_sentinel(target.read_text(encoding="utf-8")))
-    assert parsed.metadata["autoscribe"] == envelope
-    assert parsed.content.strip() == "Generated body"
-
-
-def test_writenew_rejects_non_absolute_origin_path(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    record = WriteRecord(
-        envelope={
-            "batch_slug": "batch-1",
-            "content": "body",
-            "origin": {"slug": "hornbill", "path": "relative.md"},
-        },
-        content="body",
-        origin={"slug": "hornbill", "path": "relative.md"},
-        batch_slug="batch-1",
-    )
-
-    monkeypatch.setattr(
-        writenew_module,
-        "fetch_batch_records",
-        lambda *_args, **_kwargs: iter([record]),
-    )
-
-    with pytest.raises(WriteError, match="origin.path must be an absolute path"):
-        writenew_module.write_new_batch(
-            "batch-1",
-            asc_bin="asc",
-            debug_routing=False,
+def test_writenew_loads_schema_and_writes_expected_frontmatter(tmp_path: Path) -> None:
+    studio_root = tmp_path / "Studio"
+    schema_dir = studio_root / "_schemas"
+    schema_dir.mkdir(parents=True)
+    (schema_dir / "passage.yaml").write_text(
+        "\n".join(
+            [
+                "schema: passage.v1",
+                "class: passage",
+                "defaults:",
+                "  state: candidate",
+            ]
         )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    target_dir = tmp_path / "vault" / "passages"
+    ndjson = io.StringIO(
+        '{"batch_slug":"omaf.research","content":"Freeberg landed at dawn...","filename_hint":"freeberg","provenance":{"tool":"pandoc","source":"diary-1947"}}\n'
+    )
+
+    writenew_module.write_new_records(
+        schema_name="passage",
+        target_path=str(target_dir),
+        studio_root=str(studio_root),
+        debug_routing=False,
+        input_stream=ndjson,
+    )
+
+    output = target_dir / "freeberg.md"
+    assert output.exists()
+
+    parsed = Document.read_file(output)
+    assert parsed.metadata["class"] == "passage"
+    assert parsed.metadata["batch"] == "omaf.research"
+    assert parsed.metadata["state"] == "candidate"
+    assert parsed.metadata["origin"] == {"tool": "pandoc", "source": "diary-1947"}
+    assert "slug" not in parsed.metadata
+    assert parsed.content.strip() == "Freeberg landed at dawn..."
+
+
+def test_writenew_handles_filename_collisions_with_incrementing_suffix(
+    tmp_path: Path,
+) -> None:
+    studio_root = tmp_path / "Studio"
+    schema_dir = studio_root / "_schemas"
+    schema_dir.mkdir(parents=True)
+    (schema_dir / "passage.yaml").write_text(
+        "\n".join(
+            [
+                "schema: passage.v1",
+                "class: passage",
+                "defaults:",
+                "  state: candidate",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    target_dir = tmp_path / "vault" / "passages"
+    target_dir.mkdir(parents=True)
+    (target_dir / "freeberg.md").write_text("existing", encoding="utf-8")
+
+    ndjson = io.StringIO(
+        "\n".join(
+            [
+                '{"batch_slug":"batch-1","content":"first","filename_hint":"freeberg"}',
+                '{"batch_slug":"batch-1","content":"second","filename_hint":"freeberg"}',
+            ]
+        )
+        + "\n"
+    )
+
+    writenew_module.write_new_records(
+        schema_name="passage",
+        target_path=str(target_dir),
+        studio_root=str(studio_root),
+        debug_routing=False,
+        input_stream=ndjson,
+    )
+
+    assert (target_dir / "freeberg.md").exists()
+    assert (target_dir / "freeberg-2.md").exists()
+    assert (target_dir / "freeberg-3.md").exists()
+
+
+def test_writenew_defaults_to_unknown_stem_and_resolves_collisions(
+    tmp_path: Path,
+) -> None:
+    studio_root = tmp_path / "Studio"
+    schema_dir = studio_root / "_schemas"
+    schema_dir.mkdir(parents=True)
+    (schema_dir / "passage.yaml").write_text(
+        "\n".join(
+            [
+                "schema: passage.v1",
+                "class: passage",
+                "defaults:",
+                "  state: candidate",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    target_dir = tmp_path / "vault" / "passages"
+    target_dir.mkdir(parents=True)
+    (target_dir / "unknown.md").write_text("existing", encoding="utf-8")
+    (target_dir / "unknown-2.md").write_text("existing", encoding="utf-8")
+
+    ndjson = io.StringIO(
+        "\n".join(
+            [
+                '{"batch_slug":"batch-1","content":"first"}',
+                '{"batch_slug":"batch-1","content":"second"}',
+            ]
+        )
+        + "\n"
+    )
+
+    writenew_module.write_new_records(
+        schema_name="passage",
+        target_path=str(target_dir),
+        studio_root=str(studio_root),
+        debug_routing=False,
+        input_stream=ndjson,
+    )
+
+    assert (target_dir / "unknown.md").exists()
+    assert (target_dir / "unknown-2.md").exists()
+    assert (target_dir / "unknown-3.md").exists()
+    assert (target_dir / "unknown-4.md").exists()
