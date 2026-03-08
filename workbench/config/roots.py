@@ -8,8 +8,34 @@ from pathlib import Path
 WORKBENCH_CONTENT_ROOT = "WORKBENCH_CONTENT_ROOT"
 WORKBENCH_CONFIG_DIR = "WORKBENCH_CONFIG_DIR"
 WORKBENCH_CACHE_DIR = "WORKBENCH_CACHE_DIR"
-WORKBENCH_ROOT = Path(__file__).resolve().parents[2]
-OBSIDIAN_ROOT = WORKBENCH_ROOT / "obsidian"
+WORKBENCH_HOME_ENV = "WORKBENCH_HOME"
+AUTOSCRIBE_HOME_ENV = "AUTOSCRIBE_HOME"
+STUDIO_ROOT_ENV = "STUDIO_ROOT"
+
+
+def _resolve_anchor(name: str, default: Path) -> Path:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default.expanduser().resolve()
+    return Path(raw).expanduser().resolve()
+
+
+WORKBENCH_HOME = _resolve_anchor(
+    WORKBENCH_HOME_ENV,
+    Path.home().resolve() / "Workshop" / "workbench",
+)
+AUTOSCRIBE_HOME = _resolve_anchor(
+    AUTOSCRIBE_HOME_ENV,
+    Path.home().resolve() / "Workshop" / "autoscribe",
+)
+STUDIO_ROOT = _resolve_anchor(
+    STUDIO_ROOT_ENV,
+    Path.home().resolve() / "Studio",
+)
+
+# Backward-compatible alias for modules that still reference WORKBENCH_ROOT.
+WORKBENCH_ROOT = WORKBENCH_HOME
+OBSIDIAN_ROOT = WORKBENCH_HOME / "obsidian"
 VAULT_TEMPLATE_ROOT = OBSIDIAN_ROOT / "vault-template"
 OBSIDIAN_COMMON_ROOT = OBSIDIAN_ROOT / "vault-common"
 

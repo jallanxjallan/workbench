@@ -8,6 +8,7 @@ import re
 import subprocess
 from typing import Any
 
+from workbench.config.roots import STUDIO_ROOT
 
 class RipgrepError(RuntimeError):
     pass
@@ -54,7 +55,7 @@ _MARKDOWN_FILE_SLUG_CANDIDATE_PATTERN = (
 )
 IMAGE_PATTERN = r"!\[[^\]]*\]\((?![^)]*_thumb\.)[^)]+\)"
 _IMAGE_PATTERN_ALL = r"!\[[^\]]*\]\([^)]+\)"
-DEFAULT_STUDIO_ROOT = Path("~/Studio").expanduser().resolve()
+DEFAULT_STUDIO_ROOT = STUDIO_ROOT
 
 
 def _normalize_root(root: Path | None) -> Path:

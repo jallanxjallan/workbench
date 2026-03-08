@@ -49,6 +49,10 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "workbench.cli.generate_thumbs",
         "Generate thumbnails for markdown image links (default root: ~/Studio).",
     ),
+    "compile-registries": CommandEntry(
+        "workbench.cli.compile_registries",
+        "Compile Studio YAML registries into obsidian/registries/studio JSON.",
+    ),
 }
 
 

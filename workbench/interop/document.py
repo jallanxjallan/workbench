@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+# TO-DO: set hashes on write https://claude.ai/share/33c548b5-8d16-48ab-afcd-9a468581413b
 from dataclasses import dataclass, field
 import importlib
 from pathlib import Path

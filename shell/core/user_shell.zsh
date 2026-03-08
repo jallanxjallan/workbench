@@ -6,10 +6,12 @@
 # Central loader for Workbench shell core, aliases, and user
 # functions so ~/.zshrc only needs one source line.
 
-: "${WORKBENCH_ROOT:=$HOME/Workbench}"
+if [[ -z "${WORKBENCH_HOME:-}" || "${WORKBENCH_HOME}" == "$HOME/Workbench" ]]; then
+  export WORKBENCH_HOME="$HOME/Workshop/workbench"
+fi
 
-if [[ -f "$WORKBENCH_ROOT/shell/core/base.zsh" ]]; then
-  source "$WORKBENCH_ROOT/shell/core/base.zsh"
+if [[ -f "$WORKBENCH_HOME/shell/core/base.zsh" ]]; then
+  source "$WORKBENCH_HOME/shell/core/base.zsh"
 fi
 
 if [[ -f "$HOME/.work_aliases.zsh" ]]; then

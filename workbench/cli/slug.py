@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from workbench.cli.create_vault import load_registry
+from workbench.config.roots import STUDIO_ROOT
 from workbench.interop.document import Document
 from workbench.lib.rg import (
     RipgrepError,
@@ -21,7 +22,6 @@ from workbench.slug.writer import ensure_slug, write_slug
 
 MARKDOWN_SUFFIXES = (".md", ".markdown")
 LEGACY_ACTIONS = {"build", "ensure", "validate"}
-STUDIO_ROOT = Path.home().resolve() / "Studio"
 
 
 def _legacy_parser() -> argparse.ArgumentParser:

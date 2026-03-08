@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
 
+from workbench.config.roots import STUDIO_ROOT
 from workbench.lib.sentinel_scan import SentinelScanError, scan_paths_for_batch_sentinel
 
 
@@ -18,7 +18,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "paths",
         nargs="*",
-        help="Project-root relative files/directories to scan (default: .).",
+        help="Studio-root relative files/directories to scan (default: .).",
     )
     parser.add_argument(
         "--follow-symlinks",
@@ -30,12 +30,11 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    cwd = Path.cwd().resolve()
     raw_paths = args.paths or ["."]
 
     try:
         rows = scan_paths_for_batch_sentinel(
-            cwd=cwd,
+            root=STUDIO_ROOT,
             raw_paths=raw_paths,
             follow_symlinks=args.follow_symlinks,
         )

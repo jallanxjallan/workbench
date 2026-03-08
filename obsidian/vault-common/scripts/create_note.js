@@ -5,8 +5,13 @@ module.exports = async (params = {}) => {
     return notice("Obsidian context not available.");
   }
 
-  const registryPath = "_common/registry/editorial.json";
+  const registryPath =
+    params.registryPath || (await resolveEditorialRegistryPath(app));
   const dialogHandler = params.showCreateNoteDialog || showCreateNoteDialog;
+
+  if (!registryPath) {
+    return notice("Editorial registry path not found in _vault_registry.");
+  }
 
   let registry;
   try {
@@ -84,7 +89,7 @@ module.exports = async (params = {}) => {
 };
 
 async function loadJson(app, path) {
-  const raw = await app.vault.adapter.read(path);
+  const raw = await readText(app, path);
 
   try {
     return JSON.parse(raw);
@@ -93,6 +98,80 @@ async function loadJson(app, path) {
     notice("Registry JSON error. See console.");
     throw error;
   }
+}
+
+async function resolveEditorialRegistryPath(app) {
+  const fallbackPath = "_common/registries/editorial.json";
+  try {
+    const vaultRegistry = await loadVaultRegistry(app);
+    const fromMap =
+      vaultRegistry &&
+      vaultRegistry.registry_paths &&
+      vaultRegistry.registry_paths.editorial;
+    const fromFlat = vaultRegistry && vaultRegistry.editorial_registry_json;
+    const selected = String(fromMap || fromFlat || "").trim();
+    if (selected) {
+      return selected;
+    }
+  } catch (error) {
+    console.warn("create_note: unable to resolve _vault_registry path.", error);
+  }
+
+  return fallbackPath;
+}
+
+async function loadVaultRegistry(app) {
+  const raw = await app.vault.adapter.read("_vault_registry");
+  const text = String(raw || "").trim();
+  if (!text) {
+    return {};
+  }
+
+  const firstLine = text.split(/\r?\n/).find((line) => line.trim());
+  if (!firstLine) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(firstLine);
+  } catch (error) {
+    return JSON.parse(text);
+  }
+}
+
+async function readText(app, path) {
+  try {
+    return await app.vault.adapter.read(path);
+  } catch (error) {
+    if (!isAbsolutePath(path)) {
+      throw error;
+    }
+
+    const nodeRequire = resolveRequire();
+    if (!nodeRequire) {
+      throw error;
+    }
+
+    const fs = nodeRequire("fs");
+    if (!fs || !fs.promises || typeof fs.promises.readFile !== "function") {
+      throw error;
+    }
+    return fs.promises.readFile(path, "utf8");
+  }
+}
+
+function resolveRequire() {
+  if (typeof require === "function") {
+    return require;
+  }
+  if (typeof window !== "undefined" && typeof window.require === "function") {
+    return window.require;
+  }
+  return null;
+}
+
+function isAbsolutePath(path) {
+  return typeof path === "string" && path.startsWith("/");
 }
 
 function resolveApp(candidateApp) {

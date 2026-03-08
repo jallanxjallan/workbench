@@ -3,26 +3,34 @@
 # ------------------------------------------------------------
 # Workbench shell core
 # ------------------------------------------------------------
-# Owns shell lifecycle wiring and delegates runtime
-# environment behavior to devhook.
+# Owns static shell wiring for Workbench commands and anchors.
 
-: "${WORKBENCH_ROOT:=$HOME/Workbench}"
-
-# Generic shell environment
-if [[ -f "$WORKBENCH_ROOT/shell/core/env/environment.zsh" ]]; then
-  source "$WORKBENCH_ROOT/shell/core/env/environment.zsh"
+if [[ -z "${WORKBENCH_HOME:-}" || "${WORKBENCH_HOME}" == "$HOME/Workbench" ]]; then
+  export WORKBENCH_HOME="$HOME/Workshop/workbench"
 fi
 
-# Shell commands
-for config_file in "$WORKBENCH_ROOT"/shell/commands/*.zsh(N); do
-  source "$config_file"
-done
-
-# Lifecycle functions
-for config_file in "$WORKBENCH_ROOT"/shell/core/functions/*.zsh(N); do
-  source "$config_file"
-done
-
-if typeset -f workbench_devhook_init >/dev/null 2>&1; then
-  workbench_devhook_init
+if [[ -z "${AUTOSCRIBE_HOME:-}" || "${AUTOSCRIBE_HOME}" == "$HOME/Autoscribe" ]]; then
+  export AUTOSCRIBE_HOME="$HOME/Workshop/autoscribe"
 fi
+
+if [[ -z "${STUDIO_ROOT:-}" ]]; then
+  export STUDIO_ROOT="$HOME/Studio"
+fi
+
+export WORKBENCH_ROOT="$WORKBENCH_HOME"
+
+# Global environment anchors
+if [[ -f "$WORKBENCH_HOME/shell/env/environment.zsh" ]]; then
+  source "$WORKBENCH_HOME/shell/env/environment.zsh"
+fi
+if [[ -f "$WORKBENCH_HOME/shell/env/autoscribe.zsh" ]]; then
+  source "$WORKBENCH_HOME/shell/env/autoscribe.zsh"
+fi
+
+# Global aliases and shell commands
+if [[ -f "$WORKBENCH_HOME/shell/aliases.zsh" ]]; then
+  source "$WORKBENCH_HOME/shell/aliases.zsh"
+fi
+for config_file in "$WORKBENCH_HOME"/shell/commands/*.zsh(N); do
+  source "$config_file"
+done

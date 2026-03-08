@@ -1,0 +1,111 @@
+{
+  "package": {
+    "name": "workbench",
+    "version": "0.1.0",
+    "python_requires": ">=3.11",
+    "entrypoint": "wkb = workbench.cli.main:entrypoint"
+  },
+  "repository": {
+    "root": "/home/jeremy/Workbench",
+    "branch": "master",
+    "commit": "142f5dd",
+    "status": "ahead 2 of origin/master"
+  },
+  "purpose": "CLI runtime toolchain for NDJSON stream routing, vault lifecycle operations, and deterministic markdown file-writing workflows for AutoScribe integrations.",
+  "public_python_api": {
+    "module": "workbench.interop",
+    "exports": [
+      "Document"
+    ],
+    "contract": "Document is the sole public markdown object model."
+  },
+  "architecture": {
+    "dispatcher": {
+      "module": "workbench.cli.main",
+      "registry": "workbench.cli.registry",
+      "pattern": "static command registry + dynamic module loading"
+    },
+    "domains": [
+      {
+        "name": "sentinel_scan",
+        "responsibility": "sentinel-based markdown file selection for downstream ingest",
+        "notable_modules": [
+          "workbench.cli.scan_sentinel",
+          "workbench.lib.sentinel_scan"
+        ]
+      },
+      {
+        "name": "write",
+        "responsibility": "batch record persistence with sentinel-aware overwrite safety",
+        "notable_modules": [
+          "workbench.write.writenew",
+          "workbench.write.writeback",
+          "workbench.write.writestream",
+          "workbench.write.common"
+        ]
+      },
+      {
+        "name": "vault",
+        "responsibility": "vault provisioning, import, and template application",
+        "notable_modules": [
+          "workbench.cli.create_vault",
+          "workbench.cli.import_project",
+          "workbench.cli.vault_template"
+        ]
+      },
+      {
+        "name": "slug",
+        "responsibility": "slug normalization, validation, ensure/write behavior",
+        "notable_modules": [
+          "workbench.slug.builder",
+          "workbench.slug.validator",
+          "workbench.slug.writer"
+        ]
+      }
+    ]
+  },
+  "command_surface": {
+    "root_commands": {
+      "writenew": "Write AutoScribe batch records to new files.",
+      "writeback": "Write records back with strict path/slug/sentinel invariants and reroute to new-file behavior when sentinel is absent.",
+      "writestream": "Validate and passthrough single-document markdown streams.",
+      "scan-sentinel": "Select markdown paths whose first line contains a valid ASC batch sentinel.",
+      "slug": "Build/ensure/validate slug identities.",
+      "create-vault": "Provision deterministic vaults under ~/Studio.",
+      "create-project": "Alias of create-vault for project vocabulary.",
+      "import-project": "Import draft vault content into a target vault project scaffold."
+    },
+    "namespaces": {
+      "vault": [
+        "template"
+      ],
+      "slug": [
+        "build",
+        "ensure",
+        "validate"
+      ]
+    }
+  },
+  "core_runtime_contracts": {
+    "markdown_contract": {
+      "single_authority": "workbench.interop.document.Document",
+      "rule": "Workbench modules should not implement independent frontmatter/YAML parsing paths outside Document."
+    },
+    "sentinel_contract": {
+      "module": "workbench.lib.sentinel",
+      "format": "--- ASC BATCH: <slug> ---",
+      "regex": "^--- ASC BATCH: ([a-z0-9._-]+) ---$",
+      "read_behavior": "read_batch_sentinel(path) returns slug when first non-empty line is valid sentinel, otherwise null",
+      "writeback_semantics": "missing sentinel means file is treated as not yet batched and writeback creates a new output file instead of overwriting"
+    },
+    "ndjson_scope": {
+      "producer": "AutoScribe",
+      "workbench_role": "consumer",
+      "reader_module": "workbench.lib.ndjson_stream.iter_ndjson"
+    }
+  },
+  "size_snapshot": {
+    "workbench_python_files": 45,
+    "test_python_files": 7
+  }
+}

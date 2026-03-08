@@ -1,0 +1,1112 @@
+{
+  "generated_at_utc": "2026-03-07T05:59:47.755421+00:00",
+  "workspace_root": "/home/jeremy/Workbench",
+  "scope": {
+    "included_candidates": [
+      "workbench/interop/identity.py",
+      "workbench/lib/paths.py",
+      "workbench/lib/subprocess.py",
+      "workbench/lib/git.py",
+      "workbench/lib/text.py",
+      "workbench/write/common.py"
+    ],
+    "excluded_globs": [
+      "obsidian/**"
+    ]
+  },
+  "files": [
+    {
+      "path": "workbench/interop/identity.py",
+      "tree_position": {
+        "relative_path": "workbench/interop/identity.py",
+        "depth": 3,
+        "parts": [
+          "workbench",
+          "interop",
+          "identity.py"
+        ],
+        "parent": "workbench/interop",
+        "filename": "identity.py"
+      },
+      "full_text": "\"\"\"Slug generation without registry-bound context.\"\"\"\n\nfrom __future__ import annotations\n\nimport os\nfrom pathlib import Path\nimport re\nimport secrets\nimport string\nimport unicodedata\n\nfrom workbench.lib.rg import RipgrepError, find_files_with_slug\n\n_MAX_COLLISION_RETRIES = 1024\n_BASE36_ALPHABET = string.digits + string.ascii_lowercase\n_NON_ALNUM_RE = re.compile(r\"[^a-z0-9]+\")\n_MULTI_DASH_RE = re.compile(r\"-{2,}\")\n_MAX_SEMANTIC_BASE_LENGTH = 48\n\n\ndef normalize_semantic_base(filename: str) -> str:\n    base_name = os.path.basename(str(filename))\n    stem, _ = os.path.splitext(base_name)\n    normalized = unicodedata.normalize(\"NFKD\", stem)\n    no_diacritics = \"\".join(ch for ch in normalized if not unicodedata.combining(ch))\n    lowered = no_diacritics.lower()\n    dashed = _NON_ALNUM_RE.sub(\"-\", lowered)\n    collapsed = _MULTI_DASH_RE.sub(\"-\", dashed).strip(\"-\")\n    clipped = collapsed[:_MAX_SEMANTIC_BASE_LENGTH].strip(\"-\")\n    return clipped or \"doc\"\n\n\ndef generate_suffix(length: int = 5) -> str:\n    if length < 1:\n        raise ValueError(\"suffix length must be positive\")\n    return \"\".join(secrets.choice(_BASE36_ALPHABET) for _ in range(length))\n\n\ndef compose_slug(semantic_base: str, suffix: str) -> str:\n    clean_semantic_base = str(semantic_base).strip()\n    clean_suffix = str(suffix).strip()\n    if not clean_semantic_base:\n        raise ValueError(\"semantic_base must not be empty\")\n    if not clean_suffix:\n        raise ValueError(\"suffix must not be empty\")\n    return f\"{clean_semantic_base}-{clean_suffix}\"\n\n\ndef create_slug(target_dir: Path, filename_hint: str) -> str:\n    target = Path(target_dir).expanduser().resolve()\n    semantic_base = normalize_semantic_base(filename_hint)\n\n    for _ in range(_MAX_COLLISION_RETRIES):\n        suffix = generate_suffix()\n        slug = compose_slug(semantic_base, suffix)\n        if not _slug_in_use(target, slug):\n            return slug\n\n    raise RuntimeError(\"failed to generate unique slug after repeated collisions\")\n\n\ndef _slug_in_use(search_root: Path, candidate_slug: str) -> bool:\n    scan_root = search_root if search_root.is_dir() else search_root.parent\n    if not scan_root.exists():\n        return False\n    for path in scan_root.rglob(\"*.md\"):\n        if path.stem == candidate_slug:\n            return True\n\n    try:\n        if find_files_with_slug(candidate_slug, root=scan_root):\n            return True\n    except RipgrepError:\n        return False\n\n    return False\n",
+      "exports": [
+        {
+          "kind": "function",
+          "name": "normalize_semantic_base",
+          "lineno": 21,
+          "signature": "normalize_semantic_base(filename)"
+        },
+        {
+          "kind": "function",
+          "name": "generate_suffix",
+          "lineno": 33,
+          "signature": "generate_suffix(length)"
+        },
+        {
+          "kind": "function",
+          "name": "compose_slug",
+          "lineno": 39,
+          "signature": "compose_slug(semantic_base, suffix)"
+        },
+        {
+          "kind": "function",
+          "name": "create_slug",
+          "lineno": 49,
+          "signature": "create_slug(target_dir, filename_hint)"
+        },
+        {
+          "kind": "function",
+          "name": "_slug_in_use",
+          "lineno": 62,
+          "signature": "_slug_in_use(search_root, candidate_slug)"
+        }
+      ],
+      "imports": [
+        {
+          "type": "from_import",
+          "module": "__future__",
+          "names": [
+            "annotations"
+          ],
+          "lineno": 3
+        },
+        {
+          "type": "import",
+          "module": "os",
+          "asname": null,
+          "lineno": 5
+        },
+        {
+          "type": "from_import",
+          "module": "pathlib",
+          "names": [
+            "Path"
+          ],
+          "lineno": 6
+        },
+        {
+          "type": "import",
+          "module": "re",
+          "asname": null,
+          "lineno": 7
+        },
+        {
+          "type": "import",
+          "module": "secrets",
+          "asname": null,
+          "lineno": 8
+        },
+        {
+          "type": "import",
+          "module": "string",
+          "asname": null,
+          "lineno": 9
+        },
+        {
+          "type": "import",
+          "module": "unicodedata",
+          "asname": null,
+          "lineno": 10
+        },
+        {
+          "type": "from_import",
+          "module": "workbench.lib.rg",
+          "names": [
+            "RipgrepError",
+            "find_files_with_slug"
+          ],
+          "lineno": 12
+        }
+      ],
+      "io_hints": {
+        "uses_stdin": false,
+        "uses_stdout": false,
+        "uses_stderr": false,
+        "reads_files": false,
+        "writes_files": false,
+        "spawns_subprocess": false,
+        "cli_entrypoint": false
+      },
+      "inputs_from_other_scripts": {
+        "module_imports": [
+          {
+            "from_file": "workbench/write/common.py",
+            "line": 16,
+            "snippet": "from workbench.interop.identity import normalize_semantic_base"
+          }
+        ],
+        "symbol_references": {
+          "normalize_semantic_base": [
+            {
+              "from_file": "workbench/write/common.py",
+              "line": 16,
+              "snippet": "from workbench.interop.identity import normalize_semantic_base"
+            },
+            {
+              "from_file": "workbench/write/common.py",
+              "line": 96,
+              "snippet": "return normalize_semantic_base(hint)"
+            },
+            {
+              "from_file": "workbench/write/common.py",
+              "line": 101,
+              "snippet": "clean_stem = normalize_semantic_base(stem)"
+            }
+          ],
+          "generate_suffix": [],
+          "compose_slug": [],
+          "create_slug": [],
+          "_slug_in_use": []
+        }
+      },
+      "outputs_to_other_scripts": {
+        "outbound_local_imports": [
+          {
+            "type": "from_import",
+            "module": "workbench.lib.rg",
+            "names": [
+              "RipgrepError",
+              "find_files_with_slug"
+            ],
+            "lineno": 12
+          }
+        ]
+      }
+    },
+    {
+      "path": "workbench/lib/paths.py",
+      "tree_position": {
+        "relative_path": "workbench/lib/paths.py",
+        "depth": 3,
+        "parts": [
+          "workbench",
+          "lib",
+          "paths.py"
+        ],
+        "parent": "workbench/lib",
+        "filename": "paths.py"
+      },
+      "full_text": "\"\"\"Path resolution helpers.\"\"\"\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\n\n\nclass PathError(RuntimeError):\n    pass\n\n\ndef ensure_within(root: Path, candidate: Path, *, raw: str | None = None) -> None:\n    try:\n        candidate.relative_to(root)\n    except ValueError as exc:\n        detail = raw if raw is not None else str(candidate)\n        raise PathError(f\"path is outside root: {detail}\") from exc\n\n\ndef resolve_under(base_dir: Path, rel_path: str) -> Path:\n    candidate = Path(rel_path)\n    if candidate.is_absolute():\n        raise PathError(f\"path must be relative, got absolute: {rel_path}\")\n\n    base = base_dir.expanduser().resolve()\n    resolved = (base / candidate).resolve()\n    ensure_within(base, resolved, raw=rel_path)\n    return resolved\n\n\ndef normalize_vault_name(vault_name: str) -> str:\n    \"\"\"Normalize vault directory names.\"\"\"\n    normalized = vault_name.strip()\n    if not normalized:\n        raise ValueError(\"ERROR: Vault name must be non-empty.\")\n    if \"/\" in normalized or \"\\\\\" in normalized:\n        raise ValueError(\"ERROR: Vault name must not contain '/'.\")\n    return normalized\n\n\ndef normalize_project_name(project_name: str) -> str:\n    \"\"\"Normalize project identifiers.\"\"\"\n    normalized = project_name.strip()\n    if not normalized:\n        raise ValueError(\"ERROR: Project name must be non-empty.\")\n    if \"/\" in normalized or \"\\\\\" in normalized:\n        raise ValueError(\"ERROR: Project name must not contain path separators.\")\n    return normalized\n",
+      "exports": [
+        {
+          "kind": "class",
+          "name": "PathError",
+          "lineno": 8
+        },
+        {
+          "kind": "function",
+          "name": "ensure_within",
+          "lineno": 12,
+          "signature": "ensure_within(root, candidate)"
+        },
+        {
+          "kind": "function",
+          "name": "resolve_under",
+          "lineno": 20,
+          "signature": "resolve_under(base_dir, rel_path)"
+        },
+        {
+          "kind": "function",
+          "name": "normalize_vault_name",
+          "lineno": 31,
+          "signature": "normalize_vault_name(vault_name)"
+        },
+        {
+          "kind": "function",
+          "name": "normalize_project_name",
+          "lineno": 41,
+          "signature": "normalize_project_name(project_name)"
+        }
+      ],
+      "imports": [
+        {
+          "type": "from_import",
+          "module": "__future__",
+          "names": [
+            "annotations"
+          ],
+          "lineno": 3
+        },
+        {
+          "type": "from_import",
+          "module": "pathlib",
+          "names": [
+            "Path"
+          ],
+          "lineno": 5
+        }
+      ],
+      "io_hints": {
+        "uses_stdin": false,
+        "uses_stdout": false,
+        "uses_stderr": false,
+        "reads_files": false,
+        "writes_files": false,
+        "spawns_subprocess": false,
+        "cli_entrypoint": false
+      },
+      "inputs_from_other_scripts": {
+        "module_imports": [
+          {
+            "from_file": "workbench/cli/create_vault.py",
+            "line": 22,
+            "snippet": "from workbench.lib.paths import normalize_vault_name"
+          },
+          {
+            "from_file": "workbench/lib/sentinel_scan.py",
+            "line": 10,
+            "snippet": "from workbench.lib.paths import PathError, ensure_within"
+          }
+        ],
+        "symbol_references": {
+          "PathError": [
+            {
+              "from_file": "workbench/lib/sentinel_scan.py",
+              "line": 10,
+              "snippet": "from workbench.lib.paths import PathError, ensure_within"
+            },
+            {
+              "from_file": "workbench/lib/sentinel_scan.py",
+              "line": 55,
+              "snippet": "except PathError as exc:"
+            }
+          ],
+          "ensure_within": [
+            {
+              "from_file": "workbench/lib/sentinel_scan.py",
+              "line": 10,
+              "snippet": "from workbench.lib.paths import PathError, ensure_within"
+            },
+            {
+              "from_file": "workbench/lib/sentinel_scan.py",
+              "line": 54,
+              "snippet": "ensure_within(cwd, path, raw=raw)"
+            }
+          ],
+          "resolve_under": [],
+          "normalize_vault_name": [
+            {
+              "from_file": "workbench/cli/create_vault.py",
+              "line": 22,
+              "snippet": "from workbench.lib.paths import normalize_vault_name"
+            },
+            {
+              "from_file": "workbench/cli/create_vault.py",
+              "line": 86,
+              "snippet": "normalized = normalize_vault_name(raw)"
+            }
+          ],
+          "normalize_project_name": []
+        }
+      },
+      "outputs_to_other_scripts": {
+        "outbound_local_imports": []
+      }
+    },
+    {
+      "path": "workbench/lib/subprocess.py",
+      "tree_position": {
+        "relative_path": "workbench/lib/subprocess.py",
+        "depth": 3,
+        "parts": [
+          "workbench",
+          "lib",
+          "subprocess.py"
+        ],
+        "parent": "workbench/lib",
+        "filename": "subprocess.py"
+      },
+      "full_text": "\"\"\"Subprocess helpers with uniform error handling.\"\"\"\n\nfrom __future__ import annotations\n\nimport subprocess\nfrom pathlib import Path\nfrom typing import Iterator\n\n\nclass CommandError(RuntimeError):\n    pass\n\n\ndef run_text(args: list[str], *, cwd: Path | None = None, check: bool = True) -> str:\n    proc = subprocess.run(\n        args,\n        cwd=str(cwd) if cwd is not None else None,\n        capture_output=True,\n        text=True,\n        check=False,\n    )\n    if check and proc.returncode != 0:\n        detail = proc.stderr.strip() or proc.stdout.strip() or \"command failed\"\n        raise CommandError(detail)\n    return proc.stdout\n\n\ndef iter_stdout_lines(\n    args: list[str],\n    *,\n    cwd: Path | None = None,\n    check: bool = True,\n) -> Iterator[str]:\n    proc = subprocess.Popen(\n        args,\n        cwd=str(cwd) if cwd is not None else None,\n        stdout=subprocess.PIPE,\n        text=True,\n    )\n\n    if proc.stdout is None:\n        raise CommandError(\"failed to capture command stdout\")\n\n    try:\n        for line in proc.stdout:\n            yield line\n    finally:\n        proc.stdout.close()\n\n    code = proc.wait()\n    if check and code != 0:\n        raise CommandError(f\"command failed with exit code {code}\")\n",
+      "exports": [
+        {
+          "kind": "class",
+          "name": "CommandError",
+          "lineno": 10
+        },
+        {
+          "kind": "function",
+          "name": "run_text",
+          "lineno": 14,
+          "signature": "run_text(args)"
+        },
+        {
+          "kind": "function",
+          "name": "iter_stdout_lines",
+          "lineno": 28,
+          "signature": "iter_stdout_lines(args)"
+        }
+      ],
+      "imports": [
+        {
+          "type": "from_import",
+          "module": "__future__",
+          "names": [
+            "annotations"
+          ],
+          "lineno": 3
+        },
+        {
+          "type": "import",
+          "module": "subprocess",
+          "asname": null,
+          "lineno": 5
+        },
+        {
+          "type": "from_import",
+          "module": "pathlib",
+          "names": [
+            "Path"
+          ],
+          "lineno": 6
+        },
+        {
+          "type": "from_import",
+          "module": "typing",
+          "names": [
+            "Iterator"
+          ],
+          "lineno": 7
+        }
+      ],
+      "io_hints": {
+        "uses_stdin": false,
+        "uses_stdout": false,
+        "uses_stderr": false,
+        "reads_files": false,
+        "writes_files": false,
+        "spawns_subprocess": true,
+        "cli_entrypoint": false
+      },
+      "inputs_from_other_scripts": {
+        "module_imports": [
+          {
+            "from_file": "workbench/lib/git.py",
+            "line": 7,
+            "snippet": "from workbench.lib.subprocess import run_text"
+          }
+        ],
+        "symbol_references": {
+          "CommandError": [],
+          "run_text": [
+            {
+              "from_file": "workbench/lib/git.py",
+              "line": 7,
+              "snippet": "from workbench.lib.subprocess import run_text"
+            },
+            {
+              "from_file": "workbench/lib/git.py",
+              "line": 12,
+              "snippet": "return run_text([\"git\", *args], cwd=repo_root, check=check)"
+            }
+          ],
+          "iter_stdout_lines": []
+        }
+      },
+      "outputs_to_other_scripts": {
+        "outbound_local_imports": []
+      }
+    },
+    {
+      "path": "workbench/lib/git.py",
+      "tree_position": {
+        "relative_path": "workbench/lib/git.py",
+        "depth": 3,
+        "parts": [
+          "workbench",
+          "lib",
+          "git.py"
+        ],
+        "parent": "workbench/lib",
+        "filename": "git.py"
+      },
+      "full_text": "\"\"\"Git command helpers.\"\"\"\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\n\nfrom workbench.lib.subprocess import run_text\n\n\ndef run_git(repo_root: Path, args: list[str], *, check: bool = True) -> str:\n    try:\n        return run_text([\"git\", *args], cwd=repo_root, check=check)\n    except FileNotFoundError as exc:\n        raise RuntimeError(f\"git is not installed or not available in PATH: {exc}\") from exc\n",
+      "exports": [
+        {
+          "kind": "function",
+          "name": "run_git",
+          "lineno": 10,
+          "signature": "run_git(repo_root, args)"
+        }
+      ],
+      "imports": [
+        {
+          "type": "from_import",
+          "module": "__future__",
+          "names": [
+            "annotations"
+          ],
+          "lineno": 3
+        },
+        {
+          "type": "from_import",
+          "module": "pathlib",
+          "names": [
+            "Path"
+          ],
+          "lineno": 5
+        },
+        {
+          "type": "from_import",
+          "module": "workbench.lib.subprocess",
+          "names": [
+            "run_text"
+          ],
+          "lineno": 7
+        }
+      ],
+      "io_hints": {
+        "uses_stdin": false,
+        "uses_stdout": false,
+        "uses_stderr": false,
+        "reads_files": false,
+        "writes_files": false,
+        "spawns_subprocess": false,
+        "cli_entrypoint": false
+      },
+      "inputs_from_other_scripts": {
+        "module_imports": [],
+        "symbol_references": {
+          "run_git": []
+        }
+      },
+      "outputs_to_other_scripts": {
+        "outbound_local_imports": [
+          {
+            "type": "from_import",
+            "module": "workbench.lib.subprocess",
+            "names": [
+              "run_text"
+            ],
+            "lineno": 7
+          }
+        ]
+      }
+    },
+    {
+      "path": "workbench/lib/text.py",
+      "tree_position": {
+        "relative_path": "workbench/lib/text.py",
+        "depth": 3,
+        "parts": [
+          "workbench",
+          "lib",
+          "text.py"
+        ],
+        "parent": "workbench/lib",
+        "filename": "text.py"
+      },
+      "full_text": "\"\"\"Text normalization helpers.\"\"\"\n\nfrom __future__ import annotations\n\nimport re\n\n\ndef snake_case(value: str) -> str:\n    cleaned = re.sub(r\"[^\\w\\s-]\", \"\", value)\n    cleaned = cleaned.strip().lower()\n    cleaned = re.sub(r\"[\\s\\-]+\", \"_\", cleaned)\n    return cleaned or \"chunk\"\n\n\ndef kebab_case(value: str) -> str:\n    cleaned = re.sub(r\"[^\\w\\s-]\", \"\", value)\n    cleaned = cleaned.strip().lower()\n    cleaned = re.sub(r\"[\\s_]+\", \"-\", cleaned)\n    cleaned = re.sub(r\"-+\", \"-\", cleaned)\n    return cleaned.strip(\"-\") or \"item\"\n\n\ndef strip_utf8_bom(text: str) -> str:\n    return text[1:] if text.startswith(\"\\ufeff\") else text\n",
+      "exports": [
+        {
+          "kind": "function",
+          "name": "snake_case",
+          "lineno": 8,
+          "signature": "snake_case(value)"
+        },
+        {
+          "kind": "function",
+          "name": "kebab_case",
+          "lineno": 15,
+          "signature": "kebab_case(value)"
+        },
+        {
+          "kind": "function",
+          "name": "strip_utf8_bom",
+          "lineno": 23,
+          "signature": "strip_utf8_bom(text)"
+        }
+      ],
+      "imports": [
+        {
+          "type": "from_import",
+          "module": "__future__",
+          "names": [
+            "annotations"
+          ],
+          "lineno": 3
+        },
+        {
+          "type": "import",
+          "module": "re",
+          "asname": null,
+          "lineno": 5
+        }
+      ],
+      "io_hints": {
+        "uses_stdin": false,
+        "uses_stdout": false,
+        "uses_stderr": false,
+        "reads_files": false,
+        "writes_files": false,
+        "spawns_subprocess": false,
+        "cli_entrypoint": false
+      },
+      "inputs_from_other_scripts": {
+        "module_imports": [
+          {
+            "from_file": "workbench/interop/document.py",
+            "line": 9,
+            "snippet": "from workbench.lib.text import strip_utf8_bom"
+          }
+        ],
+        "symbol_references": {
+          "snake_case": [],
+          "kebab_case": [],
+          "strip_utf8_bom": [
+            {
+              "from_file": "workbench/interop/document.py",
+              "line": 9,
+              "snippet": "from workbench.lib.text import strip_utf8_bom"
+            },
+            {
+              "from_file": "workbench/interop/document.py",
+              "line": 137,
+              "snippet": "normalized = strip_utf8_bom(text)"
+            }
+          ]
+        }
+      },
+      "outputs_to_other_scripts": {
+        "outbound_local_imports": []
+      }
+    },
+    {
+      "path": "workbench/write/common.py",
+      "tree_position": {
+        "relative_path": "workbench/write/common.py",
+        "depth": 3,
+        "parts": [
+          "workbench",
+          "write",
+          "common.py"
+        ],
+        "parent": "workbench/write",
+        "filename": "common.py"
+      },
+      "full_text": "\"\"\"Shared helpers for write command implementations.\"\"\"\n\nfrom __future__ import annotations\n\nimport copy\nimport json\nimport os\nimport secrets\nimport string\nimport tempfile\nimport time\nfrom dataclasses import dataclass\nfrom pathlib import Path\nfrom typing import Any, Iterable, Iterator\n\nfrom workbench.interop.identity import normalize_semantic_base\nfrom workbench.lib.ndjson_stream import iter_ndjson\n\nULID_ALPHABET = \"0123456789ABCDEFGHJKMNPQRSTVWXYZ\"\nULID_TIMESTAMP_BITS = 48\nULID_RANDOM_BITS = 80\nULID_LENGTH = 26\n_BASE36_ALPHABET = string.digits + string.ascii_lowercase\n\n\nclass WriteError(RuntimeError):\n    pass\n\n\n@dataclass(frozen=True)\nclass WriteRecord:\n    envelope: dict[str, Any]\n    content: str\n    batch_slug: str\n    slug: str | None\n    filename_hint: str | None\n    provenance: dict[str, Any] | None\n    origin: dict[str, Any] | None\n\n\ndef atomic_write_text(path: Path, content: str, encoding: str = \"utf-8\") -> None:\n    path.parent.mkdir(parents=True, exist_ok=True)\n    with tempfile.NamedTemporaryFile(\n        mode=\"w\",\n        encoding=encoding,\n        delete=False,\n        dir=str(path.parent),\n        prefix=path.name + \".\",\n        suffix=\".tmp\",\n    ) as tmp:\n        tmp.write(content)\n        tmp.flush()\n        os.fsync(tmp.fileno())\n        tmp_name = tmp.name\n    os.replace(tmp_name, path)\n\n\ndef normalize_non_empty_string(value: Any, *, field: str) -> str:\n    if not isinstance(value, str):\n        raise WriteError(f\"{field} must be a non-empty string\")\n    normalized = value.strip()\n    if not normalized:\n        raise WriteError(f\"{field} must be a non-empty string\")\n    return normalized\n\n\ndef iter_input_records(stream: Iterable[str]) -> Iterator[WriteRecord]:\n    try:\n        for index, record in enumerate(iter_ndjson(stream), start=1):\n            yield _coerce_record(record=record, index=index)\n    except (ValueError, json.JSONDecodeError) as exc:\n        raise WriteError(f\"invalid NDJSON input: {exc}\") from exc\n\n\ndef has_piped_stdin(stream: Any) -> bool:\n    isatty = getattr(stream, \"isatty\", None)\n    if not callable(isatty):\n        return True\n    try:\n        return not bool(isatty())\n    except OSError:\n        return True\n\n\ndef ensure_directory(path_value: str) -> Path:\n    target = Path(path_value).expanduser().resolve()\n    target.mkdir(parents=True, exist_ok=True)\n    if not target.is_dir():\n        raise WriteError(f\"path is not a directory: {target}\")\n    return target\n\n\ndef preferred_filename_stem(record: WriteRecord) -> str:\n    hint = record.filename_hint\n    if hint:\n        return normalize_semantic_base(hint)\n    return \"unknown\"\n\n\ndef resolve_unique_markdown_path(directory: Path, stem: str) -> Path:\n    clean_stem = normalize_semantic_base(stem)\n    candidate = directory / f\"{clean_stem}.md\"\n    if not candidate.exists():\n        return candidate\n\n    suffix = 2\n    while True:\n        candidate = directory / f\"{clean_stem}-{suffix}.md\"\n        if not candidate.exists():\n            return candidate\n        suffix += 1\n\n\ndef generate_ulid() -> str:\n    timestamp_ms = int(time.time() * 1000)\n    if timestamp_ms >= (1 << ULID_TIMESTAMP_BITS):\n        raise WriteError(\"ULID timestamp overflow\")\n    randomness = secrets.randbits(ULID_RANDOM_BITS)\n    value = (timestamp_ms << ULID_RANDOM_BITS) | randomness\n    return _encode_ulid(value)\n\n\ndef _encode_ulid(value: int) -> str:\n    chars: list[str] = []\n    remaining = value\n    for _ in range(ULID_LENGTH):\n        chars.append(ULID_ALPHABET[remaining & 0x1F])\n        remaining >>= 5\n    return \"\".join(reversed(chars))\n\n\ndef generate_random_suffix(length: int = 5) -> str:\n    if length < 1:\n        raise WriteError(\"suffix length must be positive\")\n    return \"\".join(secrets.choice(_BASE36_ALPHABET) for _ in range(length))\n\n\ndef _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:\n    content = record.get(\"content\")\n    if not isinstance(content, str):\n        raise WriteError(f\"record {index}: missing required record field: content\")\n\n    batch_slug = normalize_non_empty_string(\n        record.get(\"batch_slug\"), field=f\"record {index} batch_slug\"\n    )\n\n    slug = _optional_string(record.get(\"slug\"), index=index, field=\"slug\")\n    filename_hint = _optional_string(\n        record.get(\"filename_hint\"), index=index, field=\"filename_hint\"\n    )\n    provenance = _optional_mapping(\n        record.get(\"provenance\"), index=index, field=\"provenance\"\n    )\n    origin = _optional_mapping(record.get(\"origin\"), index=index, field=\"origin\")\n\n    return WriteRecord(\n        envelope=copy.deepcopy(record),\n        content=content,\n        batch_slug=batch_slug,\n        slug=slug,\n        filename_hint=filename_hint,\n        provenance=provenance,\n        origin=origin,\n    )\n\n\ndef _optional_string(value: Any, *, index: int, field: str) -> str | None:\n    if value is None:\n        return None\n    if not isinstance(value, str) or not value.strip():\n        raise WriteError(f\"record {index}: invalid record field: {field}\")\n    return value.strip()\n\n\ndef _optional_mapping(value: Any, *, index: int, field: str) -> dict[str, Any] | None:\n    if value is None:\n        return None\n    if not isinstance(value, dict):\n        raise WriteError(f\"record {index}: invalid record field: {field}\")\n    return copy.deepcopy(value)\n",
+      "exports": [
+        {
+          "kind": "class",
+          "name": "WriteError",
+          "lineno": 26
+        },
+        {
+          "kind": "class",
+          "name": "WriteRecord",
+          "lineno": 31
+        },
+        {
+          "kind": "function",
+          "name": "atomic_write_text",
+          "lineno": 41,
+          "signature": "atomic_write_text(path, content, encoding)"
+        },
+        {
+          "kind": "function",
+          "name": "normalize_non_empty_string",
+          "lineno": 58,
+          "signature": "normalize_non_empty_string(value)"
+        },
+        {
+          "kind": "function",
+          "name": "iter_input_records",
+          "lineno": 67,
+          "signature": "iter_input_records(stream)"
+        },
+        {
+          "kind": "function",
+          "name": "has_piped_stdin",
+          "lineno": 75,
+          "signature": "has_piped_stdin(stream)"
+        },
+        {
+          "kind": "function",
+          "name": "ensure_directory",
+          "lineno": 85,
+          "signature": "ensure_directory(path_value)"
+        },
+        {
+          "kind": "function",
+          "name": "preferred_filename_stem",
+          "lineno": 93,
+          "signature": "preferred_filename_stem(record)"
+        },
+        {
+          "kind": "function",
+          "name": "resolve_unique_markdown_path",
+          "lineno": 100,
+          "signature": "resolve_unique_markdown_path(directory, stem)"
+        },
+        {
+          "kind": "function",
+          "name": "generate_ulid",
+          "lineno": 114,
+          "signature": "generate_ulid()"
+        },
+        {
+          "kind": "function",
+          "name": "_encode_ulid",
+          "lineno": 123,
+          "signature": "_encode_ulid(value)"
+        },
+        {
+          "kind": "function",
+          "name": "generate_random_suffix",
+          "lineno": 132,
+          "signature": "generate_random_suffix(length)"
+        },
+        {
+          "kind": "function",
+          "name": "_coerce_record",
+          "lineno": 138,
+          "signature": "_coerce_record()"
+        },
+        {
+          "kind": "function",
+          "name": "_optional_string",
+          "lineno": 167,
+          "signature": "_optional_string(value)"
+        },
+        {
+          "kind": "function",
+          "name": "_optional_mapping",
+          "lineno": 175,
+          "signature": "_optional_mapping(value)"
+        }
+      ],
+      "imports": [
+        {
+          "type": "from_import",
+          "module": "__future__",
+          "names": [
+            "annotations"
+          ],
+          "lineno": 3
+        },
+        {
+          "type": "import",
+          "module": "copy",
+          "asname": null,
+          "lineno": 5
+        },
+        {
+          "type": "import",
+          "module": "json",
+          "asname": null,
+          "lineno": 6
+        },
+        {
+          "type": "import",
+          "module": "os",
+          "asname": null,
+          "lineno": 7
+        },
+        {
+          "type": "import",
+          "module": "secrets",
+          "asname": null,
+          "lineno": 8
+        },
+        {
+          "type": "import",
+          "module": "string",
+          "asname": null,
+          "lineno": 9
+        },
+        {
+          "type": "import",
+          "module": "tempfile",
+          "asname": null,
+          "lineno": 10
+        },
+        {
+          "type": "import",
+          "module": "time",
+          "asname": null,
+          "lineno": 11
+        },
+        {
+          "type": "from_import",
+          "module": "dataclasses",
+          "names": [
+            "dataclass"
+          ],
+          "lineno": 12
+        },
+        {
+          "type": "from_import",
+          "module": "pathlib",
+          "names": [
+            "Path"
+          ],
+          "lineno": 13
+        },
+        {
+          "type": "from_import",
+          "module": "typing",
+          "names": [
+            "Any",
+            "Iterable",
+            "Iterator"
+          ],
+          "lineno": 14
+        },
+        {
+          "type": "from_import",
+          "module": "workbench.interop.identity",
+          "names": [
+            "normalize_semantic_base"
+          ],
+          "lineno": 16
+        },
+        {
+          "type": "from_import",
+          "module": "workbench.lib.ndjson_stream",
+          "names": [
+            "iter_ndjson"
+          ],
+          "lineno": 17
+        }
+      ],
+      "io_hints": {
+        "uses_stdin": false,
+        "uses_stdout": false,
+        "uses_stderr": false,
+        "reads_files": false,
+        "writes_files": true,
+        "spawns_subprocess": false,
+        "cli_entrypoint": false
+      },
+      "inputs_from_other_scripts": {
+        "module_imports": [
+          {
+            "from_file": "tests/test_writeback_safety.py",
+            "line": 11,
+            "snippet": "from workbench.write.common import WriteError"
+          },
+          {
+            "from_file": "tests/test_ndjson_streaming.py",
+            "line": 7,
+            "snippet": "import workbench.write.common as common_module"
+          },
+          {
+            "from_file": "workbench/write/writenew.py",
+            "line": 13,
+            "snippet": "from workbench.write.common import ("
+          },
+          {
+            "from_file": "workbench/write/writeback.py",
+            "line": 16,
+            "snippet": "from workbench.write.common import ("
+          },
+          {
+            "from_file": "workbench/cli/create_vault.py",
+            "line": 23,
+            "snippet": "from workbench.write.common import atomic_write_text"
+          },
+          {
+            "from_file": "workbench/cli/vault_template.py",
+            "line": 13,
+            "snippet": "from workbench.write.common import atomic_write_text"
+          }
+        ],
+        "symbol_references": {
+          "WriteError": [
+            {
+              "from_file": "tests/test_writeback_safety.py",
+              "line": 11,
+              "snippet": "from workbench.write.common import WriteError"
+            },
+            {
+              "from_file": "tests/test_writeback_safety.py",
+              "line": 41,
+              "snippet": "with pytest.raises(WriteError, match=\"frontmatter slug does not match record.slug\"):"
+            },
+            {
+              "from_file": "tests/test_writeback_safety.py",
+              "line": 63,
+              "snippet": "with pytest.raises(WriteError, match=\"batch sentinel missing\"):"
+            },
+            {
+              "from_file": "tests/test_writeback_safety.py",
+              "line": 85,
+              "snippet": "with pytest.raises(WriteError, match=\"batch sentinel does not match record batch_slug\"):"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 14,
+              "snippet": "WriteError,"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 85,
+              "snippet": "raise WriteError(\"schema name must be a non-empty string\")"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 87,
+              "snippet": "raise WriteError(\"schema name must not contain path separators\")"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 93,
+              "snippet": "raise WriteError(f\"schema not found: {normalized} under {schema_dir}\")"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 98,
+              "snippet": "raise WriteError(f\"failed to read schema: {schema_path}\") from exc"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 103,
+              "snippet": "raise WriteError(f\"invalid schema YAML: {schema_path}: {exc}\") from exc"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 106,
+              "snippet": "raise WriteError(f\"invalid schema file: {schema_path}\")"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 110,
+              "snippet": "raise WriteError(f\"schema missing required non-empty 'class': {schema_path}\")"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 114,
+              "snippet": "raise WriteError(f\"schema defaults must be a mapping: {schema_path}\")"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 176,
+              "snippet": "except WriteError as exc:"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 17,
+              "snippet": "WriteError,"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 46,
+              "snippet": "raise WriteError(str(exc)) from exc"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 50,
+              "snippet": "raise WriteError(f\"record {index}: missing required record field: slug\")"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 54,
+              "snippet": "raise WriteError(f\"slug not found: {record.slug}\")"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 62,
+              "snippet": "raise WriteError(\"frontmatter slug does not match record.slug\")"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 64,
+              "snippet": "raise WriteError(\"frontmatter slug does not match record.slug\")"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 68,
+              "snippet": "raise WriteError(\"batch sentinel missing\")"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 70,
+              "snippet": "raise WriteError(\"batch sentinel does not match record batch_slug\")"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 94,
+              "snippet": "except WriteError as exc:"
+            }
+          ],
+          "WriteRecord": [
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 15,
+              "snippet": "WriteRecord,"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 129,
+              "snippet": "def build_frontmatter(*, schema: WriteSchema, record: WriteRecord) -> dict[str, Any]:"
+            }
+          ],
+          "atomic_write_text": [
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 16,
+              "snippet": "atomic_write_text,"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 79,
+              "snippet": "atomic_write_text(output_path, markdown)"
+            },
+            {
+              "from_file": "workbench/cli/create_vault.py",
+              "line": 23,
+              "snippet": "from workbench.write.common import atomic_write_text"
+            },
+            {
+              "from_file": "workbench/cli/create_vault.py",
+              "line": 191,
+              "snippet": "atomic_write_text(registry_path, json.dumps(record, separators=(\",\", \":\")) + \"\\n\")"
+            },
+            {
+              "from_file": "workbench/cli/vault_template.py",
+              "line": 13,
+              "snippet": "from workbench.write.common import atomic_write_text"
+            },
+            {
+              "from_file": "workbench/cli/vault_template.py",
+              "line": 260,
+              "snippet": "atomic_write_text(change.path, change.original_text)"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 18,
+              "snippet": "atomic_write_text,"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 77,
+              "snippet": "atomic_write_text(target_path, existing_doc.write_text())"
+            }
+          ],
+          "normalize_non_empty_string": [],
+          "iter_input_records": [
+            {
+              "from_file": "tests/test_ndjson_streaming.py",
+              "line": 21,
+              "snippet": "records = common_module.iter_input_records(stream)"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 19,
+              "snippet": "iter_input_records,"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 71,
+              "snippet": "for index, record in enumerate(iter_input_records(input_stream), start=1):"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 20,
+              "snippet": "iter_input_records,"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 48,
+              "snippet": "for index, record in enumerate(iter_input_records(input_stream), start=1):"
+            }
+          ],
+          "has_piped_stdin": [
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 18,
+              "snippet": "has_piped_stdin,"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 163,
+              "snippet": "if not has_piped_stdin(sys.stdin):"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 19,
+              "snippet": "has_piped_stdin,"
+            },
+            {
+              "from_file": "workbench/write/writeback.py",
+              "line": 83,
+              "snippet": "if not has_piped_stdin(sys.stdin):"
+            }
+          ],
+          "ensure_directory": [
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 17,
+              "snippet": "ensure_directory,"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 69,
+              "snippet": "target_dir = ensure_directory(target_path)"
+            }
+          ],
+          "preferred_filename_stem": [
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 20,
+              "snippet": "preferred_filename_stem,"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 72,
+              "snippet": "stem = preferred_filename_stem(record)"
+            }
+          ],
+          "resolve_unique_markdown_path": [
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 21,
+              "snippet": "resolve_unique_markdown_path,"
+            },
+            {
+              "from_file": "workbench/write/writenew.py",
+              "line": 73,
+              "snippet": "output_path = resolve_unique_markdown_path(target_dir, stem)"
+            }
+          ],
+          "generate_ulid": [],
+          "_encode_ulid": [
+            {
+              "from_file": "workbench/cli/create_vault.py",
+              "line": 110,
+              "snippet": "def _encode_ulid(value: int) -> str:"
+            },
+            {
+              "from_file": "workbench/cli/create_vault.py",
+              "line": 124,
+              "snippet": "return _encode_ulid((timestamp_ms << 80) | randomness)"
+            }
+          ],
+          "generate_random_suffix": [],
+          "_coerce_record": [],
+          "_optional_string": [],
+          "_optional_mapping": []
+        }
+      },
+      "outputs_to_other_scripts": {
+        "outbound_local_imports": [
+          {
+            "type": "from_import",
+            "module": "workbench.interop.identity",
+            "names": [
+              "normalize_semantic_base"
+            ],
+            "lineno": 16
+          },
+          {
+            "type": "from_import",
+            "module": "workbench.lib.ndjson_stream",
+            "names": [
+              "iter_ndjson"
+            ],
+            "lineno": 17
+          }
+        ]
+      }
+    }
+  ]
+}

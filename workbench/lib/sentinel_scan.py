@@ -26,20 +26,20 @@ class SentinelScanError(RuntimeError):
 
 def scan_paths_for_batch_sentinel(
     *,
-    cwd: Path,
+    root: Path,
     raw_paths: list[str],
     follow_symlinks: bool = False,
 ) -> list[str]:
-    query_paths = _normalize_query_paths(cwd=cwd, raw_paths=raw_paths)
+    query_paths = _normalize_query_paths(root=root, raw_paths=raw_paths)
     rows = _scan_with_rg(
-        cwd=cwd,
+        root=root,
         query_paths=query_paths,
         follow_symlinks=follow_symlinks,
     )
     return sorted(set(rows))
 
 
-def _normalize_query_paths(*, cwd: Path, raw_paths: list[str]) -> list[str]:
+def _normalize_query_paths(*, root: Path, raw_paths: list[str]) -> list[str]:
     query = raw_paths if raw_paths else ["."]
     normalized: list[str] = []
 
@@ -48,17 +48,17 @@ def _normalize_query_paths(*, cwd: Path, raw_paths: list[str]) -> list[str]:
             raise SentinelScanError("path must be a non-empty string")
 
         candidate = Path(raw.strip()).expanduser()
-        path = candidate if candidate.is_absolute() else (cwd / candidate)
+        path = candidate if candidate.is_absolute() else (root / candidate)
         path = path.absolute()
         try:
-            ensure_within(cwd, path, raw=raw)
+            ensure_within(root, path, raw=raw)
         except PathError as exc:
-            raise SentinelScanError(f"path is outside project root: {raw}") from exc
+            raise SentinelScanError(f"path is outside studio root: {raw}") from exc
 
         if not path.exists():
             raise SentinelScanError(f"path does not exist: {raw}")
 
-        rel = path.relative_to(cwd)
+        rel = path.relative_to(root)
         normalized.append(str(rel) if str(rel) else ".")
 
     return sorted(set(normalized)) if normalized else ["."]
@@ -66,7 +66,7 @@ def _normalize_query_paths(*, cwd: Path, raw_paths: list[str]) -> list[str]:
 
 def _scan_with_rg(
     *,
-    cwd: Path,
+    root: Path,
     query_paths: list[str],
     follow_symlinks: bool,
 ) -> list[str]:
@@ -87,7 +87,7 @@ def _scan_with_rg(
     try:
         proc = subprocess.run(
             cmd,
-            cwd=str(cwd),
+            cwd=str(root),
             capture_output=True,
             text=True,
         )

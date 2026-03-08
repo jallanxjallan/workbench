@@ -15,6 +15,8 @@ from pathlib import Path
 import yaml
 
 from workbench.config.roots import (
+    STUDIO_ROOT,
+    WORKBENCH_HOME,
     OBSIDIAN_COMMON_ROOT as DEFAULT_OBSIDIAN_COMMON_ROOT,
     OBSIDIAN_ROOT as DEFAULT_OBSIDIAN_ROOT,
     VAULT_TEMPLATE_ROOT as DEFAULT_VAULT_TEMPLATE_ROOT,
@@ -22,12 +24,11 @@ from workbench.config.roots import (
 from workbench.lib.paths import normalize_vault_name
 from workbench.write.common import atomic_write_text
 
-STUDIO_ROOT = Path.home().resolve() / "Studio"
 EDITORIAL_REGISTRY_JSON_PATH = (
-    Path.home().resolve() / "Workbench" / "obsidian" / "registries" / "studio" / "editorial.json"
+    WORKBENCH_HOME / "obsidian" / "registries" / "studio" / "editorial.json"
 )
 EDITORIAL_REGISTRY_YAML_PATH = (
-    Path.home().resolve() / "Studio" / "registries" / "editorial.yaml"
+    STUDIO_ROOT / "registries" / "editorial.yaml"
 )
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
 VAULT_TEMPLATE_ROOT = DEFAULT_VAULT_TEMPLATE_ROOT
@@ -95,7 +96,7 @@ def _resolve_vault_path(vault_path: str) -> Path:
         return (STUDIO_ROOT / normalized).resolve()
 
     if candidate.parts[0] == "Studio":
-        return (Path.home().resolve() / candidate).resolve()
+        return (STUDIO_ROOT.parent / candidate).resolve()
 
     return candidate.resolve()
 

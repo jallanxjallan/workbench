@@ -33,7 +33,7 @@ def test_cli_smoke_outputs_ndjson_rows(
         "--- ASC BATCH: test.slug ---\n# Title\n",
     )
     _write(tmp_path / "notes" / "beta.md", "# No sentinel\n")
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(scan_sentinel_cli, "STUDIO_ROOT", tmp_path)
 
     rc = scan_sentinel_cli.main(["."])
 
@@ -50,7 +50,7 @@ def test_scan_ignores_non_sentinel_and_non_top_line_matches(tmp_path: Path) -> N
     _write(tmp_path / "not_top.md", "# Heading\n--- ASC BATCH: late.slug ---\n")
     _write(tmp_path / "broken.md", "--- ASC BATCH: broken.slug --\n")
 
-    rows = scan_paths_for_batch_sentinel(cwd=tmp_path, raw_paths=["."])
+    rows = scan_paths_for_batch_sentinel(root=tmp_path, raw_paths=["."])
 
     assert rows == ["good.md"]
 
@@ -62,7 +62,7 @@ def test_scan_recurses_nested_directories(tmp_path: Path) -> None:
         "--- ASC BATCH: nested.slug ---\nContent\n",
     )
 
-    rows = scan_paths_for_batch_sentinel(cwd=tmp_path, raw_paths=["nested"])
+    rows = scan_paths_for_batch_sentinel(root=tmp_path, raw_paths=["nested"])
 
     assert rows == ["nested/deep/doc.md"]
 
@@ -84,7 +84,7 @@ def test_scan_normalizes_match_paths_with_backslashes(monkeypatch: pytest.Monkey
 
     monkeypatch.setattr(sentinel_scan.subprocess, "run", _fake_run)
 
-    rows = sentinel_scan._scan_with_rg(cwd=tmp_path, query_paths=["."], follow_symlinks=False)
+    rows = sentinel_scan._scan_with_rg(root=tmp_path, query_paths=["."], follow_symlinks=False)
 
     assert rows == ["nested/doc.md"]
 

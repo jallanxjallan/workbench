@@ -593,13 +593,6 @@
       "analysis": "no_detected_functions"
     },
     {
-      "path": "/home/jeremy/Workbench/obsidian/vault-common/index/appearance.json",
-      "relative_path": "obsidian/vault-common/index/appearance.json",
-      "language": "other",
-      "functions": [],
-      "analysis": "no_detected_functions"
-    },
-    {
       "path": "/home/jeremy/Workbench/obsidian/vault-common/index/instructions.json",
       "relative_path": "obsidian/vault-common/index/instructions.json",
       "language": "other",

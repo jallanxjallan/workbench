@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from PIL import Image
+from workbench.config.roots import STUDIO_ROOT
 from workbench.lib.rg import find_markdown_images
 
 # ---------------------------------------------------------------------
@@ -161,8 +162,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "path",
         nargs="?",
-        default=".",
-        help="Root directory to scan (default: cwd)",
+        default=str(STUDIO_ROOT),
+        help="Root directory to scan (default: STUDIO_ROOT)",
     )
 
     args = parser.parse_args()

@@ -1,0 +1,60 @@
+"""Compile Studio registry YAML files to runtime JSON registries."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import sys
+
+from workbench.lib.compile_registries import (
+    CompileRegistriesError,
+    DEFAULT_RUNTIME_REGISTRIES_ROOT,
+    compile_registries,
+)
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="compile-registries",
+        description=(
+            "Compile Studio YAML registries into runtime JSON under "
+            "obsidian/registries/studio."
+        ),
+    )
+    parser.add_argument(
+        "--studio-root",
+        default=str(Path.home() / "Studio"),
+        help="Studio root directory (default: ~/Studio).",
+    )
+    parser.add_argument(
+        "--runtime-root",
+        default=str(DEFAULT_RUNTIME_REGISTRIES_ROOT),
+        help=(
+            "Runtime registries root (default: "
+            "~/Workbench/obsidian/registries/studio)."
+        ),
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    studio_root = Path(args.studio_root).expanduser().resolve()
+    runtime_root = Path(args.runtime_root).expanduser().resolve()
+
+    try:
+        editorial_dst = compile_registries(studio_root, runtime_root)
+    except CompileRegistriesError as exc:
+        print(f"[compile-registries] error: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:  # noqa: BLE001
+        print(f"[compile-registries] error: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Compiled editorial registry -> {editorial_dst}")
+    print("Registry compilation complete.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

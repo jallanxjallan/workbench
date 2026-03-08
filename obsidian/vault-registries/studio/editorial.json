@@ -1,0 +1,63 @@
+{
+  "folders": {
+    "contents": {
+      "path": "contents",
+      "score": 100
+    },
+    "topics": {
+      "path": "topics",
+      "score": 50
+    }
+  },
+  "classes": {
+    "passage": {
+      "template": "content_item",
+      "folders": [
+        "contents"
+      ],
+      "score": 100
+    },
+    "scene": {
+      "template": "content_item",
+      "folders": [
+        "contents"
+      ],
+      "score": 90
+    },
+    "caption": {
+      "template": "content_item",
+      "folders": [
+        "contents"
+      ],
+      "score": 80
+    },
+    "image": {
+      "template": "image_item",
+      "folders": [
+        "contents"
+      ],
+      "score": 70
+    },
+    "topic": {
+      "template": "topic_item",
+      "folders": [
+        "topics"
+      ],
+      "score": 40
+    }
+  },
+  "templates": {
+    "content_item": {
+      "path": "_common/templates/content_item.md",
+      "score": 100
+    },
+    "image_item": {
+      "path": "_common/templates/image_item.md",
+      "score": 90
+    },
+    "topic_item": {
+      "path": "_common/templates/topic_item.md",
+      "score": 80
+    }
+  }
+}

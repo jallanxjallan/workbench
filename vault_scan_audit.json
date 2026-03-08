@@ -1,0 +1,277 @@
+{
+  "entrypoints": [
+    {
+      "command": "wkb scan-sentinel",
+      "dispatcher_module": "workbench.cli.main",
+      "registry_module": "workbench.cli.registry",
+      "registry_key": "ROOT_COMMANDS['scan-sentinel']",
+      "cli_module": "workbench.cli.scan_sentinel",
+      "entry_function": "main",
+      "first_scanning_function": "workbench.lib.sentinel_scan.scan_paths_for_batch_sentinel",
+      "notes": "User-specified core module path `workbench/sentinel_scan.py` does not exist; implementation is in `workbench/lib/sentinel_scan.py`."
+    }
+  ],
+  "call_graph": {
+    "runtime_path": {
+      "wkb": [
+        "workbench.cli.main.main",
+        "ROOT_COMMANDS['scan-sentinel'] -> workbench.cli.scan_sentinel.main",
+        "workbench.lib.sentinel_scan.scan_paths_for_batch_sentinel",
+        "workbench.lib.sentinel_scan._normalize_query_paths",
+        "workbench.lib.sentinel_scan._scan_with_rg",
+        "subprocess.run(['rg', ...])",
+        "workbench.lib.ndjson_stream.iter_ndjson",
+        "workbench.lib.sentinel_scan.extract_batch_slug_from_first_line",
+        "workbench.lib.sentinel_scan.is_valid_batch_slug",
+        "NDJSON path rows emitted by cli scan_sentinel.main"
+      ]
+    },
+    "function_calls": {
+      "workbench.cli.scan_sentinel.main": [
+        "_parser.parse_args",
+        "Path.cwd().resolve",
+        "scan_paths_for_batch_sentinel",
+        "json.dumps",
+        "sys.stdout.write"
+      ],
+      "workbench.lib.sentinel_scan.scan_paths_for_batch_sentinel": [
+        "_normalize_query_paths",
+        "_scan_with_rg",
+        "sorted(set(rows))"
+      ],
+      "workbench.lib.sentinel_scan._normalize_query_paths": [
+        "Path(...).expanduser",
+        "path.absolute",
+        "ensure_within",
+        "path.exists",
+        "path.relative_to"
+      ],
+      "workbench.lib.sentinel_scan._scan_with_rg": [
+        "subprocess.run",
+        "iter_ndjson",
+        "extract_batch_slug_from_first_line",
+        "_normalize_match_path"
+      ],
+      "workbench.lib.sentinel_scan.extract_batch_slug_from_first_line": [
+        "_BATCH_SENTINEL_LINE_RE.match",
+        "is_valid_batch_slug"
+      ]
+    }
+  },
+  "subprocess_commands": [
+    {
+      "location": "workbench/lib/sentinel_scan.py:_scan_with_rg",
+      "command": "rg",
+      "arguments": [
+        "--json",
+        "--line-number",
+        "--no-heading",
+        "--color",
+        "never",
+        "--glob",
+        "*.md",
+        "^\\s*---\\s*ASC\\s+BATCH:\\s*.+\\s*---\\s*$",
+        "--",
+        "<query_paths...>"
+      ],
+      "optional_arguments": [
+        "--follow (only when --follow-symlinks is set)"
+      ],
+      "working_directory": "str(cwd) from CLI current working directory",
+      "purpose": "Recursively scan target paths for candidate ASC batch sentinel lines and return JSON match records.",
+      "scan_engine": "ripgrep"
+    }
+  ],
+  "filesystem_reads": [
+    {
+      "location": "workbench/lib/sentinel_scan.py:_normalize_query_paths",
+      "operation": "path.exists() metadata checks",
+      "reads_file_contents": false,
+      "scope": "Only user-supplied query roots/paths",
+      "reachable_from_cli_entrypoint": true,
+      "notes": "Validation only; does not scan file contents."
+    },
+    {
+      "location": "workbench/lib/sentinel_scan.py:expand_paths",
+      "operation": "Path type checks + _walk_files traversal",
+      "reads_file_contents": false,
+      "scope": "Recursive filesystem traversal under query paths",
+      "reachable_from_cli_entrypoint": false,
+      "notes": "Legacy/manual scanner path."
+    },
+    {
+      "location": "workbench/lib/sentinel_scan.py:_walk_files",
+      "operation": "root.walk + stat/is_file",
+      "reads_file_contents": false,
+      "scope": "All files under queried directories",
+      "reachable_from_cli_entrypoint": false,
+      "notes": "Duplicates ripgrep directory traversal role."
+    },
+    {
+      "location": "workbench/lib/sentinel_scan.py:_matches_start_of_file",
+      "operation": "path.read_bytes() + decode + regex",
+      "reads_file_contents": true,
+      "scope": "Each file passed from expand_paths",
+      "reachable_from_cli_entrypoint": false,
+      "notes": "Manual per-file scanner; duplicates ripgrep content matching."
+    },
+    {
+      "location": "workbench/lib/sentinel_scan.py:extract_batch_slug",
+      "operation": "path.read_bytes() + decode + first-line parse",
+      "reads_file_contents": true,
+      "scope": "Single explicit path",
+      "reachable_from_cli_entrypoint": false,
+      "notes": "Not used by current CLI runtime path; used in tests."
+    },
+    {
+      "location": "workbench/lib/sentinel_scan.py:_scan_with_rg",
+      "operation": "No direct vault file reads by Python; consumes ripgrep stdout",
+      "reads_file_contents": false,
+      "scope": "Ripgrep output stream only",
+      "reachable_from_cli_entrypoint": true,
+      "notes": "Matches target architecture: rg scans, Python adapts."
+    }
+  ],
+  "duplicate_scanners": [
+    {
+      "function": "expand_paths",
+      "module": "workbench.lib.sentinel_scan",
+      "duplicate_of": "ripgrep recursive traversal",
+      "evidence": "Builds explicit file list via _walk_files instead of delegating traversal to rg."
+    },
+    {
+      "function": "_walk_files",
+      "module": "workbench.lib.sentinel_scan",
+      "duplicate_of": "ripgrep recursive traversal",
+      "evidence": "Performs manual directory walk including symlink behavior management."
+    },
+    {
+      "function": "scan_paths_for_pattern",
+      "module": "workbench.lib.sentinel_scan",
+      "duplicate_of": "ripgrep pattern matching",
+      "evidence": "Combines expand_paths + _matches_start_of_file for Python-side scanning."
+    },
+    {
+      "function": "_matches_start_of_file",
+      "module": "workbench.lib.sentinel_scan",
+      "duplicate_of": "ripgrep content matching",
+      "evidence": "Reads/decodes each file and applies regex in Python."
+    }
+  ],
+  "dead_code": [
+    {
+      "function": "default_pattern",
+      "module": "workbench.lib.sentinel_scan",
+      "lines": "32-33",
+      "reachable_from_wkb_scan_sentinel": false,
+      "referenced_outside_module": false
+    },
+    {
+      "function": "expand_paths",
+      "module": "workbench.lib.sentinel_scan",
+      "lines": "36-66",
+      "reachable_from_wkb_scan_sentinel": false,
+      "referenced_outside_module": false
+    },
+    {
+      "function": "scan_paths_for_pattern",
+      "module": "workbench.lib.sentinel_scan",
+      "lines": "69-87",
+      "reachable_from_wkb_scan_sentinel": false,
+      "referenced_outside_module": false
+    },
+    {
+      "function": "_walk_files",
+      "module": "workbench.lib.sentinel_scan",
+      "lines": "216-238",
+      "reachable_from_wkb_scan_sentinel": false,
+      "referenced_outside_module": false
+    },
+    {
+      "function": "_matches_start_of_file",
+      "module": "workbench.lib.sentinel_scan",
+      "lines": "241-256",
+      "reachable_from_wkb_scan_sentinel": false,
+      "referenced_outside_module": false
+    },
+    {
+      "function": "extract_batch_slug",
+      "module": "workbench.lib.sentinel_scan",
+      "lines": "259-278",
+      "reachable_from_wkb_scan_sentinel": false,
+      "referenced_outside_module": false,
+      "notes": "Called by tests, but not by CLI runtime path."
+    }
+  ],
+  "sentinel_parsing": {
+    "regex_constant": "_BATCH_SENTINEL_LINE_RE",
+    "regex": "^---\\s*ASC\\s+BATCH:\\s*(?P<slug>.+?)\\s*---\\s*$ (re.IGNORECASE)",
+    "validation_flow": [
+      "extract_batch_slug_from_first_line matches regex",
+      "slug = found.group('slug').strip(\"\\\"' \")",
+      "is_valid_batch_slug(slug) requires non-empty stripped string"
+    ],
+    "cli_runtime_usage": "_scan_with_rg validates matched line text with extract_batch_slug_from_first_line before emitting path",
+    "extract_function_for_file_path": {
+      "function": "extract_batch_slug(path)",
+      "uses": [
+        "path.read_bytes",
+        "strip_utf8_bom",
+        "first-line parse"
+      ],
+      "reachable_from_cli_entrypoint": false
+    }
+  },
+  "simplification_plan": {
+    "target_architecture": "ripgrep scans vault; Python adapts ripgrep JSON records into normalized path rows and validates sentinel syntax.",
+    "functions_to_keep": [
+      "SentinelScanError",
+      "scan_paths_for_batch_sentinel",
+      "_normalize_query_paths",
+      "_scan_with_rg",
+      "_normalize_match_path",
+      "extract_batch_slug_from_first_line",
+      "is_valid_batch_slug"
+    ],
+    "functions_to_remove": [
+      "default_pattern",
+      "expand_paths",
+      "scan_paths_for_pattern",
+      "_walk_files",
+      "_matches_start_of_file",
+      "extract_batch_slug"
+    ],
+    "module_structure_after_simplification": {
+      "workbench/cli/scan_sentinel.py": "CLI parse + call scanner + emit NDJSON",
+      "workbench/lib/sentinel_scan.py": "query path validation, rg invocation, rg-result adaptation, sentinel first-line validation",
+      "workbench/lib/ndjson_stream.py": "iter_ndjson parser for rg --json output"
+    },
+    "estimated_line_reduction": {
+      "current_module_lines": 299,
+      "estimated_removed_lines": 95,
+      "estimated_final_lines": 200
+    },
+    "risk_notes": [
+      "Removing extract_batch_slug may require test updates if file-path extraction helper is still desired for non-CLI callers.",
+      "If backward compatibility is needed for exported symbols in __all__, deprecate before removal."
+    ],
+    "recommended_follow_up_checks": [
+      "Run scan-sentinel tests and CLI smoke test against nested directories",
+      "Verify rg behavior with and without --follow-symlinks",
+      "Confirm path normalization remains stable on './' and Windows-style separators"
+    ]
+  },
+  "metadata": {
+    "generated_at_utc": "2026-03-06T04:22:21Z",
+    "repository_root": "/home/jeremy/Workbench",
+    "audited_files": [
+      "workbench/cli/main.py",
+      "workbench/cli/registry.py",
+      "workbench/cli/scan_sentinel.py",
+      "workbench/lib/sentinel_scan.py",
+      "workbench/lib/ndjson_stream.py",
+      "workbench/lib/paths.py",
+      "workbench/lib/text.py"
+    ]
+  }
+}

@@ -16,6 +16,11 @@ def test_generate_thumbs_command_points_to_generate_thumbs_module() -> None:
     assert entry.module == "workbench.cli.generate_thumbs"
 
 
+def test_compile_registries_command_points_to_compile_registries_module() -> None:
+    entry = ROOT_COMMANDS["compile-registries"]
+    assert entry.module == "workbench.cli.compile_registries"
+
+
 def test_legacy_ingest_namespace_removed() -> None:
     assert "ingest" not in REGISTRY
 
