@@ -227,13 +227,13 @@ def _assets_paths(vault_path: Path) -> tuple[str, str | None]:
 
 
 def _create_vault_registry(vault_path: Path) -> bool:
-    registry_path = vault_path / REGISTRY_JSON_FILENAME
+    registry_path = vault_path / LEGACY_REGISTRY_FILENAME
     if registry_path.exists():
         return False
 
-    if (vault_path / LEGACY_REGISTRY_FILENAME).exists():
-        return False
     if (vault_path / REGISTRY_YAML_FILENAME).exists():
+        return False
+    if (vault_path / REGISTRY_JSON_FILENAME).exists():
         return False
 
     mnemonic = _project_mnemonic(vault_path)

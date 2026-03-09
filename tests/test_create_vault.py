@@ -52,7 +52,7 @@ def _configure_roots(
 
 
 def _read_registry(vault_path: Path) -> dict[str, object]:
-    raw = (vault_path / "_vault_registry.json").read_text(encoding="utf-8").strip()
+    raw = (vault_path / "_vault_registry").read_text(encoding="utf-8").strip()
     assert raw
     return json.loads(raw)
 
@@ -71,7 +71,7 @@ def test_create_vault_new_path_creates_registry_template_and_common_link(
     assert result.vault_path == vault_path
     assert result.registry_created is True
 
-    assert (vault_path / "_vault_registry.json").is_file()
+    assert (vault_path / "_vault_registry").is_file()
     assert (vault_path / ".obsidian").is_dir()
     assert (vault_path / "_common").is_symlink()
     assert os.readlink(vault_path / "_common") == os.path.relpath(
@@ -138,7 +138,7 @@ def test_create_vault_existing_folder_preserves_existing_files(
 
     assert result.status == create_vault_module.STATUS_INITIALIZED
     assert (existing / "file.md").read_text(encoding="utf-8") == "existing\n"
-    assert (existing / "_vault_registry.json").is_file()
+    assert (existing / "_vault_registry").is_file()
     assert (existing / ".obsidian").is_dir()
     assert (existing / "_common").is_symlink()
 
@@ -154,10 +154,10 @@ def test_create_vault_existing_registry_is_idempotent(
     _write_file(existing / "note.md", content="keep\n")
 
     first = create_vault_module.create_vault(str(existing))
-    first_registry = (existing / "_vault_registry.json").read_text(encoding="utf-8")
+    first_registry = (existing / "_vault_registry").read_text(encoding="utf-8")
 
     second = create_vault_module.create_vault(str(existing))
-    second_registry = (existing / "_vault_registry.json").read_text(encoding="utf-8")
+    second_registry = (existing / "_vault_registry").read_text(encoding="utf-8")
 
     assert first.status == create_vault_module.STATUS_INITIALIZED
     assert second.status == create_vault_module.STATUS_ALREADY

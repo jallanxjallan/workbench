@@ -29,7 +29,7 @@ Obsidian scaffolding roots used by `create-vault`:
 
 - `~/Workshop/workbench/obsidian/vault-template` (template source)
 - `~/Workshop/workbench/obsidian/vault-common` (symlink target for `_common`)
-- Per-vault registry file: `_vault_registry.json` (single JSON object)
+- Per-vault registry file: `_vault_registry` (single JSON object)
 
 Vault template command:
 
@@ -103,7 +103,7 @@ Layer responsibilities:
 | `wkb compile-assets` | Compile fully-qualified URI links into managed frontmatter `sources`/`assets` and remove inline source links |
 | `wkb write-new` / `wkb write-back` | Consume NDJSON records and persist markdown files |
 | `wkb write-stream` | Pass markdown through unchanged |
-| `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry.json`, template install, and `_common` symlink |
+| `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry`, template install, and `_common` symlink |
 
 ## Pandoc Integration Policy
 
