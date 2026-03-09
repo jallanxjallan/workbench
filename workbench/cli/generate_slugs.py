@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from workbench.config.roots import STUDIO_ROOT
-from workbench.slug.generator import SlugGenerationError, generate_slugs
+from workbench.slug.writer import SlugGenerationError, generate_slugs
 
 
 def _parser() -> argparse.ArgumentParser:
