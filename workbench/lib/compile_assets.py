@@ -150,47 +150,23 @@ def compile_assets(studio_root: Path) -> CompileAssetsResult:
 
 def discover_uri_links(studio_root: Path) -> list[SourceLink]:
     try:
-        events = rg_search(
-            URI_LINK_PATTERN,
-            root=studio_root,
-            include=["*.md", "*.markdown"],
-        )
+        matches = rg_search(URI_LINK_PATTERN, studio_root)
     except RipgrepError as exc:
         raise CompileAssetsError(str(exc)) from exc
 
+    root_path = studio_root.expanduser().resolve()
     rows: list[SourceLink] = []
-    for event in events:
-        data = event.get("data")
-        if not isinstance(data, dict):
+    for match in matches:
+        markdown_file = match.path
+        if not markdown_file.is_absolute():
+            markdown_file = (root_path / markdown_file).resolve()
+        else:
+            markdown_file = markdown_file.resolve()
+        if markdown_file.suffix.lower() not in {".md", ".markdown"}:
             continue
 
-        path_data = data.get("path")
-        if not isinstance(path_data, dict):
-            continue
-        path_text = path_data.get("text")
-        if not isinstance(path_text, str) or not path_text.strip():
-            continue
-
-        matched_path = Path(path_text.strip())
-        markdown_file = matched_path if matched_path.is_absolute() else (studio_root / matched_path)
-        markdown_file = markdown_file.resolve()
-
-        line_number = data.get("line_number")
-        parsed_line = int(line_number) if isinstance(line_number, int) else 0
-
-        submatches = data.get("submatches")
-        if not isinstance(submatches, list):
-            continue
-
-        for submatch in submatches:
-            if not isinstance(submatch, dict):
-                continue
-            match_data = submatch.get("match")
-            if not isinstance(match_data, dict):
-                continue
-            markdown_link = match_data.get("text")
-            if not isinstance(markdown_link, str) or not markdown_link:
-                continue
+        for found in _URI_LINK_RE.finditer(match.text):
+            markdown_link = found.group(0)
             uri = extract_uri_from_markdown_link(markdown_link)
             if uri is None:
                 continue
@@ -199,7 +175,7 @@ def discover_uri_links(studio_root: Path) -> list[SourceLink]:
                     markdown_file=markdown_file,
                     markdown_link=markdown_link,
                     uri=uri,
-                    line_number=parsed_line,
+                    line_number=match.line,
                 )
             )
 

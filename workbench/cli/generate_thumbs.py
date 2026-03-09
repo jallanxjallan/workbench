@@ -6,7 +6,9 @@ import argparse
 from pathlib import Path
 import sys
 
-from workbench.lib.rg import DEFAULT_STUDIO_ROOT
+from workbench.config.roots import STUDIO_ROOT
+
+DEFAULT_STUDIO_ROOT = STUDIO_ROOT
 
 
 def _parser() -> argparse.ArgumentParser:

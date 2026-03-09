@@ -8,6 +8,7 @@ import workbench.cli.main as cli_main
 from workbench.interop.document import Document
 import workbench.lib.compile_assets as compile_assets_module
 from workbench.lib.compile_assets import compile_assets
+from workbench.lib.rg import RGMatch
 
 
 def _create_vault(tmp_path: Path, name: str) -> tuple[Path, Path, Path]:
@@ -172,30 +173,19 @@ def test_discover_uri_links_uses_single_rg_pass(
     studio_root = tmp_path / "Studio"
     studio_root.mkdir(parents=True, exist_ok=True)
 
-    calls: list[tuple[str, Path, list[str]]] = []
+    calls: list[tuple[str, Path]] = []
 
     def _fake_rg_search(
         pattern: str,
-        *,
-        root: Path | None = None,
-        include: list[str] | None = None,
-        exclude: list[str] | None = None,
-        multiline: bool = False,
-    ) -> list[dict[str, object]]:
-        _ = exclude
-        _ = multiline
-        calls.append((pattern, root or Path("."), include or []))
+        root: Path,
+    ) -> list[RGMatch]:
+        calls.append((pattern, root))
         return [
-            {
-                "type": "match",
-                "data": {
-                    "path": {"text": "vault/doc.md"},
-                    "line_number": 1,
-                    "submatches": [
-                        {"match": {"text": "[img](file:///tmp/pic.jpg)"}},
-                    ],
-                },
-            }
+            RGMatch(
+                path=Path("vault/doc.md"),
+                line=1,
+                text="[img](file:///tmp/pic.jpg)",
+            )
         ]
 
     monkeypatch.setattr(compile_assets_module, "rg_search", _fake_rg_search)
@@ -205,5 +195,4 @@ def test_discover_uri_links_uses_single_rg_pass(
     assert len(calls) == 1
     assert calls[0][0] == compile_assets_module.URI_LINK_PATTERN
     assert calls[0][1] == studio_root
-    assert calls[0][2] == ["*.md", "*.markdown"]
     assert len(links) == 1

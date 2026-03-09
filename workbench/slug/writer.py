@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from workbench.interop.document import Document
-from workbench.lib.rg import RipgrepError, find_files_with_slug, find_slug_sentinels
+from workbench.lib.rg import RipgrepError, rg_search
 from workbench.slug.builder import build_slug
 from workbench.slug.validator import validate_slug
 
 MARKDOWN_SUFFIXES = (".md", ".markdown")
+SLUG_SENTINEL_PATTERN = r"slug:\s*__SLUG__"
+SLUG_DISCOVERY_EXCLUDED_DIRS = {"_common", "00-templates", ".obsidian"}
 
 
 class SlugGenerationError(RuntimeError):
@@ -37,6 +40,56 @@ class GenerateSlugsResult:
 
 def _is_within_root(path: Path, root: Path) -> bool:
     return path == root or root in path.parents
+
+
+def _resolve_match_path(*, root: Path, matched_path: Path) -> Path:
+    if matched_path.is_absolute():
+        return matched_path.resolve()
+    return (root / matched_path).resolve()
+
+
+def _is_discoverable_slug_file(path: Path) -> bool:
+    lowered_name = path.name.lower()
+    if path.suffix.lower() not in MARKDOWN_SUFFIXES:
+        return False
+    if lowered_name.endswith(".tmpl.md"):
+        return False
+    if any(part in SLUG_DISCOVERY_EXCLUDED_DIRS for part in path.parts):
+        return False
+    return True
+
+
+def _discover_slug_sentinel_files(root: Path) -> list[Path]:
+    matches = rg_search(SLUG_SENTINEL_PATTERN, root)
+    discovered: set[Path] = set()
+    for match in matches:
+        file_path = _resolve_match_path(root=root, matched_path=match.path)
+        if not _is_discoverable_slug_file(file_path):
+            continue
+        discovered.add(file_path)
+    return sorted(discovered)
+
+
+def _find_files_with_slug_value(slug: str, *, root: Path) -> list[Path]:
+    pattern = rf"slug:\s*{re.escape(slug.strip())}\s*$"
+    matches = rg_search(pattern, root)
+    candidates: set[Path] = set()
+    for match in matches:
+        file_path = _resolve_match_path(root=root, matched_path=match.path)
+        if file_path.suffix.lower() not in MARKDOWN_SUFFIXES:
+            continue
+        candidates.add(file_path)
+
+    results: list[Path] = []
+    for file_path in sorted(candidates):
+        try:
+            doc = Document.read_file(file_path)
+        except Exception:  # noqa: BLE001
+            continue
+        value = doc.metadata.get("slug")
+        if isinstance(value, str) and value.strip() == slug.strip():
+            results.append(file_path)
+    return results
 
 
 def find_vault_root(path_value: str | Path) -> Path:
@@ -122,7 +175,7 @@ def generate_slugs(*, root: Path, write: bool) -> GenerateSlugsResult:
         raise SlugGenerationError(f"studio root does not exist: {root_path}")
 
     try:
-        candidates = find_slug_sentinels(root_path)
+        candidates = _discover_slug_sentinel_files(root_path)
     except RipgrepError as exc:
         raise SlugGenerationError(str(exc)) from exc
 
@@ -337,7 +390,7 @@ def ensure_slug(
         }
     else:
         try:
-            owners = set(find_files_with_slug(slug, root=path.parent))
+            owners = set(_find_files_with_slug_value(slug, root=path.parent))
         except RipgrepError as exc:
             raise ValueError(str(exc)) from exc
     if any(owner != path for owner in owners):

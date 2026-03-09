@@ -23,7 +23,7 @@ from typing import Dict, List
 
 from PIL import Image
 from workbench.config.roots import STUDIO_ROOT
-from workbench.lib.rg import find_markdown_images
+from workbench.lib.rg import rg_search
 
 # ---------------------------------------------------------------------
 # Configuration
@@ -43,15 +43,25 @@ MD_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 
 def scan_markdown_for_images(root: Path) -> Dict[Path, List[str]]:
     """
-    Use centralized ripgrep helpers to locate markdown files containing image links.
+    Use ripgrep to locate markdown files containing image links.
 
     Returns:
         dict[path_to_md] -> list of raw link targets
     """
+    root_path = root.expanduser().resolve()
+    pattern = r"!\[[^\]]*\]\((?![^)]*_thumb\.)[^)]+\)"
+
     results: Dict[Path, List[str]] = {}
-    for match in find_markdown_images(root=root):
-        md_path = Path(match["file"]).resolve()
-        matches = MD_IMAGE_RE.findall(match.get("line", ""))
+    for match in rg_search(pattern, root_path):
+        md_path = match.path
+        if not md_path.is_absolute():
+            md_path = (root_path / md_path).resolve()
+        else:
+            md_path = md_path.resolve()
+        if md_path.suffix.lower() not in {".md", ".markdown"}:
+            continue
+
+        matches = MD_IMAGE_RE.findall(match.text)
         if not matches:
             continue
 

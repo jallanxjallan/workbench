@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 from workbench.interop.document import Document
-from workbench.lib.rg import RipgrepError, build_slug_index
+from workbench.lib.rg import RipgrepError, rg_search
 from workbench.lib.sentinel import (
     BATCH_SENTINEL_PATTERN,
     read_batch_sentinel,
@@ -19,6 +19,39 @@ from workbench.write.common import (
     has_piped_stdin,
     iter_input_records,
 )
+
+MARKDOWN_SUFFIXES = (".md", ".markdown")
+
+
+def build_slug_index(root: Path) -> dict[str, Path]:
+    root_path = Path(root).expanduser().resolve()
+    matches = rg_search(r"slug:\s*\S+", root_path)
+    files: set[Path] = set()
+
+    for match in matches:
+        file_path = match.path
+        if file_path.is_absolute():
+            resolved = file_path.resolve()
+        else:
+            resolved = (root_path / file_path).resolve()
+        if resolved.suffix.lower() not in MARKDOWN_SUFFIXES:
+            continue
+        files.add(resolved)
+
+    index: dict[str, Path] = {}
+    for file_path in sorted(files):
+        doc = Document.read_file(file_path, sentinel_pattern=BATCH_SENTINEL_PATTERN)
+        raw_slug = doc.metadata.get("slug")
+        if not isinstance(raw_slug, str):
+            continue
+        slug = raw_slug.strip()
+        if not slug or slug.lower() in {"__slug__", "null", "~"}:
+            continue
+        if slug in index:
+            raise RipgrepError("duplicate slug detected")
+        index[slug] = file_path
+
+    return index
 
 
 def _parser() -> argparse.ArgumentParser:
