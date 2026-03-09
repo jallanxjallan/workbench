@@ -13,43 +13,22 @@ def build_slug(
     seed: str,
     context: str | None = None,
 ) -> str:
-    """Build canonical slug for content or instruction objects."""
+    """Build canonical slug with optional context for any class."""
+    if namespace is None or not str(namespace).strip():
+        raise ValueError("namespace is required")
+
+    normalized_namespace = normalize_segment(namespace)
     normalized_class = normalize_segment(class_name)
     normalized_seed = normalize_segment(seed)
+    normalized_context = normalize_segment(context) if context is not None else None
 
-    normalized_namespace: str | None = None
-    if namespace is not None and str(namespace).strip():
-        normalized_namespace = normalize_segment(namespace)
-
-    normalized_context: str | None = None
-    if context is not None:
-        normalized_context = normalize_segment(context)
-
-    if normalized_class == "instruction":
-        if normalized_context is None:
-            raise ValueError("context is required when class_name is 'instruction'")
-
-        if normalized_namespace is None:
-            slug = f"gbl.instruction.{normalized_context}.{normalized_seed}"
-        else:
-            if normalized_namespace == "gbl":
-                raise ValueError(
-                    "namespace must be omitted for global instruction slugs"
-                )
-            slug = (
-                f"{normalized_namespace}.instruction."
-                f"{normalized_context}.{normalized_seed}"
-            )
-    else:
-        if normalized_context is not None:
-            raise ValueError("context is only valid for class_name='instruction'")
-        if normalized_namespace is None:
-            raise ValueError("namespace is required for non-instruction slugs")
-        if normalized_namespace == "gbl":
-            raise ValueError("namespace 'gbl' is reserved for global instructions")
-
+    if normalized_context is None:
         slug = f"{normalized_namespace}.{normalized_class}.{normalized_seed}"
+    else:
+        slug = (
+            f"{normalized_namespace}.{normalized_class}."
+            f"{normalized_context}.{normalized_seed}"
+        )
 
     validate_slug(slug)
     return slug
-

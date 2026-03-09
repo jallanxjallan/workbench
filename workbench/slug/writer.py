@@ -7,7 +7,6 @@ from pathlib import Path
 from workbench.interop.document import Document
 from workbench.lib.rg import RipgrepError, find_files_with_slug
 from workbench.slug.builder import build_slug
-from workbench.slug.normalize import normalize_segment
 from workbench.slug.validator import validate_slug
 
 MARKDOWN_SUFFIXES = (".md", ".markdown")
@@ -15,6 +14,36 @@ MARKDOWN_SUFFIXES = (".md", ".markdown")
 
 def _is_within_root(path: Path, root: Path) -> bool:
     return path == root or root in path.parents
+
+
+def write_slug_to_document(
+    *,
+    filepath: Path,
+    document: Document,
+    slug: str,
+    require_placeholder: bool = True,
+) -> str:
+    path = Path(filepath).expanduser().resolve()
+    if not path.exists() or not path.is_file():
+        raise ValueError(f"target file does not exist: {path}")
+    if path.suffix.lower() not in MARKDOWN_SUFFIXES:
+        raise ValueError(f"target file is not markdown: {path}")
+    if not isinstance(slug, str) or not slug.strip():
+        raise ValueError("slug must be a non-empty string")
+
+    validate_slug(slug)
+
+    metadata = dict(document.metadata or {})
+    existing = metadata.get("slug")
+    if require_placeholder:
+        if not isinstance(existing, str) or existing.strip() != "__SLUG__":
+            raise ValueError("slug sentinel '__SLUG__' not found")
+
+    metadata["slug"] = slug
+    Document(content=document.content, metadata=metadata).write_file(
+        path, overwrite=True
+    )
+    return slug
 
 
 def write_slug(filepath: Path, slug: str, *, require_placeholder: bool = True) -> str:
@@ -28,22 +57,13 @@ def write_slug(filepath: Path, slug: str, *, require_placeholder: bool = True) -
 
     validate_slug(slug)
 
-    inspected = Document.inspect_file(path)
-    if inspected.error:
-        raise ValueError(f"failed to parse markdown: {inspected.error}")
-    if not inspected.has_frontmatter:
-        raise ValueError("missing frontmatter block")
-
     doc = Document.read_file(path)
-    metadata = dict(doc.metadata or {})
-    existing = metadata.get("slug")
-    if require_placeholder:
-        if not isinstance(existing, str) or existing.strip() != "__SLUG__":
-            raise ValueError("slug sentinel '__SLUG__' not found")
-
-    metadata["slug"] = slug
-    Document(content=doc.content, metadata=metadata).write_file(path, overwrite=True)
-    return slug
+    return write_slug_to_document(
+        filepath=path,
+        document=doc,
+        slug=slug,
+        require_placeholder=require_placeholder,
+    )
 
 
 def ensure_slug(
@@ -93,12 +113,10 @@ def ensure_slug(
     if not isinstance(class_raw, str) or not class_raw.strip():
         raise ValueError("missing class in frontmatter")
 
-    context: str | None = None
-    if normalize_segment(class_raw) == "instruction":
-        context_raw = metadata.get("context")
-        if not isinstance(context_raw, str) or not context_raw.strip():
-            raise ValueError("missing context for instruction class")
-        context = context_raw
+    context_raw = metadata.get("context")
+    context = (
+        context_raw if isinstance(context_raw, str) and context_raw.strip() else None
+    )
 
     seed = path.stem
     slug = build_slug(

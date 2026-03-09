@@ -37,7 +37,9 @@ def test_build_slug_index_detects_markdown_slugs(
         ]
     )
 
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         assert args[:4] == ["rg", "--json", "--pcre2", "--multiline"]
         assert "--glob" in args
         assert "*.md" in args
@@ -70,7 +72,9 @@ def test_build_slug_index_raises_on_duplicate_slug(
         ]
     )
 
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
@@ -94,7 +98,9 @@ def test_build_slug_index_ignores_non_markdown_files(
         ]
     )
 
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
@@ -113,12 +119,19 @@ def test_rg_search_supports_include_exclude_and_match_filtering(
     studio_root.mkdir(parents=True)
     stdout = "\n".join(
         [
-            json.dumps({"type": "begin", "data": {"path": {"text": str(studio_root / "note.md")}}}),
+            json.dumps(
+                {
+                    "type": "begin",
+                    "data": {"path": {"text": str(studio_root / "note.md")}},
+                }
+            ),
             _match_event(studio_root / "note.md", "slug: alpha.slug\n"),
         ]
     )
 
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         assert args == [
             "rg",
             "--json",
@@ -154,7 +167,9 @@ def test_find_markdown_images_uses_thumb_excluding_pattern(
     note_path = studio_root / "note.md"
     stdout = _match_event(note_path, "![alt](images/photo.jpg)\n")
 
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         assert args == [
             "rg",
             "--json",
@@ -181,9 +196,13 @@ def test_find_markdown_images_uses_thumb_excluding_pattern(
 def test_ensure_pcre2_available_raises_without_feature(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         assert args == ["rg", "--version"]
-        return subprocess.CompletedProcess(args, 0, stdout="ripgrep 13.0.0\nfeatures:-simd\n", stderr="")
+        return subprocess.CompletedProcess(
+            args, 0, stdout="ripgrep 13.0.0\nfeatures:-simd\n", stderr=""
+        )
 
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
 
@@ -203,7 +222,9 @@ def test_find_files_with_slug_uses_frontmatter_pattern(
     note_path = studio_root / "vault" / "note.md"
     stdout = _match_event(note_path, "slug: omaf.passage.note\n")
 
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         assert args[:4] == ["rg", "--json", "--pcre2", "--multiline"]
         pattern = args[-2]
         assert "slug:" in pattern
@@ -227,7 +248,9 @@ def test_find_markdown_slugs_can_include_placeholders(
     note_path = studio_root / "note.md"
     stdout = _match_event(note_path, "slug: __SLUG__\n")
 
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         pattern = args[-2]
         assert "(?!(?i:__slug__|null|~)\\s*$)" not in pattern
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
@@ -256,16 +279,25 @@ def test_find_slug_sentinels_uses_single_rg_list_pass(
 
     calls = {"count": 0}
 
-    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         calls["count"] += 1
         assert args == [
             "rg",
             "-l",
             "--pcre2",
+            "--no-follow",
             "--glob",
             "*.md",
             "--glob",
             "*.markdown",
+            "--glob",
+            "!**/_common/**",
+            "--glob",
+            "!**/00-templates/**",
+            "--glob",
+            "!**/*.tmpl.md",
             r"^slug:\s*__SLUG__",
             str(studio_root.resolve()),
         ]
@@ -277,3 +309,43 @@ def test_find_slug_sentinels_uses_single_rg_list_pass(
 
     assert calls["count"] == 1
     assert paths == [one.resolve(), two.resolve()]
+
+
+def test_find_slug_discovery_rows_uses_no_follow_and_excludes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir(parents=True)
+    note_path = studio_root / "vault" / "note.md"
+    stdout = _match_event(note_path, "slug: __SLUG__\n")
+
+    def _fake_run(
+        args: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        assert args == [
+            "rg",
+            "--json",
+            "--pcre2",
+            "--multiline",
+            "--no-follow",
+            "--glob",
+            "*.md",
+            "--glob",
+            "*.markdown",
+            "--glob",
+            "!**/_common/**",
+            "--glob",
+            "!**/00-templates/**",
+            "--glob",
+            "!**/*.tmpl.md",
+            rg_module._FRONTMATTER_SLUG_VALUE_PREFIX_PATTERN + r"\S+\s*$",
+            str(studio_root.resolve()),
+        ]
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
+
+    rows = rg_module.find_slug_discovery_rows(root=studio_root)
+
+    assert rows == [{"file": note_path.resolve(), "slug": "__SLUG__"}]

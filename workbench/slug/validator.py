@@ -21,15 +21,3 @@ def validate_slug(slug: str) -> None:
     parts = slug.split(".")
     if len(parts) not in (3, 4):
         raise ValueError("slug must contain 3 or 4 dot-separated segments")
-
-    namespace, class_name = parts[0], parts[1]
-
-    if class_name == "instruction":
-        if len(parts) != 4:
-            raise ValueError("instruction slug must include context segment")
-    else:
-        if len(parts) != 3:
-            raise ValueError("non-instruction slug must not include context segment")
-        if namespace == "gbl":
-            raise ValueError("namespace 'gbl' is reserved for global instructions")
-

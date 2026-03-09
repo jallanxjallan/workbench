@@ -40,14 +40,28 @@ def test_normalize_segment_rejects_empty_result() -> None:
         normalize_segment("___ ### ---")
 
 
-def test_build_instruction_without_context_fails() -> None:
-    with pytest.raises(ValueError, match="context is required"):
+def test_build_instruction_without_context_succeeds() -> None:
+    assert (
         build_slug(
-            namespace=None,
+            namespace="cxt",
             class_name="instruction",
             seed="concise-english",
             context=None,
         )
+        == "cxt.instruction.concise-english"
+    )
+
+
+def test_build_slug_allows_optional_context_for_any_class() -> None:
+    assert (
+        build_slug(
+            namespace="omaf",
+            class_name="scene",
+            seed="flight",
+            context="training",
+        )
+        == "omaf.scene.training.flight"
+    )
 
 
 def test_ensure_slug_fails_on_duplicate_collision(tmp_path: Path) -> None:

@@ -1,4 +1,4 @@
-"""Studio-wide slug generation logic."""
+"""Studio-wide slug generation orchestration."""
 
 from __future__ import annotations
 
@@ -7,16 +7,13 @@ from pathlib import Path
 
 from workbench.cli.create_vault import load_registry
 from workbench.interop.document import Document
-from workbench.lib.rg import RipgrepError, find_files_with_slug, find_slug_sentinels
+from workbench.lib.rg import RipgrepError, find_slug_discovery_rows
+from workbench.slug.builder import build_slug
 from workbench.slug.normalize import normalize_segment
-from workbench.slug.writer import write_slug
+from workbench.slug.writer import write_slug_to_document
 
 
 class SlugGenerationError(RuntimeError):
-    pass
-
-
-class SlugSkipError(SlugGenerationError):
     pass
 
 
@@ -83,34 +80,72 @@ def load_vault_mnemonic(vault_root: Path) -> str:
     return normalize_segment(vault_root.name)
 
 
-def _is_template_file(path: Path) -> bool:
-    return "00-templates" in path.parts
+def _is_placeholder_slug(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() == "__slug__"
+
+
+def _build_existing_slug_owners(rows: list[dict[str, object]]) -> dict[str, set[Path]]:
+    owners: dict[str, set[Path]] = {}
+    for row in rows:
+        slug_value = row.get("slug")
+        file_value = row.get("file")
+        if not isinstance(slug_value, str):
+            continue
+        if not isinstance(file_value, Path):
+            continue
+        if _is_placeholder_slug(slug_value):
+            continue
+        owners.setdefault(slug_value.strip(), set()).add(file_value.resolve())
+    return owners
+
+
+def _collect_sentinel_candidates(rows: list[dict[str, object]]) -> list[Path]:
+    candidates: set[Path] = set()
+    for row in rows:
+        slug_value = row.get("slug")
+        file_value = row.get("file")
+        if not isinstance(slug_value, str):
+            continue
+        if not isinstance(file_value, Path):
+            continue
+        if _is_placeholder_slug(slug_value):
+            candidates.add(file_value.resolve())
+    return sorted(candidates)
+
+
+def _build_slug_for_document(*, filepath: Path, document: Document) -> str:
+    metadata = dict(document.metadata or {})
+
+    file_class = metadata.get("class")
+    if not isinstance(file_class, str) or not file_class.strip():
+        raise SlugGenerationError(
+            f"missing required frontmatter key 'class' in {filepath}"
+        )
+
+    context_raw = metadata.get("context")
+    context = (
+        context_raw if isinstance(context_raw, str) and context_raw.strip() else None
+    )
+
+    vault_root = find_vault_root(filepath)
+    vault_mnemonic = load_vault_mnemonic(vault_root)
+    try:
+        return build_slug(
+            namespace=vault_mnemonic,
+            class_name=file_class,
+            seed=filepath.stem,
+            context=context,
+        )
+    except ValueError as exc:
+        raise SlugGenerationError(str(exc)) from exc
 
 
 def generate_slug_for_file(path: Path) -> str:
     filepath = Path(path).expanduser().resolve()
     doc = Document.read_file(filepath)
-    metadata = dict(doc.metadata or {})
-
-    file_class = metadata.get("class")
-    if not isinstance(file_class, str) or not file_class.strip():
-        if _is_template_file(filepath):
-            raise SlugSkipError("template file has no class; skipping")
-        raise SlugGenerationError(
-            f"missing required frontmatter key 'class' in {filepath}"
-        )
-
-    vault_root = find_vault_root(filepath)
-    vault_mnemonic = load_vault_mnemonic(vault_root)
-    class_segment = normalize_segment(file_class)
-    stem_segment = normalize_segment(filepath.stem)
-    return f"{vault_mnemonic}.{class_segment}.{stem_segment}"
-
-
-def _collision_owners(*, root: Path, slug: str, current_file: Path) -> list[Path]:
-    owners = find_files_with_slug(slug, root=root)
-    current = current_file.resolve()
-    return sorted(path for path in owners if path.resolve() != current)
+    return _build_slug_for_document(filepath=filepath, document=doc)
 
 
 def generate_slugs(*, root: Path, write: bool) -> GenerateSlugsResult:
@@ -119,68 +154,62 @@ def generate_slugs(*, root: Path, write: bool) -> GenerateSlugsResult:
         raise SlugGenerationError(f"studio root does not exist: {root_path}")
 
     try:
-        candidates = sorted(find_slug_sentinels(root_path))
+        rows = find_slug_discovery_rows(root=root_path)
     except RipgrepError as exc:
         raise SlugGenerationError(str(exc)) from exc
+
+    existing_slug_owners = _build_existing_slug_owners(rows)
+    candidates = _collect_sentinel_candidates(rows)
 
     discovered = len(candidates)
     skipped = 0
     failed_files: set[Path] = set()
     errors: list[str] = []
     proposed: list[SlugAssignment] = []
+    documents: dict[Path, Document] = {}
 
     for file_path in candidates:
         try:
-            slug = generate_slug_for_file(file_path)
-        except SlugSkipError:
-            skipped += 1
-            continue
+            doc = Document.read_file(file_path)
+            slug = _build_slug_for_document(filepath=file_path, document=doc)
         except Exception as exc:  # noqa: BLE001
             failed_files.add(file_path)
             errors.append(f"{file_path}: {exc}")
             continue
+        documents[file_path] = doc
         proposed.append(SlugAssignment(file=file_path, slug=slug))
 
-    slug_index: dict[str, list[Path]] = {}
+    all_owners: dict[str, set[Path]] = {
+        slug: set(owners) for slug, owners in existing_slug_owners.items()
+    }
     for assignment in proposed:
-        slug_index.setdefault(assignment.slug, []).append(assignment.file)
-
-    duplicate_files: set[Path] = set()
-    for slug, files in slug_index.items():
-        if len(files) < 2:
-            continue
-        for file_path in sorted(files):
-            duplicate_files.add(file_path)
-            failed_files.add(file_path)
-            errors.append(f"{file_path}: slug collision detected: {slug}")
+        all_owners.setdefault(assignment.slug, set()).add(assignment.file.resolve())
 
     assignments: list[SlugAssignment] = []
     for assignment in proposed:
-        if assignment.file in duplicate_files:
-            continue
-        try:
-            conflicts = _collision_owners(
-                root=root_path,
-                slug=assignment.slug,
-                current_file=assignment.file,
+        owners = {
+            owner
+            for owner in all_owners.get(assignment.slug, set())
+            if owner.resolve() != assignment.file.resolve()
+        }
+        if owners:
+            failed_files.add(assignment.file)
+            errors.append(
+                f"{assignment.file}: slug collision detected: {assignment.slug}"
             )
-        except RipgrepError as exc:
-            failed_files.add(assignment.file)
-            errors.append(f"{assignment.file}: {exc}")
             continue
-
-        if conflicts:
-            failed_files.add(assignment.file)
-            errors.append(f"{assignment.file}: slug collision detected: {assignment.slug}")
-            continue
-
         assignments.append(assignment)
 
     written = 0
     if write:
         for assignment in assignments:
             try:
-                write_slug(assignment.file, assignment.slug)
+                write_slug_to_document(
+                    filepath=assignment.file,
+                    document=documents[assignment.file],
+                    slug=assignment.slug,
+                    require_placeholder=True,
+                )
             except Exception as exc:  # noqa: BLE001
                 failed_files.add(assignment.file)
                 errors.append(f"{assignment.file}: {exc}")

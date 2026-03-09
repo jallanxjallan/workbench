@@ -132,3 +132,23 @@ def test_generate_slugs_skips_template_files_without_class(
 
     assert rc == 0
     assert Document.read_file(target).metadata["slug"] == "__SLUG__"
+
+
+def test_generate_slugs_includes_optional_context_for_any_class(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, vault_root = _init_vault(tmp_path)
+    target = vault_root / "content" / "First Flight.md"
+    _write(
+        target,
+        "---\nclass: scene\ncontext: training\nslug: __SLUG__\n---\n\nBody\n",
+    )
+
+    monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
+
+    rc = cli_main.main(["generate-slugs", "--write"])
+
+    assert rc == 0
+    updated = Document.read_file(target)
+    assert updated.metadata["slug"] == "omaf.scene.training.first-flight"

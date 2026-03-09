@@ -10,6 +10,7 @@ from typing import Any
 
 from workbench.config.roots import STUDIO_ROOT
 
+
 class RipgrepError(RuntimeError):
     pass
 
@@ -44,9 +45,7 @@ _ensure_pcre2_available()
 
 _SLUG_LINE_PATTERN = re.compile(r"^slug:\s*(\S+)", re.MULTILINE)
 _SLUG_SEGMENT_PATTERN = r"[a-z0-9]+(?:-[a-z0-9]+)*"
-_CANONICAL_SLUG_VALUE_PATTERN = (
-    rf"{_SLUG_SEGMENT_PATTERN}\.{_SLUG_SEGMENT_PATTERN}\.(?:{_SLUG_SEGMENT_PATTERN}\.)?{_SLUG_SEGMENT_PATTERN}"
-)
+_CANONICAL_SLUG_VALUE_PATTERN = rf"{_SLUG_SEGMENT_PATTERN}\.{_SLUG_SEGMENT_PATTERN}\.(?:{_SLUG_SEGMENT_PATTERN}\.)?{_SLUG_SEGMENT_PATTERN}"
 _FRONTMATTER_SLUG_VALUE_PREFIX_PATTERN = (
     r"(?m)\A---\s*\n(?:(?!^---\s*$)[^\n]*\n)*^slug:\s*\K"
 )
@@ -55,6 +54,11 @@ _MARKDOWN_FILE_SLUG_CANDIDATE_PATTERN = (
 )
 IMAGE_PATTERN = r"!\[[^\]]*\]\((?![^)]*_thumb\.)[^)]+\)"
 _IMAGE_PATTERN_ALL = r"!\[[^\]]*\]\([^)]+\)"
+_SLUG_DISCOVERY_EXCLUDES = [
+    "**/_common/**",
+    "**/00-templates/**",
+    "**/*.tmpl.md",
+]
 DEFAULT_STUDIO_ROOT = STUDIO_ROOT
 
 
@@ -69,6 +73,7 @@ def rg_search(
     include: list[str] | None = None,
     exclude: list[str] | None = None,
     multiline: bool = False,
+    no_follow: bool = False,
 ) -> list[dict[str, Any]]:
     root_path = _normalize_root(root)
     if not root_path.exists():
@@ -81,6 +86,8 @@ def rg_search(
     ]
     if multiline:
         args.append("--multiline")
+    if no_follow:
+        args.append("--no-follow")
 
     if include:
         for glob_pattern in include:
@@ -180,6 +187,8 @@ def find_markdown_slugs(
     root: Path | None = None,
     canonical_only: bool = False,
     exclude_placeholders: bool = True,
+    exclude_globs: list[str] | None = None,
+    no_follow: bool = False,
 ) -> list[dict[str, Any]]:
     root_path = _normalize_root(root)
 
@@ -193,6 +202,8 @@ def find_markdown_slugs(
         root=root_path,
         include=["*.md", "*.markdown"],
         multiline=True,
+        exclude=exclude_globs,
+        no_follow=no_follow,
     )
 
     rows: list[dict[str, Any]] = []
@@ -287,13 +298,15 @@ def find_slug_sentinels(root: Path) -> list[Path]:
         "rg",
         "-l",
         "--pcre2",
+        "--no-follow",
         "--glob",
         "*.md",
         "--glob",
         "*.markdown",
-        r"^slug:\s*__SLUG__",
-        str(root_path),
     ]
+    for glob_pattern in _SLUG_DISCOVERY_EXCLUDES:
+        args.extend(["--glob", f"!{glob_pattern}"])
+    args.extend([r"^slug:\s*__SLUG__", str(root_path)])
 
     try:
         proc = subprocess.run(
@@ -323,6 +336,23 @@ def find_slug_sentinels(root: Path) -> list[Path]:
         paths.append(resolved)
 
     return sorted(set(paths))
+
+
+def find_slug_discovery_rows(*, root: Path | None = None) -> list[dict[str, Any]]:
+    """
+    Discover markdown files with slug frontmatter values in one ripgrep pass.
+
+    Includes placeholders (`__SLUG__`) and applies template/shared-folder ignores
+    used by slug generation.
+    """
+    root_path = _normalize_root(root)
+    return find_markdown_slugs(
+        root=root_path,
+        canonical_only=False,
+        exclude_placeholders=False,
+        exclude_globs=_SLUG_DISCOVERY_EXCLUDES,
+        no_follow=True,
+    )
 
 
 def _parse_event(line: str) -> dict[str, Any]:
