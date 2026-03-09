@@ -75,7 +75,12 @@ def vault_namespace(path_value: str | Path) -> str:
     return mnemonic.strip()
 
 
-def _build_slug_for_document(*, filepath: Path, document: Document) -> str:
+def _build_slug_for_document(
+    *,
+    filepath: Path,
+    document: Document,
+    namespace: str,
+) -> str:
     metadata = dict(document.metadata or {})
 
     file_class = metadata.get("class")
@@ -91,7 +96,7 @@ def _build_slug_for_document(*, filepath: Path, document: Document) -> str:
 
     try:
         return build_slug(
-            namespace=vault_namespace(filepath),
+            namespace=namespace,
             class_name=file_class,
             seed=filepath.stem,
             context=context,
@@ -103,7 +108,12 @@ def _build_slug_for_document(*, filepath: Path, document: Document) -> str:
 def generate_slug_for_file(path: Path) -> str:
     filepath = Path(path).expanduser().resolve()
     doc = Document.read_file(filepath)
-    return _build_slug_for_document(filepath=filepath, document=doc)
+    namespace = vault_namespace(filepath)
+    return _build_slug_for_document(
+        filepath=filepath,
+        document=doc,
+        namespace=namespace,
+    )
 
 
 def generate_slugs(*, root: Path, write: bool) -> GenerateSlugsResult:
@@ -118,36 +128,69 @@ def generate_slugs(*, root: Path, write: bool) -> GenerateSlugsResult:
 
     discovered = len(candidates)
     skipped = 0
+
+    if not candidates:
+        return GenerateSlugsResult(
+            discovered=discovered,
+            skipped=skipped,
+            generated=0,
+            written=0,
+            failed=0,
+            assignments=tuple(),
+            errors=tuple(),
+        )
+
+    namespace_source = root_path
+    if not (namespace_source / ".obsidian").is_dir():
+        namespace_source = candidates[0]
+    namespace = vault_namespace(namespace_source)
+
     failed_files: set[Path] = set()
     errors: list[str] = []
-    proposed: list[SlugAssignment] = []
+    proposed: dict[Path, SlugAssignment] = {}
     documents: dict[Path, Document] = {}
+    slug_index: dict[str, Path] = {}
+    blocked_slugs: dict[str, Path] = {}
 
     for file_path in candidates:
         try:
             doc = Document.read_file(file_path)
-            slug = _build_slug_for_document(filepath=file_path, document=doc)
+            slug = _build_slug_for_document(
+                filepath=file_path,
+                document=doc,
+                namespace=namespace,
+            )
         except Exception as exc:  # noqa: BLE001
             failed_files.add(file_path)
             errors.append(f"{file_path}: {exc}")
             continue
-        documents[file_path] = doc
-        proposed.append(SlugAssignment(file=file_path, slug=slug))
 
-    slug_index: dict[str, list[Path]] = {}
-    for assignment in proposed:
-        slug_index.setdefault(assignment.slug, []).append(assignment.file)
-
-    duplicate_files: set[Path] = set()
-    for slug, files in slug_index.items():
-        if len(files) < 2:
-            continue
-        for file_path in sorted(files):
-            duplicate_files.add(file_path)
+        if slug in blocked_slugs:
+            other = blocked_slugs[slug]
             failed_files.add(file_path)
-            errors.append(f"{file_path}: slug collision detected: {slug}")
+            failed_files.add(other)
+            errors.append(
+                f"{file_path}: slug collision detected with {other}: {slug}"
+            )
+            continue
 
-    assignments = [a for a in proposed if a.file not in duplicate_files]
+        if slug in slug_index:
+            other = slug_index.pop(slug)
+            blocked_slugs[slug] = other
+            failed_files.add(file_path)
+            failed_files.add(other)
+            errors.append(
+                f"{file_path}: slug collision detected with {other}: {slug}"
+            )
+            proposed.pop(other, None)
+            documents.pop(other, None)
+            continue
+
+        slug_index[slug] = file_path
+        documents[file_path] = doc
+        proposed[file_path] = SlugAssignment(file=file_path, slug=slug)
+
+    assignments = list(proposed.values())
 
     written = 0
     if write:

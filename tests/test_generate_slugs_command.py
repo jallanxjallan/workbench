@@ -6,6 +6,7 @@ import pytest
 
 import workbench.cli.generate_slugs as generate_slugs_module
 import workbench.cli.main as cli_main
+import workbench.slug.writer as writer_module
 from workbench.interop.document import Document
 
 
@@ -62,7 +63,8 @@ def test_generate_slugs_detects_collision(
     captured = capsys.readouterr()
 
     assert rc == 1
-    assert "slug collision detected: omaf.passage.first-flight" in captured.err
+    assert "slug collision detected with" in captured.err
+    assert "omaf.passage.first-flight" in captured.err
     assert Document.read_file(one).metadata["slug"] == "__SLUG__"
     assert Document.read_file(two).metadata["slug"] == "__SLUG__"
 
@@ -157,3 +159,30 @@ def test_generate_slugs_includes_optional_context_for_any_class(
     assert rc == 0
     updated = Document.read_file(target)
     assert updated.metadata["slug"] == "omaf.scene.training.first-flight"
+
+
+def test_generate_slugs_resolves_namespace_once_per_batch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, vault_root = _init_vault(tmp_path)
+    one = vault_root / "content" / "First Flight.md"
+    two = vault_root / "content" / "Second Flight.md"
+    _write(one, "---\nclass: passage\nslug: __SLUG__\n---\n\nOne\n")
+    _write(two, "---\nclass: passage\nslug: __SLUG__\n---\n\nTwo\n")
+
+    monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
+
+    calls = {"count": 0}
+    original = writer_module.vault_namespace
+
+    def _counting_namespace(path_value: str | Path) -> str:
+        calls["count"] += 1
+        return original(path_value)
+
+    monkeypatch.setattr(writer_module, "vault_namespace", _counting_namespace)
+
+    rc = cli_main.main(["generate-slugs", "--write"])
+
+    assert rc == 0
+    assert calls["count"] == 1
