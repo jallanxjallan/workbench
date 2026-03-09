@@ -21,7 +21,7 @@ def test_writeback_main_requires_piped_stdin(
     err = capsys.readouterr().err
 
     assert rc == 1
-    assert "usage: writeback" in err
+    assert "usage: write-back" in err
     assert "expected NDJSON input from stdin" in err
 
 
@@ -42,5 +42,5 @@ def test_writenew_main_requires_piped_stdin(
     err = capsys.readouterr().err
 
     assert rc == 1
-    assert "usage: writenew" in err
+    assert "usage: write-new" in err
     assert "expected NDJSON input from stdin" in err

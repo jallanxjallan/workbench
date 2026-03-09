@@ -31,7 +31,7 @@ class WriteSchema:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="writenew",
+        prog="write-new",
         description=__doc__,
     )
     parser.add_argument(
@@ -75,7 +75,7 @@ def write_new_records(
         markdown = Document(metadata=metadata, content=record.content).write_text()
 
         if debug_routing:
-            print(f"[writenew] record {index} -> {output_path}", file=sys.stderr)
+            print(f"[write-new] record {index} -> {output_path}", file=sys.stderr)
         atomic_write_text(output_path, markdown)
 
 

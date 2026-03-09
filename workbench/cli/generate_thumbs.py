@@ -11,9 +11,9 @@ from workbench.lib.rg import DEFAULT_STUDIO_ROOT
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="generate_thumbs",
+        prog="generate-thumbs",
         description="Generate thumbnails for markdown image links under a root directory.",
-        epilog="Example: wkb generate_thumbs ~/Studio",
+        epilog="Example: wkb generate-thumbs ~/Studio",
     )
     parser.add_argument(
         "path",
@@ -39,16 +39,16 @@ def main(argv: list[str] | None = None) -> int:
         affected_files = list(summary.get("affected_files", []))
         if matched_files == 0:
             print(
-                f"[generate_thumbs] complete: no markdown files with eligible image links were found under {root}; "
+                f"[generate-thumbs] complete: no markdown files with eligible image links were found under {root}; "
                 "affected 0 file(s)"
             )
         else:
             print(
-                f"[generate_thumbs] complete: affected {len(affected_files)} file(s) under {root}"
+                f"[generate-thumbs] complete: affected {len(affected_files)} file(s) under {root}"
             )
         return 0
     except Exception as exc:  # noqa: BLE001
-        print(f"[generate_thumbs] error: {exc}", file=sys.stderr)
+        print(f"[generate-thumbs] error: {exc}", file=sys.stderr)
         return 1
 
 

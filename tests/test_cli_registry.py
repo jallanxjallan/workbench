@@ -12,13 +12,18 @@ def test_stream_command_points_to_stream_module() -> None:
 
 
 def test_generate_thumbs_command_points_to_generate_thumbs_module() -> None:
-    entry = ROOT_COMMANDS["generate_thumbs"]
+    entry = ROOT_COMMANDS["generate-thumbs"]
     assert entry.module == "workbench.cli.generate_thumbs"
 
 
 def test_compile_registries_command_points_to_compile_registries_module() -> None:
     entry = ROOT_COMMANDS["compile-registries"]
     assert entry.module == "workbench.cli.compile_registries"
+
+
+def test_find_duplicates_command_points_to_find_duplicates_module() -> None:
+    entry = ROOT_COMMANDS["find-duplicates"]
+    assert entry.module == "workbench.cli.find_duplicates"
 
 
 def test_legacy_ingest_namespace_removed() -> None:

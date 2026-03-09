@@ -18,14 +18,14 @@ class NamespaceEntry:
 
 
 ROOT_COMMANDS: dict[str, CommandEntry] = {
-    "writenew": CommandEntry(
+    "write-new": CommandEntry(
         "workbench.write.writenew", "Write AutoScribe batch records to new vault files."
     ),
-    "writeback": CommandEntry(
+    "write-back": CommandEntry(
         "workbench.write.writeback",
         "Write AutoScribe batch records back to existing files.",
     ),
-    "writestream": CommandEntry(
+    "write-stream": CommandEntry(
         "workbench.write.writestream",
         "Pass markdown batch through unchanged to stdout.",
     ),
@@ -45,13 +45,17 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "workbench.cli.scan_sentinel",
         "Select markdown paths whose first line is a valid ASC batch sentinel.",
     ),
-    "generate_thumbs": CommandEntry(
+    "generate-thumbs": CommandEntry(
         "workbench.cli.generate_thumbs",
         "Generate thumbnails for markdown image links (default root: ~/Studio).",
     ),
     "compile-registries": CommandEntry(
         "workbench.cli.compile_registries",
         "Compile Studio YAML registries into obsidian/registries/studio JSON.",
+    ),
+    "find-duplicates": CommandEntry(
+        "workbench.cli.find_duplicates",
+        "Find duplicate files by stem + hash; optionally prune confirmed duplicates.",
     ),
 }
 

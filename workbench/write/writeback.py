@@ -23,7 +23,7 @@ from workbench.write.common import (
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="writeback",
+        prog="write-back",
         description=__doc__,
     )
     parser.add_argument(
@@ -72,7 +72,7 @@ def write_back_records(
         existing_doc.content = record.content
 
         if debug_routing:
-            print(f"[writeback] record {index} overwrite -> {target_path}", file=sys.stderr)
+            print(f"[write-back] record {index} overwrite -> {target_path}", file=sys.stderr)
 
         atomic_write_text(target_path, existing_doc.write_text())
 

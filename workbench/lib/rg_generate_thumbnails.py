@@ -175,8 +175,8 @@ if __name__ == "__main__":
     affected_files = list(summary.get("affected_files", []))
     if matched_files == 0:
         print(
-            f"[generate_thumbs] complete: no markdown files with eligible image links were found under {root}; "
+            f"[generate-thumbs] complete: no markdown files with eligible image links were found under {root}; "
             "affected 0 file(s)"
         )
     else:
-        print(f"[generate_thumbs] complete: affected {len(affected_files)} file(s) under {root}")
+        print(f"[generate-thumbs] complete: affected {len(affected_files)} file(s) under {root}")

@@ -11,7 +11,7 @@ from workbench.lib.streams import read_stdin_text, write_stdout_text
 
 def _parser() -> argparse.ArgumentParser:
     return argparse.ArgumentParser(
-        prog="writestream",
+        prog="write-stream",
         description=__doc__,
     )
 
@@ -24,5 +24,5 @@ def main(argv: list[str] | None = None) -> int:
         write_stdout_text(text)
         return 0
     except ValueError as exc:
-        print(f"writestream: {exc}", file=sys.stderr)
+        print(f"write-stream: {exc}", file=sys.stderr)
         return 1

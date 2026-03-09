@@ -67,7 +67,7 @@ def test_cli_dispatches_generate_thumbs_command(
 
     monkeypatch.setattr(generate_thumbs_module, "_run_generate_thumbnails", _fake_run)
 
-    rc = cli_main.main(["generate_thumbs", str(tmp_path)])
+    rc = cli_main.main(["generate-thumbs", str(tmp_path)])
     out = capsys.readouterr().out
 
     assert rc == 0
@@ -81,5 +81,5 @@ def test_generate_thumbs_help_message(capsys: pytest.CaptureFixture[str]) -> Non
     out = capsys.readouterr().out
 
     assert exc.value.code == 0
-    assert "usage: generate_thumbs" in out
+    assert "usage: generate-thumbs" in out
     assert "Root directory to scan (default: ~/Studio)." in out

@@ -17,9 +17,9 @@ Namespaces:
 
 Top-level commands:
 
-- `wkb writenew --schema <name> --path <dir>`
-- `wkb writeback [--studio-root <path>]`
-- `wkb writestream`
+- `wkb write-new --schema <name> --path <dir>`
+- `wkb write-back [--studio-root <path>]`
+- `wkb write-stream`
 - `wkb stream`
 - `wkb scan-sentinel [paths...]`
 - `wkb slug <file> [--write]`
@@ -27,8 +27,8 @@ Top-level commands:
 
 Obsidian scaffolding roots used by `create-vault`:
 
-- `~/Workbench/obsidian/vault-template` (template source)
-- `~/Workbench/obsidian/vault-common` (symlink target for `_common`)
+- `~/Workshop/workbench/obsidian/vault-template` (template source)
+- `~/Workshop/workbench/obsidian/vault-common` (symlink target for `_common`)
 - Per-vault registry file: `_vault_registry` (single-record NDJSON)
 
 Vault template command:
@@ -76,9 +76,9 @@ Workbench reads only these record envelope fields when writing files:
 
 - `content`
 - `batch_slug`
-- `slug` (required for `writeback`)
-- `filename_hint` (optional for `writenew`)
-- `provenance` (optional for `writenew`)
+- `slug` (required for `write-back`)
+- `filename_hint` (optional for `write-new`)
+- `provenance` (optional for `write-new`)
 
 All other record fields are ignored by the writer commands.
 
@@ -100,8 +100,8 @@ Layer responsibilities:
 | Providers / AutoScribe | Produce and transform NDJSON records |
 | `wkb stream` | Extract `content` from NDJSON records and emit concatenated bare markdown in record order |
 | `wkb scan-sentinel` | Select markdown files whose first line contains a valid ASC batch sentinel and emit path NDJSON rows |
-| `wkb writenew` / `wkb writeback` | Consume NDJSON records and persist markdown files |
-| `wkb writestream` | Pass markdown through unchanged |
+| `wkb write-new` / `wkb write-back` | Consume NDJSON records and persist markdown files |
+| `wkb write-stream` | Pass markdown through unchanged |
 | `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry`, template install, and `_common` symlink |
 
 ## Pandoc Integration Policy
@@ -117,7 +117,7 @@ Workbench does **not** own Pandoc filters/templates internally.
 Workbench may expose a local convenience symlink:
 
 ```bash
-cd ~/Workbench
+cd ~/Workshop/workbench
 ln -sfn "$HOME/.local/share/pandoc" pandoc-data
 ```
 
