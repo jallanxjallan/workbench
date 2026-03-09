@@ -19,7 +19,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="compile-registries",
         description=(
             "Compile Studio YAML registries into runtime JSON under "
-            "obsidian/registries/studio."
+            "obsidian/vault-registries/studio."
         ),
     )
     parser.add_argument(
@@ -32,7 +32,7 @@ def _parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_RUNTIME_REGISTRIES_ROOT),
         help=(
             "Runtime registries root (default: "
-            "~/Workshop/workbench/obsidian/registries/studio)."
+            "~/Workshop/workbench/obsidian/vault-registries/studio)."
         ),
     )
     return parser

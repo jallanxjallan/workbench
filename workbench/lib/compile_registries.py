@@ -13,7 +13,9 @@ class CompileRegistriesError(RuntimeError):
     """Raised when registry compilation fails."""
 
 
-DEFAULT_RUNTIME_REGISTRIES_ROOT = WORKBENCH_ROOT / "obsidian" / "registries" / "studio"
+DEFAULT_RUNTIME_REGISTRIES_ROOT = (
+    WORKBENCH_ROOT / "obsidian" / "vault-registries" / "studio"
+)
 
 
 def _load_yaml_mapping(path: Path) -> dict[str, object]:

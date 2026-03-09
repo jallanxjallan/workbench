@@ -51,7 +51,7 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
     ),
     "compile-registries": CommandEntry(
         "workbench.cli.compile_registries",
-        "Compile Studio YAML registries into obsidian/registries/studio JSON.",
+        "Compile Studio YAML registries into obsidian/vault-registries/studio JSON.",
     ),
     "compile-assets": CommandEntry(
         "workbench.cli.compile_assets",
