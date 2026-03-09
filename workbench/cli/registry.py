@@ -53,6 +53,10 @@ ROOT_COMMANDS: dict[str, CommandEntry] = {
         "workbench.cli.compile_registries",
         "Compile Studio YAML registries into obsidian/registries/studio JSON.",
     ),
+    "compile-assets": CommandEntry(
+        "workbench.cli.compile_assets",
+        "Compile URI-linked markdown sources into managed assets/frontmatter.",
+    ),
     "find-duplicates": CommandEntry(
         "workbench.cli.find_duplicates",
         "Find duplicate files by stem + hash; optionally prune confirmed duplicates.",

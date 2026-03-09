@@ -22,6 +22,7 @@ Top-level commands:
 - `wkb write-stream`
 - `wkb stream`
 - `wkb scan-sentinel [paths...]`
+- `wkb compile-assets [--studio-root <path>]`
 - `wkb slug <file> [--write]`
 - `wkb create-vault <vault-name-or-path>`
 
@@ -100,6 +101,7 @@ Layer responsibilities:
 | Providers / AutoScribe | Produce and transform NDJSON records |
 | `wkb stream` | Extract `content` from NDJSON records and emit concatenated bare markdown in record order |
 | `wkb scan-sentinel` | Select markdown files whose first line contains a valid ASC batch sentinel and emit path NDJSON rows |
+| `wkb compile-assets` | Compile fully-qualified URI links into managed frontmatter `sources`/`assets` and remove inline source links |
 | `wkb write-new` / `wkb write-back` | Consume NDJSON records and persist markdown files |
 | `wkb write-stream` | Pass markdown through unchanged |
 | `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry`, template install, and `_common` symlink |
