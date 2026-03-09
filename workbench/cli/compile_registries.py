@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 import sys
 
+from workbench.config.roots import STUDIO_ROOT
 from workbench.lib.compile_registries import (
     CompileRegistriesError,
     DEFAULT_RUNTIME_REGISTRIES_ROOT,
@@ -23,7 +24,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--studio-root",
-        default=str(Path.home() / "Studio"),
+        default=str(STUDIO_ROOT),
         help="Studio root directory (default: ~/Studio).",
     )
     parser.add_argument(
@@ -31,7 +32,7 @@ def _parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_RUNTIME_REGISTRIES_ROOT),
         help=(
             "Runtime registries root (default: "
-            "~/Workbench/obsidian/registries/studio)."
+            "~/Workshop/workbench/obsidian/registries/studio)."
         ),
     )
     return parser
