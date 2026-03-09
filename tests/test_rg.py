@@ -241,3 +241,39 @@ def test_find_markdown_slugs_can_include_placeholders(
     )
 
     assert rows == [{"file": note_path.resolve(), "slug": "__SLUG__"}]
+
+
+def test_find_slug_sentinels_uses_single_rg_list_pass(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root = tmp_path / "Studio"
+    studio_root.mkdir(parents=True)
+    one = studio_root / "vault" / "one.md"
+    two = studio_root / "vault" / "two.markdown"
+    not_markdown = studio_root / "vault" / "three.txt"
+    stdout = "\n".join([str(one), str(two), str(not_markdown)])
+
+    calls = {"count": 0}
+
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls["count"] += 1
+        assert args == [
+            "rg",
+            "-l",
+            "--pcre2",
+            "--glob",
+            "*.md",
+            "--glob",
+            "*.markdown",
+            r"^slug:\s*__SLUG__",
+            str(studio_root.resolve()),
+        ]
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
+
+    paths = rg_module.find_slug_sentinels(studio_root)
+
+    assert calls["count"] == 1
+    assert paths == [one.resolve(), two.resolve()]

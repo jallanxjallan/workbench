@@ -13,7 +13,6 @@ wkb
 Namespaces:
 
 - `wkb vault`
-- `wkb slug`
 
 Top-level commands:
 
@@ -23,14 +22,14 @@ Top-level commands:
 - `wkb stream`
 - `wkb scan-sentinel [paths...]`
 - `wkb compile-assets [--studio-root <path>]`
-- `wkb slug <file> [--write]`
+- `wkb generate-slugs [--write]`
 - `wkb create-vault <vault-name-or-path>`
 
 Obsidian scaffolding roots used by `create-vault`:
 
 - `~/Workshop/workbench/obsidian/vault-template` (template source)
 - `~/Workshop/workbench/obsidian/vault-common` (symlink target for `_common`)
-- Per-vault registry file: `_vault_registry` (single-record NDJSON)
+- Per-vault registry file: `_vault_registry.json` (single JSON object)
 
 Vault template command:
 
@@ -41,11 +40,11 @@ Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-lev
 `wkb stream` reads NDJSON from stdin, extracts each record `content`, and writes a concatenated
 bare markdown stream (for example: `asc emit <batch> --ndjson | wkb stream | pandoc ...`).
 
-`wkb slug` also keeps legacy compatibility with:
+`wkb generate-slugs` scans the Studio tree for markdown files containing:
 
-- `wkb slug build ...`
-- `wkb slug ensure ...`
-- `wkb slug validate ...`
+- `slug: __SLUG__`
+
+It generates deterministic slugs in dry-run mode by default, and writes replacements only when `--write` is passed.
 
 ## Public Integration API
 
@@ -104,7 +103,7 @@ Layer responsibilities:
 | `wkb compile-assets` | Compile fully-qualified URI links into managed frontmatter `sources`/`assets` and remove inline source links |
 | `wkb write-new` / `wkb write-back` | Consume NDJSON records and persist markdown files |
 | `wkb write-stream` | Pass markdown through unchanged |
-| `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry`, template install, and `_common` symlink |
+| `wkb create-vault` | Initialize new/existing folders as vaults using `_vault_registry.json`, template install, and `_common` symlink |
 
 ## Pandoc Integration Policy
 

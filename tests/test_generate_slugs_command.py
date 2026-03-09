@@ -1,0 +1,134 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+import workbench.cli.generate_slugs as generate_slugs_module
+import workbench.cli.main as cli_main
+from workbench.interop.document import Document
+
+
+def _write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _init_vault(tmp_path: Path) -> tuple[Path, Path]:
+    studio_root = tmp_path / "Studio"
+    vault_root = studio_root / "omaf"
+    vault_root.mkdir(parents=True, exist_ok=True)
+    _write(vault_root / "_vault_registry.yaml", "vault: omaf\n")
+    return studio_root, vault_root
+
+
+def _init_vault_with_minimal_registry(tmp_path: Path) -> tuple[Path, Path]:
+    studio_root = tmp_path / "Studio"
+    vault_root = studio_root / "HHPLawFirm"
+    vault_root.mkdir(parents=True, exist_ok=True)
+    _write(
+        vault_root / "_vault_registry",
+        (
+            '{"vault_id":"01KK0GDB1960WKV1DK9M8C5AHN",'
+            '"created":"2026-03-06T02:42:45Z",'
+            '"tool":"workbench","version":1}\n'
+        ),
+    )
+    return studio_root, vault_root
+
+
+def test_generate_slugs_write_replaces_sentinel(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    studio_root, vault_root = _init_vault(tmp_path)
+    target = vault_root / "content" / "First Flight.md"
+    _write(target, "---\nclass: passage\nslug: __SLUG__\n---\n\nBody\n")
+
+    monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
+
+    rc = cli_main.main(["generate-slugs", "--write"])
+    captured = capsys.readouterr()
+
+    assert rc == 0
+    assert "generated 1 slug(s)" in captured.out
+    assert "written 1 slug(s)" in captured.out
+
+    updated = Document.read_file(target)
+    assert updated.metadata["slug"] == "omaf.passage.first-flight"
+
+
+def test_generate_slugs_detects_collision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    studio_root, vault_root = _init_vault(tmp_path)
+    one = vault_root / "content" / "First Flight.md"
+    two = vault_root / "archive" / "First Flight.md"
+    _write(one, "---\nclass: passage\nslug: __SLUG__\n---\n\nOne\n")
+    _write(two, "---\nclass: passage\nslug: __SLUG__\n---\n\nTwo\n")
+
+    monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
+
+    rc = cli_main.main(["generate-slugs", "--write"])
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "slug collision detected: omaf.passage.first-flight" in captured.err
+    assert Document.read_file(one).metadata["slug"] == "__SLUG__"
+    assert Document.read_file(two).metadata["slug"] == "__SLUG__"
+
+
+def test_generate_slugs_dry_run_does_not_modify_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    studio_root, vault_root = _init_vault(tmp_path)
+    target = vault_root / "content" / "First Flight.md"
+    _write(target, "---\nclass: passage\nslug: __SLUG__\n---\n\nBody\n")
+
+    monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
+
+    rc = cli_main.main(["generate-slugs"])
+    captured = capsys.readouterr()
+
+    assert rc == 0
+    assert "generated 1 slug(s)" in captured.out
+    assert "written 0 slug(s)" in captured.out
+    assert Document.read_file(target).metadata["slug"] == "__SLUG__"
+
+
+def test_generate_slugs_falls_back_to_vault_directory_name_for_mnemonic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, vault_root = _init_vault_with_minimal_registry(tmp_path)
+    target = vault_root / "contents" / "Aphorisms.md"
+    _write(target, "---\nclass: passage\nslug: __SLUG__\n---\n\nBody\n")
+
+    monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
+
+    rc = cli_main.main(["generate-slugs", "--write"])
+
+    assert rc == 0
+    updated = Document.read_file(target)
+    assert updated.metadata["slug"] == "hhplawfirm.passage.aphorisms"
+
+
+def test_generate_slugs_skips_template_files_without_class(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, vault_root = _init_vault(tmp_path)
+    target = vault_root / "instructions" / "00-templates" / "global.md"
+    _write(target, "---\nslug: __SLUG__\n---\n\nBody\n")
+
+    monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
+
+    rc = cli_main.main(["generate-slugs", "--write"])
+
+    assert rc == 0
+    assert Document.read_file(target).metadata["slug"] == "__SLUG__"

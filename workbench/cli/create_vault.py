@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import secrets
 import shutil
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+import unicodedata
 
 import yaml
 
@@ -39,6 +41,12 @@ ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 STATUS_CREATED = "created"
 STATUS_INITIALIZED = "initialized"
 STATUS_ALREADY = "already_initialized"
+
+LEGACY_REGISTRY_FILENAME = "_vault_registry"
+REGISTRY_JSON_FILENAME = "_vault_registry.json"
+REGISTRY_YAML_FILENAME = "_vault_registry.yaml"
+_NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
+_HYPHEN_RUN_RE = re.compile(r"-+")
 
 
 class CreateVaultError(RuntimeError):
@@ -102,7 +110,14 @@ def _resolve_vault_path(vault_path: str) -> Path:
 
 
 def is_vault(path: Path) -> bool:
-    return (path / "_vault_registry").is_file()
+    return any(
+        (path / candidate).is_file()
+        for candidate in (
+            REGISTRY_JSON_FILENAME,
+            LEGACY_REGISTRY_FILENAME,
+            REGISTRY_YAML_FILENAME,
+        )
+    )
 
 
 def _display_path(path: Path) -> str:
@@ -184,22 +199,55 @@ def _ensure_common_symlink(vault_path: Path) -> bool:
     return True
 
 
+def _project_mnemonic(vault_path: Path) -> str:
+    lowered = vault_path.name.strip().lower()
+    normalized = unicodedata.normalize("NFKD", lowered)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    hyphenated = _NON_ALNUM_RE.sub("-", ascii_only)
+    collapsed = _HYPHEN_RUN_RE.sub("-", hyphenated).strip("-")
+    if not collapsed:
+        raise CreateVaultError("Vault mnemonic is empty after normalization.")
+    return collapsed
+
+
+def _assets_paths(vault_path: Path) -> tuple[str, str | None]:
+    assets_link = (vault_path / "_assets").expanduser()
+    assets_symlink = str(assets_link.absolute())
+    assets_target = (
+        str(assets_link.resolve(strict=False)) if assets_link.is_symlink() else None
+    )
+    return assets_symlink, assets_target
+
+
 def _create_vault_registry(vault_path: Path) -> bool:
-    registry_path = vault_path / "_vault_registry"
+    registry_path = vault_path / REGISTRY_JSON_FILENAME
     if registry_path.exists():
         return False
 
+    if (vault_path / LEGACY_REGISTRY_FILENAME).exists():
+        return False
+    if (vault_path / REGISTRY_YAML_FILENAME).exists():
+        return False
+
+    mnemonic = _project_mnemonic(vault_path)
+    assets_symlink_path, assets_target_path = _assets_paths(vault_path)
     record = {
         "vault_id": _generate_ulid(),
         "created": _utc_now_iso(),
         "tool": "workbench",
         "version": 1,
+        "mnemonic": mnemonic,
+        "project_mnemonic": mnemonic,
+        "assets_symlink_path": assets_symlink_path,
+        "assets_target_path": assets_target_path,
         "editorial_registry_json": str(EDITORIAL_REGISTRY_JSON_PATH),
         "editorial_registry_yaml": str(EDITORIAL_REGISTRY_YAML_PATH),
         "registry_paths": {
             "editorial": str(EDITORIAL_REGISTRY_JSON_PATH),
             "editorial_json": str(EDITORIAL_REGISTRY_JSON_PATH),
             "editorial_yaml": str(EDITORIAL_REGISTRY_YAML_PATH),
+            "assets_symlink": assets_symlink_path,
+            "assets_target": assets_target_path,
         },
     }
     atomic_write_text(registry_path, json.dumps(record, separators=(",", ":")) + "\n")
@@ -216,7 +264,7 @@ def load_registry(path: Path) -> dict[str, object]:
         parsed = yaml.safe_load(raw)
     elif suffix == ".json":
         parsed = json.loads(raw)
-    elif path.name == "_vault_registry":
+    elif path.name == LEGACY_REGISTRY_FILENAME:
         first_record = next((line.strip() for line in raw.splitlines() if line.strip()), "")
         parsed = json.loads(first_record) if first_record else {}
     else:

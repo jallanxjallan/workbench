@@ -11,6 +11,11 @@ def test_stream_command_points_to_stream_module() -> None:
     assert entry.module == "workbench.cli.stream"
 
 
+def test_generate_slugs_command_points_to_generate_slugs_module() -> None:
+    entry = ROOT_COMMANDS["generate-slugs"]
+    assert entry.module == "workbench.cli.generate_slugs"
+
+
 def test_generate_thumbs_command_points_to_generate_thumbs_module() -> None:
     entry = ROOT_COMMANDS["generate-thumbs"]
     assert entry.module == "workbench.cli.generate_thumbs"
@@ -21,6 +26,11 @@ def test_compile_registries_command_points_to_compile_registries_module() -> Non
     assert entry.module == "workbench.cli.compile_registries"
 
 
+def test_compile_assets_command_points_to_compile_assets_module() -> None:
+    entry = ROOT_COMMANDS["compile-assets"]
+    assert entry.module == "workbench.cli.compile_assets"
+
+
 def test_find_duplicates_command_points_to_find_duplicates_module() -> None:
     entry = ROOT_COMMANDS["find-duplicates"]
     assert entry.module == "workbench.cli.find_duplicates"
@@ -28,6 +38,10 @@ def test_find_duplicates_command_points_to_find_duplicates_module() -> None:
 
 def test_legacy_ingest_namespace_removed() -> None:
     assert "ingest" not in REGISTRY
+
+
+def test_legacy_slug_namespace_removed() -> None:
+    assert "slug" not in REGISTRY
 
 
 def test_create_project_command_removed() -> None:

@@ -5,8 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import yaml
-
+from workbench.cli.create_vault import load_registry
 from workbench.config.roots import WORKBENCH_ROOT
 
 
@@ -23,9 +22,7 @@ def _load_yaml_mapping(path: Path) -> dict[str, object]:
     if not path.is_file():
         raise CompileRegistriesError(f"Registry source not found: {path}")
 
-    parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if parsed is None:
-        return {}
+    parsed = load_registry(path)
     if not isinstance(parsed, dict):
         raise CompileRegistriesError(f"Registry root must be a mapping: {path}")
     return parsed

@@ -18,6 +18,23 @@ def test_normalize_segment_strips_accents_for_indonesian_names() -> None:
     assert normalize_segment("Tuti Déwi Hadi") == "tuti-dewi-hadi"
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("First Flight", "first-flight"),
+        ("RI-002 Flight", "ri-002-flight"),
+        ("C-47 Dakota", "c-47-dakota"),
+        ("Bobby Earl Freeberg", "bobby-earl-freeberg"),
+        ("Freeberg's Flight", "freebergs-flight"),
+    ],
+)
+def test_normalize_segment_handles_aviation_and_mixed_tokens(
+    raw: str,
+    expected: str,
+) -> None:
+    assert normalize_segment(raw) == expected
+
+
 def test_normalize_segment_rejects_empty_result() -> None:
     with pytest.raises(ValueError, match="empty"):
         normalize_segment("___ ### ---")

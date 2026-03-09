@@ -280,6 +280,51 @@ def find_markdown_slug_candidates(
     return rows
 
 
+def find_slug_sentinels(root: Path) -> list[Path]:
+    root_path = _normalize_root(root)
+
+    args = [
+        "rg",
+        "-l",
+        "--pcre2",
+        "--glob",
+        "*.md",
+        "--glob",
+        "*.markdown",
+        r"^slug:\s*__SLUG__",
+        str(root_path),
+    ]
+
+    try:
+        proc = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise RipgrepError("ripgrep executable not found: rg") from exc
+    except OSError as exc:
+        raise RipgrepError(f"failed to run ripgrep: {exc}") from exc
+
+    if proc.returncode not in {0, 1}:
+        detail = proc.stderr.strip() or proc.stdout.strip() or "ripgrep failed"
+        raise RipgrepError(detail)
+
+    paths: list[Path] = []
+    for line in proc.stdout.splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        matched_path = Path(text)
+        resolved = _resolve_match_path(root=root_path, matched_path=matched_path)
+        if resolved.suffix.lower() not in {".md", ".markdown"}:
+            continue
+        paths.append(resolved)
+
+    return sorted(set(paths))
+
+
 def _parse_event(line: str) -> dict[str, Any]:
     try:
         event = json.loads(line)
