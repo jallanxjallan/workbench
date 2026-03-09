@@ -57,6 +57,7 @@ _IMAGE_PATTERN_ALL = r"!\[[^\]]*\]\([^)]+\)"
 _SLUG_DISCOVERY_EXCLUDES = [
     "**/_common/**",
     "**/00-templates/**",
+    "**/.obsidian/**",
     "**/*.tmpl.md",
 ]
 DEFAULT_STUDIO_ROOT = STUDIO_ROOT
@@ -306,7 +307,7 @@ def find_slug_sentinels(root: Path) -> list[Path]:
     ]
     for glob_pattern in _SLUG_DISCOVERY_EXCLUDES:
         args.extend(["--glob", f"!{glob_pattern}"])
-    args.extend([r"^slug:\s*__SLUG__", str(root_path)])
+    args.extend([r"slug:\s*__SLUG__", str(root_path)])
 
     try:
         proc = subprocess.run(
@@ -336,23 +337,6 @@ def find_slug_sentinels(root: Path) -> list[Path]:
         paths.append(resolved)
 
     return sorted(set(paths))
-
-
-def find_slug_discovery_rows(*, root: Path | None = None) -> list[dict[str, Any]]:
-    """
-    Discover markdown files with slug frontmatter values in one ripgrep pass.
-
-    Includes placeholders (`__SLUG__`) and applies template/shared-folder ignores
-    used by slug generation.
-    """
-    root_path = _normalize_root(root)
-    return find_markdown_slugs(
-        root=root_path,
-        canonical_only=False,
-        exclude_placeholders=False,
-        exclude_globs=_SLUG_DISCOVERY_EXCLUDES,
-        no_follow=True,
-    )
 
 
 def _parse_event(line: str) -> dict[str, Any]:

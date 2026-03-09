@@ -18,22 +18,8 @@ def _init_vault(tmp_path: Path) -> tuple[Path, Path]:
     studio_root = tmp_path / "Studio"
     vault_root = studio_root / "omaf"
     vault_root.mkdir(parents=True, exist_ok=True)
-    _write(vault_root / "_vault_registry.yaml", "vault: omaf\n")
-    return studio_root, vault_root
-
-
-def _init_vault_with_minimal_registry(tmp_path: Path) -> tuple[Path, Path]:
-    studio_root = tmp_path / "Studio"
-    vault_root = studio_root / "HHPLawFirm"
-    vault_root.mkdir(parents=True, exist_ok=True)
-    _write(
-        vault_root / "_vault_registry",
-        (
-            '{"vault_id":"01KK0GDB1960WKV1DK9M8C5AHN",'
-            '"created":"2026-03-06T02:42:45Z",'
-            '"tool":"workbench","version":1}\n'
-        ),
-    )
+    (vault_root / ".obsidian").mkdir(parents=True, exist_ok=True)
+    _write(vault_root / "_vault_registry", '{"mnemonic":"omaf"}\n')
     return studio_root, vault_root
 
 
@@ -101,21 +87,24 @@ def test_generate_slugs_dry_run_does_not_modify_files(
     assert Document.read_file(target).metadata["slug"] == "__SLUG__"
 
 
-def test_generate_slugs_falls_back_to_vault_directory_name_for_mnemonic(
+def test_generate_slugs_requires_mnemonic_in_registry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    studio_root, vault_root = _init_vault_with_minimal_registry(tmp_path)
+    studio_root, vault_root = _init_vault(tmp_path)
     target = vault_root / "contents" / "Aphorisms.md"
+    _write(vault_root / "_vault_registry", "{}\n")
     _write(target, "---\nclass: passage\nslug: __SLUG__\n---\n\nBody\n")
 
     monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
 
     rc = cli_main.main(["generate-slugs", "--write"])
+    captured = capsys.readouterr()
 
-    assert rc == 0
-    updated = Document.read_file(target)
-    assert updated.metadata["slug"] == "hhplawfirm.passage.aphorisms"
+    assert rc == 1
+    assert "missing required key 'mnemonic'" in captured.err
+    assert Document.read_file(target).metadata["slug"] == "__SLUG__"
 
 
 def test_generate_slugs_skips_template_files_without_class(
@@ -125,6 +114,22 @@ def test_generate_slugs_skips_template_files_without_class(
     studio_root, vault_root = _init_vault(tmp_path)
     target = vault_root / "instructions" / "00-templates" / "global.md"
     _write(target, "---\nslug: __SLUG__\n---\n\nBody\n")
+
+    monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
+
+    rc = cli_main.main(["generate-slugs", "--write"])
+
+    assert rc == 0
+    assert Document.read_file(target).metadata["slug"] == "__SLUG__"
+
+
+def test_generate_slugs_ignores_obsidian_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, vault_root = _init_vault(tmp_path)
+    target = vault_root / ".obsidian" / "global.md"
+    _write(target, "---\nclass: passage\nslug: __SLUG__\n---\n\nBody\n")
 
     monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
 

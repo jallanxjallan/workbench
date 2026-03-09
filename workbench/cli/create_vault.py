@@ -273,7 +273,8 @@ def load_registry(path: Path) -> dict[str, object]:
         parsed = json.loads(raw)
     elif path.name == LEGACY_REGISTRY_FILENAME:
         first_record = next(
-            (line.strip() for line in raw.splitlines() if line.strip()), ""
+            (line.strip() for line in raw.splitlines() if line.strip()),
+            "",
         )
         parsed = json.loads(first_record) if first_record else {}
     else:

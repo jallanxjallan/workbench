@@ -297,8 +297,10 @@ def test_find_slug_sentinels_uses_single_rg_list_pass(
             "--glob",
             "!**/00-templates/**",
             "--glob",
+            "!**/.obsidian/**",
+            "--glob",
             "!**/*.tmpl.md",
-            r"^slug:\s*__SLUG__",
+            r"slug:\s*__SLUG__",
             str(studio_root.resolve()),
         ]
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
@@ -309,43 +311,3 @@ def test_find_slug_sentinels_uses_single_rg_list_pass(
 
     assert calls["count"] == 1
     assert paths == [one.resolve(), two.resolve()]
-
-
-def test_find_slug_discovery_rows_uses_no_follow_and_excludes(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    studio_root = tmp_path / "Studio"
-    studio_root.mkdir(parents=True)
-    note_path = studio_root / "vault" / "note.md"
-    stdout = _match_event(note_path, "slug: __SLUG__\n")
-
-    def _fake_run(
-        args: list[str], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
-        assert args == [
-            "rg",
-            "--json",
-            "--pcre2",
-            "--multiline",
-            "--no-follow",
-            "--glob",
-            "*.md",
-            "--glob",
-            "*.markdown",
-            "--glob",
-            "!**/_common/**",
-            "--glob",
-            "!**/00-templates/**",
-            "--glob",
-            "!**/*.tmpl.md",
-            rg_module._FRONTMATTER_SLUG_VALUE_PREFIX_PATTERN + r"\S+\s*$",
-            str(studio_root.resolve()),
-        ]
-        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
-
-    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
-
-    rows = rg_module.find_slug_discovery_rows(root=studio_root)
-
-    assert rows == [{"file": note_path.resolve(), "slug": "__SLUG__"}]

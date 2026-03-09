@@ -4,12 +4,12 @@ from workbench.lib.identity import slug
 from workbench.slug.writer import (
     find_vault_root,
     generate_slug_for_file,
-    load_vault_mnemonic,
+    vault_namespace,
 )
 
 __all__ = [
     "find_vault_root",
     "generate_slug_for_file",
-    "load_vault_mnemonic",
+    "vault_namespace",
     "slug",
 ]
