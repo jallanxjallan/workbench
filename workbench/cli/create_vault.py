@@ -12,7 +12,6 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-import unicodedata
 
 import yaml
 
@@ -23,15 +22,14 @@ from workbench.config.roots import (
     OBSIDIAN_ROOT as DEFAULT_OBSIDIAN_ROOT,
     VAULT_TEMPLATE_ROOT as DEFAULT_VAULT_TEMPLATE_ROOT,
 )
+from workbench.lib.identity import slug as identity_slug
 from workbench.lib.paths import normalize_vault_name
 from workbench.write.common import atomic_write_text
 
 EDITORIAL_REGISTRY_JSON_PATH = (
     WORKBENCH_HOME / "obsidian" / "registries" / "studio" / "editorial.json"
 )
-EDITORIAL_REGISTRY_YAML_PATH = (
-    STUDIO_ROOT / "registries" / "editorial.yaml"
-)
+EDITORIAL_REGISTRY_YAML_PATH = STUDIO_ROOT / "registries" / "editorial.yaml"
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
 VAULT_TEMPLATE_ROOT = DEFAULT_VAULT_TEMPLATE_ROOT
 OBSIDIAN_COMMON_ROOT = DEFAULT_OBSIDIAN_COMMON_ROOT
@@ -45,8 +43,7 @@ STATUS_ALREADY = "already_initialized"
 LEGACY_REGISTRY_FILENAME = "_vault_registry"
 REGISTRY_JSON_FILENAME = "_vault_registry.json"
 REGISTRY_YAML_FILENAME = "_vault_registry.yaml"
-_NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
-_HYPHEN_RUN_RE = re.compile(r"-+")
+_IDENTITY_SLUG_RE = re.compile(r"^[a-z0-9]+-[0-9a-f]{3,}$")
 
 
 class CreateVaultError(RuntimeError):
@@ -101,7 +98,13 @@ def _resolve_vault_path(vault_path: str) -> Path:
             normalized = normalize_vault_name(raw)
         except ValueError as exc:
             raise CreateVaultError(str(exc)) from exc
-        return (STUDIO_ROOT / normalized).resolve()
+        normalized_lower = normalized.lower()
+        vault_name = (
+            normalized_lower
+            if _IDENTITY_SLUG_RE.fullmatch(normalized_lower)
+            else identity_slug(normalized)
+        )
+        return (STUDIO_ROOT / vault_name).resolve()
 
     if candidate.parts[0] == "Studio":
         return (STUDIO_ROOT.parent / candidate).resolve()
@@ -147,8 +150,11 @@ def _generate_ulid() -> str:
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
-        "+00:00", "Z"
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
     )
 
 
@@ -172,7 +178,9 @@ def _install_template_if_missing(vault_path: Path) -> bool:
     obsidian_dir = vault_path / ".obsidian"
     if obsidian_dir.exists():
         if not obsidian_dir.is_dir():
-            raise CreateVaultError(f"Unsafe path exists and is not a directory: {obsidian_dir}")
+            raise CreateVaultError(
+                f"Unsafe path exists and is not a directory: {obsidian_dir}"
+            )
         return False
 
     _copy_template_without_overwrite(vault_path)
@@ -185,7 +193,9 @@ def _ensure_common_symlink(vault_path: Path) -> bool:
 
     if link_path.exists() or link_path.is_symlink():
         if not link_path.is_symlink():
-            raise CreateVaultError(f"Unsafe existing _common path (not symlink): {link_path}")
+            raise CreateVaultError(
+                f"Unsafe existing _common path (not symlink): {link_path}"
+            )
 
         resolved = link_path.resolve(strict=False)
         if resolved != common_target:
@@ -200,14 +210,11 @@ def _ensure_common_symlink(vault_path: Path) -> bool:
 
 
 def _project_mnemonic(vault_path: Path) -> str:
-    lowered = vault_path.name.strip().lower()
-    normalized = unicodedata.normalize("NFKD", lowered)
-    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
-    hyphenated = _NON_ALNUM_RE.sub("-", ascii_only)
-    collapsed = _HYPHEN_RUN_RE.sub("-", hyphenated).strip("-")
-    if not collapsed:
+    name = vault_path.name.strip().lower()
+    mnemonic = name if _IDENTITY_SLUG_RE.fullmatch(name) else identity_slug(name)
+    if not mnemonic:
         raise CreateVaultError("Vault mnemonic is empty after normalization.")
-    return collapsed
+    return mnemonic
 
 
 def _assets_paths(vault_path: Path) -> tuple[str, str | None]:
@@ -265,7 +272,9 @@ def load_registry(path: Path) -> dict[str, object]:
     elif suffix == ".json":
         parsed = json.loads(raw)
     elif path.name == LEGACY_REGISTRY_FILENAME:
-        first_record = next((line.strip() for line in raw.splitlines() if line.strip()), "")
+        first_record = next(
+            (line.strip() for line in raw.splitlines() if line.strip()), ""
+        )
         parsed = json.loads(first_record) if first_record else {}
     else:
         raise CreateVaultError(f"Unsupported vault registry format: {path}")

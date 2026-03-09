@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import workbench.cli.create_vault as create_vault_module
+from workbench.lib.identity import slug as identity_slug
 
 
 def _write_file(path: Path, content: str = "{}\n") -> None:
@@ -31,7 +32,12 @@ def _configure_roots(
     monkeypatch.setattr(
         create_vault_module,
         "EDITORIAL_REGISTRY_JSON_PATH",
-        tmp_path / "Workbench" / "obsidian" / "registries" / "studio" / "editorial.json",
+        tmp_path
+        / "Workbench"
+        / "obsidian"
+        / "registries"
+        / "studio"
+        / "editorial.json",
     )
     monkeypatch.setattr(
         create_vault_module,
@@ -58,7 +64,8 @@ def test_create_vault_new_path_creates_registry_template_and_common_link(
     studio_root, _, common_root = _configure_roots(tmp_path, monkeypatch)
 
     result = create_vault_module.create_vault("omaf")
-    vault_path = studio_root / "omaf"
+    vault_slug = identity_slug("omaf")
+    vault_path = studio_root / vault_slug
 
     assert result.status == create_vault_module.STATUS_CREATED
     assert result.vault_path == vault_path
@@ -89,8 +96,8 @@ def test_create_vault_new_path_creates_registry_template_and_common_link(
     assert len(registry["vault_id"]) == 26
     assert registry["tool"] == "workbench"
     assert registry["version"] == 1
-    assert registry["mnemonic"] == "omaf"
-    assert registry["project_mnemonic"] == "omaf"
+    assert registry["mnemonic"] == vault_slug
+    assert registry["project_mnemonic"] == vault_slug
     assert registry["assets_symlink_path"] == str((vault_path / "_assets").absolute())
     assert registry["assets_target_path"] is None
     assert str(registry["created"]).endswith("Z")
@@ -100,10 +107,20 @@ def test_create_vault_new_path_creates_registry_template_and_common_link(
     assert registry["editorial_registry_yaml"] == str(
         studio_root / "registries" / "editorial.yaml"
     )
-    assert registry["registry_paths"]["editorial"] == registry["editorial_registry_json"]
-    assert registry["registry_paths"]["editorial_json"] == registry["editorial_registry_json"]
-    assert registry["registry_paths"]["editorial_yaml"] == registry["editorial_registry_yaml"]
-    assert registry["registry_paths"]["assets_symlink"] == registry["assets_symlink_path"]
+    assert (
+        registry["registry_paths"]["editorial"] == registry["editorial_registry_json"]
+    )
+    assert (
+        registry["registry_paths"]["editorial_json"]
+        == registry["editorial_registry_json"]
+    )
+    assert (
+        registry["registry_paths"]["editorial_yaml"]
+        == registry["editorial_registry_yaml"]
+    )
+    assert (
+        registry["registry_paths"]["assets_symlink"] == registry["assets_symlink_path"]
+    )
     assert registry["registry_paths"]["assets_target"] == registry["assets_target_path"]
 
 
@@ -158,7 +175,9 @@ def test_create_vault_fails_when_common_path_exists_and_is_not_symlink(
     existing.mkdir(parents=True, exist_ok=True)
     (existing / "_common").mkdir(parents=True, exist_ok=False)
 
-    with pytest.raises(create_vault_module.CreateVaultError, match="Unsafe existing _common"):
+    with pytest.raises(
+        create_vault_module.CreateVaultError, match="Unsafe existing _common"
+    ):
         create_vault_module.create_vault(str(existing))
 
 
@@ -168,12 +187,13 @@ def test_main_prints_status_messages(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
+    created_slug = identity_slug("omaf")
 
     rc_created = create_vault_module.main(["omaf"])
     created_output = capsys.readouterr().out
     assert rc_created == 0
     assert "Created new vault:" in created_output
-    assert "omaf" in created_output
+    assert created_slug in created_output
 
     existing = studio_root / "existing"
     existing.mkdir(parents=True, exist_ok=True)
