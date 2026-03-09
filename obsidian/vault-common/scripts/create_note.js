@@ -59,7 +59,6 @@ module.exports = async (params = {}) => {
     return notice("Invalid selection.");
   }
 
-  const slug = titleToSlug(title);
   const fileName = titleToFileName(title);
   const notePath = buildNotePath(folder.path, fileName);
 
@@ -73,7 +72,7 @@ module.exports = async (params = {}) => {
     const withReplacements = applyTemplateReplacements(templateRaw, {
       className: classItem.id,
       title,
-      slug,
+      slug: "__SLUG__",
     });
     const content = stripFrontmatterTitleField(withReplacements);
 

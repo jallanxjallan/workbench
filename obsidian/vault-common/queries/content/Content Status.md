@@ -15,7 +15,7 @@
 
   const rows = app.vault
     .getMarkdownFiles()
-    .filter((file) => String(file.path || "").startsWith("content/"))
+    .filter((file) => String(file.path || "").startsWith("contents/"))
     .map((file) => {
       const page = dv.page(file.path) || {};
       return {
