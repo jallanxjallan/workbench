@@ -1,142 +1,175 @@
-"""Create one new markdown note from a vault template."""
+"""Write streamed NDJSON records into current-vault notes from one template."""
 
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
+from typing import TextIO
 
-from workbench.write.common import (
-    WriteError,
-    atomic_write_text,
-    ensure_directory,
-    resolve_unique_markdown_path,
-)
+from workbench.write.common import WriteError, has_piped_stdin
+from workbench.write.writenew import write_new_records_with_template
 
-MARKDOWN_SUFFIXES = (".md", ".markdown")
-
-
-class WriteNewTemplateError(WriteError):
-    pass
+VAULT_REGISTRY_FILENAME = "_vault_registry.json"
 
 
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(
         prog="writenew",
-        description="Create a new markdown note from a vault template.",
+        description="Write NDJSON records into current vault files using one template.",
+    )
+    command_parser.add_argument(
+        "--folder",
+        default="contents",
+        help="Target folder under the current vault (default: contents).",
     )
     command_parser.add_argument(
         "--template",
-        required=True,
-        help="Template name/path under <vault>/_common/templates.",
-    )
-    command_parser.add_argument(
-        "--name",
-        default="",
-        help="Output note name (without extension). Defaults to template stem.",
-    )
-    command_parser.add_argument(
-        "--path",
-        default=".",
-        help="Target directory where the note is created (default: current directory).",
+        default="passage",
+        help="Template name under _common/templates (default: passage).",
     )
     return command_parser
 
 
-def _resolve_templates_root(vault_root: Path) -> Path:
-    templates_root = (vault_root / "_common" / "templates").resolve()
-    if templates_root.exists() and templates_root.is_dir():
-        return templates_root
-    raise WriteNewTemplateError(f"template directory is missing: {templates_root}")
+def _resolve_current_vault(cwd: Path) -> Path:
+    vault_root = cwd.expanduser().resolve()
+    marker = vault_root / VAULT_REGISTRY_FILENAME
+    if not marker.is_file():
+        raise WriteError(
+            f"current directory is not a vault (missing {VAULT_REGISTRY_FILENAME}): "
+            f"{vault_root}"
+        )
+    return vault_root
 
 
-def _resolve_template_path(template_name: str, vault_root: Path) -> Path:
-    raw = str(template_name).strip()
-    if not raw:
-        raise WriteNewTemplateError("template name must be non-empty")
+def _vault_display_name(vault_root: Path) -> str:
+    marker = vault_root / VAULT_REGISTRY_FILENAME
+    fallback = vault_root.name
+    try:
+        payload = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return fallback
+    if not isinstance(payload, dict):
+        return fallback
 
-    templates_root = _resolve_templates_root(vault_root)
+    for key in ("name", "vault"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return fallback
 
-    if raw.startswith("_common/templates/"):
-        raw = raw[len("_common/templates/") :]
 
-    selected: Path | None = None
-    raw_path = Path(raw)
+def _resolve_folder(vault_root: Path, folder: str) -> Path:
+    folder_raw = str(folder).strip()
+    if not folder_raw:
+        raise WriteError("folder must be a non-empty string")
 
-    if raw_path.is_absolute():
-        candidate = raw_path.expanduser().resolve()
-        if candidate.exists() and candidate.is_file():
-            selected = candidate
-    else:
-        candidates = [templates_root / raw_path]
-        if raw_path.suffix == "":
-            candidates.append(templates_root / f"{raw}.md")
+    folder_relative = Path(folder_raw)
+    if folder_relative.is_absolute():
+        raise WriteError(f"folder must be vault-relative: {folder_raw}")
 
-        for candidate in candidates:
-            candidate_resolved = candidate.resolve()
-            if candidate_resolved.exists() and candidate_resolved.is_file():
-                selected = candidate_resolved
-                break
+    target = (vault_root / folder_relative).resolve()
+    try:
+        target.relative_to(vault_root)
+    except ValueError as exc:
+        raise WriteError(f"folder escapes vault root: {folder_raw}") from exc
 
-    if selected is None:
-        raise WriteNewTemplateError(
-            f"template not found in {templates_root}: {template_name}"
+    target.mkdir(parents=True, exist_ok=True)
+    if not target.is_dir():
+        raise WriteError(f"target folder is not a directory: {target}")
+    return target
+
+
+def _resolve_template(vault_root: Path, template: str) -> tuple[str, str]:
+    template_raw = str(template).strip()
+    if not template_raw:
+        raise WriteError("template must be a non-empty string")
+
+    template_name = template_raw[:-3] if template_raw.endswith(".md") else template_raw
+    if "/" in template_name or "\\" in template_name:
+        raise WriteError(
+            f"invalid template '{template_raw}': expected template name only"
+        )
+    if template_name.startswith("_"):
+        raise WriteError(
+            f"template names starting with '_' are not selectable: {template_name}"
         )
 
+    templates_root = (vault_root / "_common" / "templates").resolve()
+    if not templates_root.is_dir():
+        raise WriteError(f"template directory is missing: {templates_root}")
+
+    template_path = (templates_root / f"{template_name}.md").resolve()
     try:
-        selected.relative_to(templates_root)
+        template_path.relative_to(templates_root)
     except ValueError as exc:
-        raise WriteNewTemplateError(
-            f"template must resolve under {templates_root}: {selected}"
-        ) from exc
+        raise WriteError(f"template path escapes template root: {template_path}") from exc
+    if not template_path.is_file():
+        raise WriteError(f"template not found: {template_path}")
 
-    if selected.suffix.lower() not in MARKDOWN_SUFFIXES:
-        raise WriteNewTemplateError(f"template is not markdown: {selected}")
-
-    return selected
+    return template_name, str(template_path)
 
 
-def _find_vault_root(start_path: Path) -> Path:
-    for parent in [start_path.resolve(), *start_path.resolve().parents]:
-        obsidian_dir = parent / ".obsidian"
-        common_templates_dir = parent / "_common" / "templates"
-        if obsidian_dir.is_dir() and common_templates_dir.is_dir():
-            return parent
+def _read_confirmation(prompt: str, *, tty_reader: TextIO | None = None) -> str:
+    if tty_reader is not None:
+        print(prompt)
+        line = tty_reader.readline()
+        return line.strip().lower() if line else ""
 
-    raise WriteNewTemplateError(
-        f"could not resolve vault root from path: {start_path}"
+    print(prompt)
+    try:
+        with Path("/dev/tty").open("r", encoding="utf-8") as handle:
+            line = handle.readline()
+    except OSError as exc:
+        raise WriteError("confirmation requires an interactive TTY") from exc
+    return line.strip().lower() if line else ""
+
+
+def run(
+    *,
+    folder: str,
+    template: str,
+    input_stream,
+    cwd: Path | None = None,
+    tty_reader: TextIO | None = None,
+) -> bool:
+    vault_root = _resolve_current_vault(cwd or Path.cwd())
+    folder_path = _resolve_folder(vault_root, folder)
+    template_name, template_path = _resolve_template(vault_root, template)
+    display = _vault_display_name(vault_root)
+    prompt = (
+        f"ingesting into {display} folder {folder_path.relative_to(vault_root)} "
+        f"apply template {template_name} y/n"
     )
 
+    if _read_confirmation(prompt, tty_reader=tty_reader) != "y":
+        return False
 
-def _resolve_note_stem(name: str, template_path: Path) -> str:
-    text = str(name or "").strip()
-    if not text:
-        return template_path.stem
-    return text.replace(".md", "").replace(".markdown", "").strip()
-
-
-def run(*, template: str, name: str, path: str) -> Path:
-    target_dir = ensure_directory(path)
-    vault_root = _find_vault_root(target_dir)
-    template_path = _resolve_template_path(template, vault_root)
-
-    try:
-        content = template_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise WriteNewTemplateError(f"failed to read template: {template_path}") from exc
-
-    stem = _resolve_note_stem(name, template_path)
-    output_path = resolve_unique_markdown_path(target_dir, stem)
-    atomic_write_text(output_path, content)
-    return output_path
+    write_new_records_with_template(
+        template_path=template_path,
+        target_path=str(folder_path),
+        debug_routing=False,
+        input_stream=input_stream,
+    )
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
     command_parser = parser()
     args = command_parser.parse_args(argv)
+    if not has_piped_stdin(sys.stdin):
+        command_parser.print_usage(sys.stderr)
+        print("ERROR: expected NDJSON input from stdin (pipe or < file)", file=sys.stderr)
+        return 1
 
     try:
-        created = run(template=args.template, name=args.name, path=args.path)
+        completed = run(
+            folder=args.folder,
+            template=args.template,
+            input_stream=sys.stdin,
+        )
+        return 0 if completed else 0
     except WriteError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
@@ -144,9 +177,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    print(created)
-    return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

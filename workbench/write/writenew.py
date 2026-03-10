@@ -49,6 +49,27 @@ def write_new_records(
         atomic_write_text(output_path, markdown)
 
 
+def write_new_records_with_template(
+    *,
+    template_path: str,
+    target_path: str,
+    debug_routing: bool,
+    input_stream: Iterable[str],
+) -> None:
+    schema = load_schema_from_template(template_path=template_path)
+    target_dir = ensure_directory(target_path)
+
+    for index, record in enumerate(iter_input_records(input_stream), start=1):
+        stem = preferred_filename_stem(record)
+        output_path = resolve_unique_markdown_path(target_dir, stem)
+        metadata = build_frontmatter(schema=schema, record=record)
+        markdown = Document(metadata=metadata, content=record.content).write_text()
+
+        if debug_routing:
+            print(f"[write-new] record {index} -> {output_path}", file=sys.stderr)
+        atomic_write_text(output_path, markdown)
+
+
 def load_schema(*, schema_name: str, studio_root: str) -> WriteSchema:
     normalized = str(schema_name).strip()
     if not normalized:
@@ -93,6 +114,31 @@ def load_schema(*, schema_name: str, studio_root: str) -> WriteSchema:
         schema=schema_version,
         class_name=class_name.strip(),
         defaults=copy.deepcopy(defaults),
+    )
+
+
+def load_schema_from_template(*, template_path: str) -> WriteSchema:
+    path = Path(template_path).expanduser().resolve()
+    if not path.is_file():
+        raise WriteError(f"template file not found: {path}")
+
+    try:
+        parsed = Document.read_file(path)
+    except (ValueError, OSError, FileNotFoundError) as exc:
+        raise WriteError(f"failed to parse template markdown: {path}") from exc
+
+    payload = dict(parsed.metadata or {})
+    class_name = payload.get("class")
+    if not isinstance(class_name, str) or not class_name.strip():
+        raise WriteError(f"template missing required non-empty 'class': {path}")
+
+    defaults = copy.deepcopy(payload)
+    defaults.pop("class", None)
+
+    return WriteSchema(
+        schema=path.stem,
+        class_name=class_name.strip(),
+        defaults=defaults,
     )
 
 

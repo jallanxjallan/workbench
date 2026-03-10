@@ -17,7 +17,7 @@ Namespaces:
 Top-level commands:
 
 - `wkb write-new --schema <name> --path <dir>`
-- `wkb writenew --template <template_name> [--name <note_name>] [--path <dir>]`
+- `wkb writenew [--folder <name>] [--template <name>]`
 - `wkb write-back [--studio-root <path>]`
 - `wkb write-stream`
 - `wkb stream`
