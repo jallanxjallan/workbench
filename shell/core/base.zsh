@@ -6,11 +6,11 @@
 # Owns static shell wiring for Workbench commands and anchors.
 
 if [[ -z "${WORKBENCH_HOME:-}" || "${WORKBENCH_HOME}" == "$HOME/Workbench" ]]; then
-  export WORKBENCH_HOME="$HOME/Workshop/workbench"
+  export WORKBENCH_HOME="$HOME/Workbench"
 fi
 
 if [[ -z "${AUTOSCRIBE_HOME:-}" || "${AUTOSCRIBE_HOME}" == "$HOME/Autoscribe" ]]; then
-  export AUTOSCRIBE_HOME="$HOME/Workshop/autoscribe"
+  export AUTOSCRIBE_HOME="$HOME/Autoscribe"
 fi
 
 if [[ -z "${STUDIO_ROOT:-}" ]]; then

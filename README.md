@@ -27,8 +27,8 @@ Top-level commands:
 
 Obsidian scaffolding roots used by `create-vault`:
 
-- `~/Workshop/workbench/obsidian/vault-template` (template source)
-- `~/Workshop/workbench/obsidian/vault-common` (symlink target for `_common`)
+- `~/Workbench/obsidian/vault-template` (template source)
+- `~/Workbench/obsidian/vault-common` (symlink target for `_common`)
 - Per-vault registry file: `_vault_registry` (single JSON object)
 
 Vault template command:
@@ -109,7 +109,7 @@ Layer responsibilities:
 
 Workbench does **not** own Pandoc filters/templates internally.
 
-- Pandoc assets and filter logic live in the standalone `pandoc-toolchain` repository.
+- Pandoc assets and filter logic live in the standalone `tls` package under `~/Tools`.
 - Workbench invokes Pandoc via CLI only.
 - Workbench does not import Pandoc filter modules from its own Python package.
 
@@ -118,7 +118,7 @@ Workbench does **not** own Pandoc filters/templates internally.
 Workbench may expose a local convenience symlink:
 
 ```bash
-cd ~/Workshop/workbench
+cd ~/Workbench
 ln -sfn "$HOME/.local/share/pandoc" pandoc-data
 ```
 
@@ -126,13 +126,13 @@ ln -sfn "$HOME/.local/share/pandoc" pandoc-data
 
 ### CLI Invocation Pattern
 
-Use explicit data-dir wiring:
+Use explicit data-dir wiring when needed:
 
 ```bash
 pandoc "$INPUT.md" \
-  --data-dir "$PWD/pandoc-data" \
+  --data-dir "$HOME/.local/share/pandoc" \
   --template default \
-  --lua-filter "$PWD/pandoc-data/filters/lua/content-filtering/filter_components.lua" \
+  --lua-filter "$HOME/.local/share/pandoc/filters/lua/content-filtering/filter_components.lua" \
   -o "$OUTPUT.pdf"
 ```
 
@@ -140,7 +140,7 @@ Optional shell helper:
 
 ```bash
 wb-pandoc() {
-  pandoc --data-dir "$PWD/pandoc-data" "$@"
+  pandoc --data-dir "$HOME/.local/share/pandoc" "$@"
 }
 ```
 

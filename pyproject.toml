@@ -1,8 +1,13 @@
 [project]
 name = "workbench"
 version = "0.1.0"
+description = "Workbench runtime tooling and CLI"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = ["PyYAML>=5.1", "Pillow>=10.0.0"]
+
+[project.urls]
+Repository = "file:///home/jeremy/Workbench"
 
 [project.scripts]
 wkb = "workbench.cli.main:entrypoint"

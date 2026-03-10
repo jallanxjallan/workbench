@@ -22,11 +22,11 @@ def _resolve_anchor(name: str, default: Path) -> Path:
 
 WORKBENCH_HOME = _resolve_anchor(
     WORKBENCH_HOME_ENV,
-    Path.home().resolve() / "Workshop" / "workbench",
+    Path.home().resolve() / "Workbench",
 )
 AUTOSCRIBE_HOME = _resolve_anchor(
     AUTOSCRIBE_HOME_ENV,
-    Path.home().resolve() / "Workshop" / "autoscribe",
+    Path.home().resolve() / "Autoscribe",
 )
 STUDIO_ROOT = _resolve_anchor(
     STUDIO_ROOT_ENV,

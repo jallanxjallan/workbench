@@ -2,10 +2,10 @@
 
 # Static global anchors only (no cwd-sensitive behavior).
 if [[ -z "${WORKBENCH_HOME:-}" || "${WORKBENCH_HOME}" == "$HOME/Workbench" ]]; then
-  export WORKBENCH_HOME="$HOME/Workshop/workbench"
+  export WORKBENCH_HOME="$HOME/Workbench"
 fi
 if [[ -z "${AUTOSCRIBE_HOME:-}" || "${AUTOSCRIBE_HOME}" == "$HOME/Autoscribe" ]]; then
-  export AUTOSCRIBE_HOME="$HOME/Workshop/autoscribe"
+  export AUTOSCRIBE_HOME="$HOME/Autoscribe"
 fi
 if [[ -z "${STUDIO_ROOT:-}" ]]; then
   export STUDIO_ROOT="$HOME/Studio"
@@ -20,6 +20,7 @@ export LESS='-R'
 
 path=(
   "$WORKBENCH_HOME/bin"
+  "$HOME/Tools/bin"
   "$HOME/Python3.13Env/bin"
   "$HOME/.local/bin"
   $path

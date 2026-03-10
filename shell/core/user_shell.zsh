@@ -7,7 +7,7 @@
 # functions so ~/.zshrc only needs one source line.
 
 if [[ -z "${WORKBENCH_HOME:-}" || "${WORKBENCH_HOME}" == "$HOME/Workbench" ]]; then
-  export WORKBENCH_HOME="$HOME/Workshop/workbench"
+  export WORKBENCH_HOME="$HOME/Workbench"
 fi
 
 if [[ -f "$WORKBENCH_HOME/shell/core/base.zsh" ]]; then

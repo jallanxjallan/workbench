@@ -19,5 +19,5 @@ Shared Obsidian tooling intended to be symlinked into project vaults as `_common
 
 ## Manual Setup
 - Create `_project` symlink to project-owned source material.
-- Create `_common` symlink to `Workshop/workbench/obsidian/vault-common`.
+- Create `_common` symlink to `Workbench/obsidian/vault-common`.
 - Keep both links relative where possible.

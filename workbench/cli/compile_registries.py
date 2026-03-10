@@ -32,7 +32,7 @@ def _parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_RUNTIME_REGISTRIES_ROOT),
         help=(
             "Runtime registries root (default: "
-            "~/Workshop/workbench/_compiled)."
+            "~/Workbench/_compiled)."
         ),
     )
     return parser
