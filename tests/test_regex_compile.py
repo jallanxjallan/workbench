@@ -8,8 +8,8 @@ import pytest
 from workbench.regex.compile_patterns import (
     PatternCompileError,
     compile_patterns,
-    main as compile_patterns_main,
 )
+from workbench.cli.compile_patterns import main as compile_patterns_main
 
 
 def _write_yaml(path: Path, content: str) -> Path:
@@ -53,7 +53,7 @@ def test_compile_patterns_builds_and_pattern_json_and_logs(
     assert out == "compiled indonesia_nickel_policy"
 
 
-def test_compile_patterns_escapes_or_terms(tmp_path: Path) -> None:
+def test_compile_patterns_preserves_or_regex_terms(tmp_path: Path) -> None:
     source_root = tmp_path / "Studio" / "regex"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
@@ -71,7 +71,7 @@ def test_compile_patterns_escapes_or_terms(tmp_path: Path) -> None:
 
     outputs = compile_patterns(source_root=source_root, output_root=output_root)
     data = json.loads(outputs[0].read_text(encoding="utf-8"))
-    assert data["pattern"] == r"(c\+\+|a\.b|\(rust\))"
+    assert data["pattern"] == r"(c++|a.b|(rust))"
 
 
 def test_compile_patterns_rejects_missing_name(tmp_path: Path) -> None:

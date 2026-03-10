@@ -1,52 +1,64 @@
-from workbench.cli.registry import REGISTRY, ROOT_COMMANDS
+from __future__ import annotations
+
+import pytest
+
+from workbench.cli import discover_commands
+import workbench.cli.main as cli_main
+import workbench.cli.write_new as write_new_module
 
 
-def test_scan_sentinel_command_points_to_scan_sentinel_module() -> None:
-    entry = ROOT_COMMANDS["scan-sentinel"]
-    assert entry.module == "workbench.cli.scan_sentinel"
+def test_discovery_includes_expected_root_commands() -> None:
+    commands = discover_commands()
+
+    assert commands["write-new"] == "workbench.cli.write_new"
+    assert commands["write-back"] == "workbench.cli.write_back"
+    assert commands["write-stream"] == "workbench.cli.write_stream"
+    assert commands["stream"] == "workbench.cli.stream"
+    assert commands["generate-slugs"] == "workbench.cli.generate_slugs"
+    assert commands["compile-registries"] == "workbench.cli.compile_registries"
+    assert commands["compile-assets"] == "workbench.cli.compile_assets"
+    assert commands["compile-patterns"] == "workbench.cli.compile_patterns"
+    assert commands["find-duplicates"] == "workbench.cli.find_duplicates"
 
 
-def test_stream_command_points_to_stream_module() -> None:
-    entry = ROOT_COMMANDS["stream"]
-    assert entry.module == "workbench.cli.stream"
+def test_discovery_excludes_non_command_modules() -> None:
+    commands = discover_commands()
+
+    assert "main" not in commands
+    assert "slug" not in commands
 
 
-def test_generate_slugs_command_points_to_generate_slugs_module() -> None:
-    entry = ROOT_COMMANDS["generate-slugs"]
-    assert entry.module == "workbench.cli.generate_slugs"
+def test_legacy_commands_not_discovered() -> None:
+    commands = discover_commands()
+
+    assert "ingest" not in commands
+    assert "create-project" not in commands
+    assert "import-project" not in commands
+    assert "generate-thumbs" not in commands
 
 
-def test_generate_thumbs_command_points_to_generate_thumbs_module() -> None:
-    entry = ROOT_COMMANDS["generate-thumbs"]
-    assert entry.module == "workbench.cli.generate_thumbs"
+def test_hierarchical_dispatch_supports_write_new(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: dict[str, list[str] | None] = {}
+
+    def _fake_main(argv: list[str] | None = None) -> int:
+        called["argv"] = argv
+        return 0
+
+    monkeypatch.setattr(write_new_module, "main", _fake_main)
+
+    rc = cli_main.main(["write", "new", "--help"])
+
+    assert rc == 0
+    assert called["argv"] == ["--help"]
 
 
-def test_compile_registries_command_points_to_compile_registries_module() -> None:
-    entry = ROOT_COMMANDS["compile-registries"]
-    assert entry.module == "workbench.cli.compile_registries"
+def test_help_subcommand_supports_hierarchical_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    rc = cli_main.main(["help", "write", "new"])
+    out = capsys.readouterr().out
 
-
-def test_compile_assets_command_points_to_compile_assets_module() -> None:
-    entry = ROOT_COMMANDS["compile-assets"]
-    assert entry.module == "workbench.cli.compile_assets"
-
-
-def test_find_duplicates_command_points_to_find_duplicates_module() -> None:
-    entry = ROOT_COMMANDS["find-duplicates"]
-    assert entry.module == "workbench.cli.find_duplicates"
-
-
-def test_legacy_ingest_namespace_removed() -> None:
-    assert "ingest" not in REGISTRY
-
-
-def test_legacy_slug_namespace_removed() -> None:
-    assert "slug" not in REGISTRY
-
-
-def test_create_project_command_removed() -> None:
-    assert "create-project" not in ROOT_COMMANDS
-
-
-def test_import_project_command_removed() -> None:
-    assert "import-project" not in ROOT_COMMANDS
+    assert rc == 0
+    assert "usage: write-new" in out

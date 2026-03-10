@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 
 import pytest
 
 import workbench.write.writeback as writeback_module
 from workbench.interop.document import Document
+from workbench.lib.regex_registry import RegexPattern
 from workbench.lib.sentinel import insert_batch_sentinel, read_batch_sentinel
 from workbench.write.common import WriteError
 
@@ -120,3 +122,60 @@ def test_writeback_routes_to_path_from_slug_index(
     assert "Old condor" not in condor_text
     assert read_batch_sentinel(condor) is None
     assert read_batch_sentinel(hornbill) == "batch-1"
+
+
+def test_build_slug_index_parses_ndjson_rows_from_rg(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    one = tmp_path / "vault" / "notes" / "hornbill.md"
+    two = tmp_path / "vault" / "notes" / "condor.md"
+    _write(one, _markdown(slug="hornbill", body="One", batch_slug="batch-1"))
+    _write(two, _markdown(slug="condor", body="Two", batch_slug="batch-1"))
+
+    calls: list[tuple[str, Path, bool, bool]] = []
+
+    def _fake_load_regex(name: str) -> RegexPattern:
+        assert name == "slug_field"
+        return RegexPattern(
+            name="slug_field",
+            pattern=r"slug:\s*[a-z0-9._-]+",
+            engine="default",
+            ignore_case=False,
+        )
+
+    def _fake_rg_search(
+        pattern: str,
+        root: Path,
+        *,
+        ignore_case: bool = False,
+        pcre2: bool = False,
+    ):
+        calls.append((pattern, root, ignore_case, pcre2))
+        yield json.dumps(
+            {
+                "path": str(one),
+                "line": 2,
+                "text": "slug: hornbill",
+            }
+        )
+        yield json.dumps(
+            {
+                "path": str(two),
+                "line": 2,
+                "text": "slug: condor",
+            }
+        )
+
+    monkeypatch.setattr(writeback_module, "load_regex", _fake_load_regex)
+    monkeypatch.setattr(writeback_module, "rg_search", _fake_rg_search)
+
+    index = writeback_module.build_slug_index(tmp_path / "vault")
+
+    assert calls == [
+        (r"slug:\s*[a-z0-9._-]+", (tmp_path / "vault").resolve(), False, False)
+    ]
+    assert index == {
+        "condor": two,
+        "hornbill": one,
+    }
