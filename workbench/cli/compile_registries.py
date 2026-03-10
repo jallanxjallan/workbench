@@ -19,7 +19,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="compile-registries",
         description=(
             "Compile Studio YAML registries into runtime JSON under "
-            "obsidian/vault-registries/studio."
+            "WORKBENCH/_compiled."
         ),
     )
     parser.add_argument(
@@ -32,7 +32,7 @@ def _parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_RUNTIME_REGISTRIES_ROOT),
         help=(
             "Runtime registries root (default: "
-            "~/Workshop/workbench/obsidian/vault-registries/studio)."
+            "~/Workshop/workbench/_compiled)."
         ),
     )
     return parser
@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     runtime_root = Path(args.runtime_root).expanduser().resolve()
 
     try:
-        editorial_dst = compile_registries(studio_root, runtime_root)
+        compile_registries(studio_root, runtime_root)
     except CompileRegistriesError as exc:
         print(f"[compile-registries] error: {exc}", file=sys.stderr)
         return 1
@@ -52,8 +52,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[compile-registries] error: {exc}", file=sys.stderr)
         return 1
 
-    print(f"Compiled editorial registry -> {editorial_dst}")
-    print("Registry compilation complete.")
     return 0
 
 
