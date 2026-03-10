@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from workbench.interop.document import Document
 from workbench.lib.rg import RipgrepError, rg_search
+from workbench.lib.regex_registry import RegexPattern, RegexRegistryError, load_regex
 from workbench.slug.builder import build_slug
 from workbench.slug.validator import validate_slug
 
 MARKDOWN_SUFFIXES = (".md", ".markdown")
-SLUG_SENTINEL_PATTERN = r"slug:\s*__SLUG__"
 SLUG_DISCOVERY_EXCLUDED_DIRS = {"_common", "00-templates", ".obsidian"}
 
 
@@ -42,10 +41,11 @@ def _is_within_root(path: Path, root: Path) -> bool:
     return path == root or root in path.parents
 
 
-def _resolve_match_path(*, root: Path, matched_path: Path) -> Path:
-    if matched_path.is_absolute():
-        return matched_path.resolve()
-    return (root / matched_path).resolve()
+def _load_rg_pattern(name: str) -> RegexPattern:
+    try:
+        return load_regex(name)
+    except RegexRegistryError as exc:
+        raise RipgrepError(str(exc)) from exc
 
 
 def _is_discoverable_slug_file(path: Path) -> bool:
@@ -60,16 +60,20 @@ def _is_discoverable_slug_file(path: Path) -> bool:
 
 
 def _discover_slug_sentinel_files(root: Path) -> list[Path]:
-    matches = rg_search(SLUG_SENTINEL_PATTERN, root)
+    pattern = _load_rg_pattern("slug_placeholder")
+    matches = rg_search(
+        pattern.pattern,
+        root,
+        ignore_case=pattern.ignore_case,
+        pcre2=pattern.pcre2,
+    )
     discovered: set[Path] = set()
     for line in matches:
-        try:
-            row = json.loads(line)
-            raw_path = row["path"]
-        except (json.JSONDecodeError, KeyError, TypeError):
-            continue
-
-        file_path = _resolve_match_path(root=root, matched_path=Path(raw_path))
+        row = json.loads(line)
+        line_number = row["line"]
+        text = row["text"]
+        _ = line_number, text
+        file_path = Path(row["path"])
         if not _is_discoverable_slug_file(file_path):
             continue
         discovered.add(file_path)
@@ -77,17 +81,21 @@ def _discover_slug_sentinel_files(root: Path) -> list[Path]:
 
 
 def _find_files_with_slug_value(slug: str, *, root: Path) -> list[Path]:
-    pattern = rf"slug:\s*{re.escape(slug.strip())}\s*$"
-    matches = rg_search(pattern, root)
+    target_slug = slug.strip()
+    pattern = _load_rg_pattern("slug_field")
+    matches = rg_search(
+        pattern.pattern,
+        root,
+        ignore_case=pattern.ignore_case,
+        pcre2=pattern.pcre2,
+    )
     candidates: set[Path] = set()
     for line in matches:
-        try:
-            row = json.loads(line)
-            raw_path = row["path"]
-        except (json.JSONDecodeError, KeyError, TypeError):
-            continue
-
-        file_path = _resolve_match_path(root=root, matched_path=Path(raw_path))
+        row = json.loads(line)
+        line_number = row["line"]
+        text = row["text"]
+        _ = line_number, text
+        file_path = Path(row["path"])
         if file_path.suffix.lower() not in MARKDOWN_SUFFIXES:
             continue
         candidates.add(file_path)
@@ -99,7 +107,7 @@ def _find_files_with_slug_value(slug: str, *, root: Path) -> list[Path]:
         except Exception:  # noqa: BLE001
             continue
         value = doc.metadata.get("slug")
-        if isinstance(value, str) and value.strip() == slug.strip():
+        if isinstance(value, str) and value.strip() == target_slug:
             results.append(file_path)
     return results
 
