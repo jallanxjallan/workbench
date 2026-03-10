@@ -18,8 +18,8 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="compile-registries",
         description=(
-            "Compile Studio YAML registries into runtime JSON under "
-            "WORKBENCH/_compiled."
+            "Compile all Workbench registries, including editorial and "
+            "regex outputs."
         ),
     )
     parser.add_argument(
