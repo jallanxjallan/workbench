@@ -1,6 +1,6 @@
 {
   "name": "external_links",
-  "pattern": "(https\\?://\\[\\^\\\\s\\\\\\)\\]\\+|file://\\[\\^\\\\s\\\\\\)\\]\\+)",
+  "pattern": "(https?://[^\\s\\)]+|file://[^\\s\\)]+)",
   "engine": "default",
   "ignore_case": true,
   "version": 1

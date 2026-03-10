@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 from workbench.config.roots import STUDIO_ROOT
-from workbench.lib.compile_assets import CompileAssetsError, compile_assets
+from workbench.assets.manager import CompileAssetsError, compile_assets
 
 
 def _parser() -> argparse.ArgumentParser:

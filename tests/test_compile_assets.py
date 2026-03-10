@@ -8,7 +8,9 @@ from PIL import Image
 import workbench.cli.main as cli_main
 from workbench.interop.document import Document
 import workbench.lib.compile_assets as compile_assets_module
+import workbench.assets.discovery as assets_discovery_module
 from workbench.lib.compile_assets import compile_assets
+from workbench.lib.regex_registry import RegexPattern
 
 
 def _create_vault(tmp_path: Path, name: str) -> tuple[Path, Path, Path]:
@@ -173,28 +175,43 @@ def test_discover_uri_links_uses_single_rg_pass(
     studio_root = tmp_path / "Studio"
     studio_root.mkdir(parents=True, exist_ok=True)
 
-    calls: list[tuple[str, Path]] = []
+    calls: list[tuple[str, Path, bool, bool]] = []
 
     def _fake_rg_search(
         pattern: str,
         root: Path,
+        *,
+        ignore_case: bool = False,
+        pcre2: bool = False,
     ) -> list[str]:
-        calls.append((pattern, root))
+        calls.append((pattern, root, ignore_case, pcre2))
         return [
             json.dumps(
                 {
-                    "path": "vault/doc.md",
+                    "path": str(studio_root / "vault" / "doc.md"),
                     "line": 1,
                     "text": "[img](file:///tmp/pic.jpg)",
                 }
             )
         ]
 
-    monkeypatch.setattr(compile_assets_module, "rg_search", _fake_rg_search)
+    def _fake_load_regex(name: str) -> RegexPattern:
+        assert name == "external_links"
+        return RegexPattern(
+            name="external_links",
+            pattern=r"https?://[^\s\)]+",
+            engine="default",
+            ignore_case=True,
+        )
+
+    monkeypatch.setattr(assets_discovery_module, "load_regex", _fake_load_regex)
+    monkeypatch.setattr(assets_discovery_module, "rg_search", _fake_rg_search)
 
     links = compile_assets_module.discover_uri_links(studio_root)
 
     assert len(calls) == 1
-    assert calls[0][0] == compile_assets_module.URI_LINK_PATTERN
+    assert calls[0][0] == r"https?://[^\s\)]+"
     assert calls[0][1] == studio_root
+    assert calls[0][2] is True
+    assert calls[0][3] is False
     assert len(links) == 1
