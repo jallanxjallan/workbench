@@ -13,6 +13,10 @@ dist/
 .ruff_cache/
 .mypy_cache/
 
+# Deterministic generated Workbench artifacts
+/_compiled/regex/*.json
+/_compiled/registries/*.json
+
 # Local development scratch space
 dev/experiments/root_pytest_cache/
 dev/experiments/tmp_artifacts/
