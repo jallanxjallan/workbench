@@ -1,10 +1,17 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Repository-local Workbench CLI launcher."""
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-WORKBENCH_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+from __future__ import annotations
 
-PYTHON_BIN="${WORKBENCH_PYTHON:-python3}"
-export PYTHONPATH="${WORKBENCH_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+from pathlib import Path
+import sys
 
-exec "${PYTHON_BIN}" -m workbench.cli.main "$@"
+WORKBENCH_ROOT = Path(__file__).resolve().parents[1]
+if str(WORKBENCH_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKBENCH_ROOT))
+
+from workbench.cli.main import main
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
