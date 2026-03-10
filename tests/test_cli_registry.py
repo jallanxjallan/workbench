@@ -17,7 +17,6 @@ def test_discovery_includes_expected_root_commands() -> None:
     assert commands["generate-slugs"] == "workbench.cli.generate_slugs"
     assert commands["compile-registries"] == "workbench.cli.compile_registries"
     assert commands["compile-assets"] == "workbench.cli.compile_assets"
-    assert commands["compile-patterns"] == "workbench.cli.compile_patterns"
     assert commands["find-duplicates"] == "workbench.cli.find_duplicates"
 
 
@@ -35,6 +34,7 @@ def test_legacy_commands_not_discovered() -> None:
     assert "create-project" not in commands
     assert "import-project" not in commands
     assert "generate-thumbs" not in commands
+    assert "compile-patterns" not in commands
 
 
 def test_hierarchical_dispatch_supports_write_new(

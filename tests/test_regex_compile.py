@@ -9,13 +9,20 @@ from workbench.regex.compile_patterns import (
     PatternCompileError,
     compile_patterns,
 )
-from workbench.cli.compile_patterns import main as compile_patterns_main
+from workbench.cli.compile_registries import main as compile_registries_main
 
 
 def _write_yaml(path: Path, content: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
+
+
+def _write_editorial_yaml(studio_root: Path) -> Path:
+    return _write_yaml(
+        studio_root / "registries" / "editorial.yaml",
+        "folders: {}\nclasses: {}\ntemplates: {}\n",
+    )
 
 
 def test_compile_patterns_builds_and_pattern_json_and_logs(
@@ -158,9 +165,10 @@ def test_compile_patterns_rejects_name_filename_mismatch(tmp_path: Path) -> None
         compile_patterns(source_root=source_root, output_root=output_root)
 
 
-def test_compile_patterns_cli_main_compiles_files(tmp_path: Path) -> None:
-    source_root = tmp_path / "Studio" / "regex"
-    output_root = tmp_path / "Workbench" / "_compiled" / "regex"
+def test_compile_registries_cli_compiles_regex_outputs(tmp_path: Path) -> None:
+    studio_root = tmp_path / "Studio"
+    source_root = studio_root / "regex"
+    runtime_root = tmp_path / "Workbench" / "_compiled"
     _write_yaml(
         source_root / "ai_regulation.yaml",
         (
@@ -172,10 +180,11 @@ def test_compile_patterns_cli_main_compiles_files(tmp_path: Path) -> None:
             "  - eu regulation\n"
         ),
     )
+    _write_editorial_yaml(studio_root)
 
-    rc = compile_patterns_main(
-        ["--source-root", str(source_root), "--output-root", str(output_root)]
+    rc = compile_registries_main(
+        ["--studio-root", str(studio_root), "--runtime-root", str(runtime_root)]
     )
 
     assert rc == 0
-    assert (output_root / "ai_regulation.json").is_file()
+    assert (runtime_root / "regex" / "ai_regulation.json").is_file()
