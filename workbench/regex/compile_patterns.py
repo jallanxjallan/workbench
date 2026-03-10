@@ -2,15 +2,9 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 from pathlib import Path
-import re
-import sys
-
-if __package__ in (None, ""):
-    sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from workbench.cli.create_vault import load_registry
 
@@ -102,11 +96,10 @@ def _validate_terms(data: dict[str, object], *, mode: str, path: Path) -> list[s
 
 
 def _build_pattern(*, mode: str, terms: list[str]) -> str:
-    escaped_terms = [re.escape(term) for term in terms]
     if mode == "and":
-        lookaheads = "".join(f"(?=.*{term})" for term in escaped_terms)
+        lookaheads = "".join(f"(?=.*{term})" for term in terms)
         return f"(?s){lookaheads}"
-    return f"({'|'.join(escaped_terms)})"
+    return f"({'|'.join(terms)})"
 
 
 def compile_pattern_file(path: Path) -> dict[str, object]:
@@ -159,39 +152,3 @@ def compile_patterns(
         print(f"compiled {name}")
 
     return tuple(compiled_paths)
-
-
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="compile-patterns",
-        description=__doc__,
-    )
-    parser.add_argument(
-        "--source-root",
-        default=str(DEFAULT_PATTERN_SOURCE_ROOT),
-        help="Directory containing YAML pattern definitions (default: STUDIO_ROOT/regex).",
-    )
-    parser.add_argument(
-        "--output-root",
-        default=str(DEFAULT_PATTERN_OUTPUT_ROOT),
-        help="Directory for compiled JSON pattern specs (default: WORKBENCH/_compiled/regex).",
-    )
-    return parser
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = _parser()
-    args = parser.parse_args(argv)
-    try:
-        compile_patterns(
-            source_root=Path(args.source_root),
-            output_root=Path(args.output_root),
-        )
-        return 0
-    except PatternCompileError as exc:
-        print(f"ERROR: {exc}")
-        return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
