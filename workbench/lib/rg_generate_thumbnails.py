@@ -17,6 +17,7 @@ Designed to be called from Workbench utilities.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Dict, List
@@ -52,8 +53,15 @@ def scan_markdown_for_images(root: Path) -> Dict[Path, List[str]]:
     pattern = r"!\[[^\]]*\]\((?![^)]*_thumb\.)[^)]+\)"
 
     results: Dict[Path, List[str]] = {}
-    for match in rg_search(pattern, root_path):
-        md_path = match.path
+    for line in rg_search(pattern, root_path):
+        try:
+            row = json.loads(line)
+            raw_path = row["path"]
+            text = row["text"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+
+        md_path = Path(raw_path)
         if not md_path.is_absolute():
             md_path = (root_path / md_path).resolve()
         else:
@@ -61,7 +69,7 @@ def scan_markdown_for_images(root: Path) -> Dict[Path, List[str]]:
         if md_path.suffix.lower() not in {".md", ".markdown"}:
             continue
 
-        matches = MD_IMAGE_RE.findall(match.text)
+        matches = MD_IMAGE_RE.findall(text)
         if not matches:
             continue
 

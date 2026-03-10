@@ -62,8 +62,14 @@ def _is_discoverable_slug_file(path: Path) -> bool:
 def _discover_slug_sentinel_files(root: Path) -> list[Path]:
     matches = rg_search(SLUG_SENTINEL_PATTERN, root)
     discovered: set[Path] = set()
-    for match in matches:
-        file_path = _resolve_match_path(root=root, matched_path=match.path)
+    for line in matches:
+        try:
+            row = json.loads(line)
+            raw_path = row["path"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+
+        file_path = _resolve_match_path(root=root, matched_path=Path(raw_path))
         if not _is_discoverable_slug_file(file_path):
             continue
         discovered.add(file_path)
@@ -74,8 +80,14 @@ def _find_files_with_slug_value(slug: str, *, root: Path) -> list[Path]:
     pattern = rf"slug:\s*{re.escape(slug.strip())}\s*$"
     matches = rg_search(pattern, root)
     candidates: set[Path] = set()
-    for match in matches:
-        file_path = _resolve_match_path(root=root, matched_path=match.path)
+    for line in matches:
+        try:
+            row = json.loads(line)
+            raw_path = row["path"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+
+        file_path = _resolve_match_path(root=root, matched_path=Path(raw_path))
         if file_path.suffix.lower() not in MARKDOWN_SUFFIXES:
             continue
         candidates.add(file_path)

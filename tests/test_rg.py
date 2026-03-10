@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 
 import pytest
 
 from workbench.lib import rg as rg_module
-from workbench.lib.rg import RGMatch, RipgrepError
+from workbench.lib.rg import RipgrepError
 
 
 def test_rg_search_executes_and_parses_matches(
@@ -22,14 +23,14 @@ def test_rg_search_executes_and_parses_matches(
         ]
     )
 
-    def _fake_run(
-        args: list[str], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         assert args == [
             "rg",
             "--line-number",
-            "--no-heading",
+            "--with-filename",
+            "--absolute",
             "--color=never",
+            "--no-follow",
             "slug:\\s*__SLUG__",
             str(root),
         ]
@@ -37,11 +38,11 @@ def test_rg_search_executes_and_parses_matches(
 
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
 
-    matches = rg_module.rg_search(r"slug:\s*__SLUG__", root)
+    matches = [json.loads(line) for line in rg_module.rg_search(r"slug:\s*__SLUG__", root)]
 
     assert matches == [
-        RGMatch(path=root / "vault" / "one.md", line=12, text="slug: __SLUG__"),
-        RGMatch(path=root / "vault" / "two.md", line=7, text="slug: __SLUG__"),
+        {"path": str(root / "vault" / "one.md"), "line": 12, "text": "slug: __SLUG__"},
+        {"path": str(root / "vault" / "two.md"), "line": 7, "text": "slug: __SLUG__"},
     ]
 
 
@@ -59,16 +60,16 @@ def test_rg_search_ignores_malformed_lines(
         ]
     )
 
-    def _fake_run(
-        args: list[str], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
 
-    matches = rg_module.rg_search("slug:", root)
+    matches = [json.loads(line) for line in rg_module.rg_search("slug:", root)]
 
-    assert matches == [RGMatch(path=root / "doc.md", line=4, text="slug: value")]
+    assert matches == [
+        {"path": str(root / "doc.md"), "line": 4, "text": "slug: value"},
+    ]
 
 
 def test_rg_search_returns_empty_on_no_match(
@@ -78,14 +79,12 @@ def test_rg_search_returns_empty_on_no_match(
     root = (tmp_path / "Studio").resolve()
     root.mkdir(parents=True)
 
-    def _fake_run(
-        args: list[str], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args, 1, stdout="", stderr="")
 
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
 
-    assert rg_module.rg_search("slug:", root) == []
+    assert list(rg_module.rg_search("slug:", root)) == []
 
 
 def test_rg_search_raises_on_nonsearch_error(
@@ -95,15 +94,13 @@ def test_rg_search_raises_on_nonsearch_error(
     root = (tmp_path / "Studio").resolve()
     root.mkdir(parents=True)
 
-    def _fake_run(
-        args: list[str], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args, 2, stdout="", stderr="regex parse error")
 
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
 
     with pytest.raises(RipgrepError, match="regex parse error"):
-        rg_module.rg_search("[", root)
+        list(rg_module.rg_search("[", root))
 
 
 def test_rg_search_raises_when_rg_missing(
@@ -119,4 +116,53 @@ def test_rg_search_raises_when_rg_missing(
     monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
 
     with pytest.raises(RipgrepError, match="ripgrep \\(rg\\) not installed"):
-        rg_module.rg_search("slug:", root)
+        list(rg_module.rg_search("slug:", root))
+
+
+def test_rg_search_supports_option_flags(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = (tmp_path / "Studio").resolve()
+    root.mkdir(parents=True)
+
+    def _fake_run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert args == [
+            "rg",
+            "--line-number",
+            "--with-filename",
+            "--absolute",
+            "--color=never",
+            "-i",
+            "--fixed-strings",
+            "--pcre2",
+            "--multiline",
+            "--follow",
+            "--glob",
+            "*.md",
+            "--glob",
+            "*.markdown",
+            "--glob",
+            "!_common/*",
+            "--glob",
+            "!.obsidian/*",
+            "slug:",
+            str(root),
+        ]
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr="")
+
+    monkeypatch.setattr(rg_module.subprocess, "run", _fake_run)
+
+    list(
+        rg_module.rg_search(
+            "slug:",
+            root,
+            ignore_case=True,
+            fixed_strings=True,
+            pcre2=True,
+            multiline=True,
+            follow_symlinks=True,
+            extensions=(".md", ".markdown"),
+            exclude_dirs=("_common", ".obsidian"),
+        )
+    )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Iterable
@@ -28,8 +29,14 @@ def build_slug_index(root: Path) -> dict[str, Path]:
     matches = rg_search(r"slug:\s*\S+", root_path)
     files: set[Path] = set()
 
-    for match in matches:
-        file_path = match.path
+    for line in matches:
+        try:
+            row = json.loads(line)
+            raw_path = row["path"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+
+        file_path = Path(raw_path)
         if file_path.is_absolute():
             resolved = file_path.resolve()
         else:

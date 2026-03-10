@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from PIL import Image
@@ -8,7 +9,6 @@ import workbench.cli.main as cli_main
 from workbench.interop.document import Document
 import workbench.lib.compile_assets as compile_assets_module
 from workbench.lib.compile_assets import compile_assets
-from workbench.lib.rg import RGMatch
 
 
 def _create_vault(tmp_path: Path, name: str) -> tuple[Path, Path, Path]:
@@ -178,13 +178,15 @@ def test_discover_uri_links_uses_single_rg_pass(
     def _fake_rg_search(
         pattern: str,
         root: Path,
-    ) -> list[RGMatch]:
+    ) -> list[str]:
         calls.append((pattern, root))
         return [
-            RGMatch(
-                path=Path("vault/doc.md"),
-                line=1,
-                text="[img](file:///tmp/pic.jpg)",
+            json.dumps(
+                {
+                    "path": "vault/doc.md",
+                    "line": 1,
+                    "text": "[img](file:///tmp/pic.jpg)",
+                }
             )
         ]
 

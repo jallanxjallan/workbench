@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 from typing import Callable
@@ -156,8 +157,16 @@ def discover_uri_links(studio_root: Path) -> list[SourceLink]:
 
     root_path = studio_root.expanduser().resolve()
     rows: list[SourceLink] = []
-    for match in matches:
-        markdown_file = match.path
+    for line in matches:
+        try:
+            row = json.loads(line)
+            raw_path = row["path"]
+            line_number = int(row["line"])
+            text = row["text"]
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            continue
+
+        markdown_file = Path(raw_path)
         if not markdown_file.is_absolute():
             markdown_file = (root_path / markdown_file).resolve()
         else:
@@ -165,7 +174,7 @@ def discover_uri_links(studio_root: Path) -> list[SourceLink]:
         if markdown_file.suffix.lower() not in {".md", ".markdown"}:
             continue
 
-        for found in _URI_LINK_RE.finditer(match.text):
+        for found in _URI_LINK_RE.finditer(text):
             markdown_link = found.group(0)
             uri = extract_uri_from_markdown_link(markdown_link)
             if uri is None:
@@ -175,7 +184,7 @@ def discover_uri_links(studio_root: Path) -> list[SourceLink]:
                     markdown_file=markdown_file,
                     markdown_link=markdown_link,
                     uri=uri,
-                    line_number=match.line,
+                    line_number=line_number,
                 )
             )
 
