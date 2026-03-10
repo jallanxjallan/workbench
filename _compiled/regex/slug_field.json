@@ -1,0 +1,7 @@
+{
+  "name": "slug_field",
+  "pattern": "(slug:\\\\s\\*\\[a\\-z0\\-9\\._\\-\\]\\+)",
+  "engine": "default",
+  "ignore_case": false,
+  "version": 1
+}

@@ -1,0 +1,7 @@
+name: batch_sentinel
+engine: default
+ignore_case: false
+
+or:
+  - "__BATCH__"
+  - "__IN_PROCESS__"

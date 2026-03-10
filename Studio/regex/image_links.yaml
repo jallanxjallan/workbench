@@ -1,0 +1,6 @@
+name: image_links
+engine: default
+ignore_case: false
+
+or:
+  - "!\\[[^\\]]*\\]\\([^\\)]+\\.(png|jpg|jpeg|webp|gif)\\)"

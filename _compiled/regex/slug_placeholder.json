@@ -1,0 +1,7 @@
+{
+  "name": "slug_placeholder",
+  "pattern": "(slug:\\\\s\\*__SLUG__)",
+  "engine": "default",
+  "ignore_case": false,
+  "version": 1
+}

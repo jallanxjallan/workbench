@@ -1,0 +1,7 @@
+{
+  "name": "image_links",
+  "pattern": "(!\\\\\\[\\[\\^\\\\\\]\\]\\*\\\\\\]\\\\\\(\\[\\^\\\\\\)\\]\\+\\\\\\.\\(png\\|jpg\\|jpeg\\|webp\\|gif\\)\\\\\\))",
+  "engine": "default",
+  "ignore_case": false,
+  "version": 1
+}

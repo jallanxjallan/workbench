@@ -1,0 +1,7 @@
+{
+  "name": "batch_sentinel",
+  "pattern": "(__BATCH__|__IN_PROCESS__)",
+  "engine": "default",
+  "ignore_case": false,
+  "version": 1
+}
