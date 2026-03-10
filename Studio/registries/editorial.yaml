@@ -1,3 +1,6 @@
+# DEPRECATED: Editorial registry is no longer used for note creation.
+# Note creation is now template-driven from vault `_common/templates/`.
+# Retained for staged removal.
 folders:
   contents:
     path: contents

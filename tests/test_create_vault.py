@@ -27,24 +27,7 @@ def _configure_roots(
     _write_file(template_root / ".obsidian" / "app.json", content="{}\n")
     _write_file(template_root / ".obsidian" / "hotkeys.json", content="{}\n")
     _write_file(common_root / "templates" / "passage.md", content="# passage\n")
-    _write_file(
-        studio_root / "registries" / "editorial.yaml",
-        content=(
-            "folders:\n"
-            "  passages:\n"
-            "    path: passages\n"
-            "classes:\n"
-            "  passage:\n"
-            "    template: content_item\n"
-        ),
-    )
-
     monkeypatch.setattr(create_vault_module, "STUDIO_ROOT", studio_root)
-    monkeypatch.setattr(
-        create_vault_module,
-        "EDITORIAL_REGISTRY_YAML_PATH",
-        studio_root / "registries" / "editorial.yaml",
-    )
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_ROOT", obsidian_root)
     monkeypatch.setattr(create_vault_module, "VAULT_TEMPLATE_ROOT", template_root)
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_COMMON_ROOT", common_root)
@@ -89,8 +72,6 @@ def test_create_vault_new_path_creates_registry_template_and_common_link(
         "project_mnemonic",
         "assets_symlink_path",
         "assets_target_path",
-        "editorial_registry_yaml",
-        "editorial_registry",
         "registry_paths",
     }
     assert isinstance(registry["vault_id"], str)
@@ -102,20 +83,6 @@ def test_create_vault_new_path_creates_registry_template_and_common_link(
     assert registry["assets_symlink_path"] == str((vault_path / "_assets").absolute())
     assert registry["assets_target_path"] is None
     assert str(registry["created"]).endswith("Z")
-    assert registry["editorial_registry_yaml"] == str(
-        studio_root / "registries" / "editorial.yaml"
-    )
-    assert registry["editorial_registry"] == {
-        "folders": {"passages": {"path": "passages"}},
-        "classes": {"passage": {"template": "content_item"}},
-    }
-    assert (
-        registry["registry_paths"]["editorial"] == registry["editorial_registry_yaml"]
-    )
-    assert (
-        registry["registry_paths"]["editorial_yaml"]
-        == registry["editorial_registry_yaml"]
-    )
     assert (
         registry["registry_paths"]["assets_symlink"] == registry["assets_symlink_path"]
     )

@@ -12,10 +12,12 @@ Shared Obsidian tooling intended to be symlinked into project vaults as `_common
 - `tools/obsidian-vault-sanity.zsh`: validate symlink safety and common foot-guns.
 
 ## Minimal Layout
-- `templates/`: shared note templates.
 - `scripts/`: shared Obsidian scripts/macros.
 - `queries/`: shared search/query assets.
 - `tools/`: shell helpers for validation/audit.
+
+Note templates live under `_common/templates/`.
+Use `_common/scripts/new_note.js` for dynamic template picking in Templater.
 
 ## Manual Setup
 - Create `_project` symlink to project-owned source material.

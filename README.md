@@ -17,6 +17,7 @@ Namespaces:
 Top-level commands:
 
 - `wkb write-new --schema <name> --path <dir>`
+- `wkb writenew --template <template_name> [--name <note_name>] [--path <dir>]`
 - `wkb write-back [--studio-root <path>]`
 - `wkb write-stream`
 - `wkb stream`
@@ -30,10 +31,19 @@ Obsidian scaffolding roots used by `create-vault`:
 - `~/Workbench/obsidian/vault-template` (template source)
 - `~/Workbench/obsidian/vault-common` (symlink target for `_common`)
 - Per-vault registry file: `_vault_registry` (single JSON object)
+- Per-vault template root: `_common/templates` (pure Markdown templates)
+- Per-vault template script: `_common/scripts/new_note.js`
 
 Vault template command:
 
 - `wkb vault template apply --template <template_name> --files file1.md file2.md`
+
+## Template Workflow (Registry-Free Note Creation)
+
+- Templates are discovered from the filesystem under `_common/templates/`.
+- Templates remain pure Markdown and must not contain Templater commands.
+- Note creation uses `_common/scripts/new_note.js` (Templater picker) and class semantics come from frontmatter `class`.
+- Folder routing by class is intentionally disabled.
 
 Run `wkb <command> --help` or `wkb <namespace> <command> --help` for command-level usage.
 

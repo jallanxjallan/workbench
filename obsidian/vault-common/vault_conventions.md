@@ -1,54 +1,25 @@
-# 🗂️ Vault Conventions
+# Vault Conventions
 
 ## Folder Structure
 | Path | Purpose |
-|------|----------|
-| `_common/` | Holds all shared operational assets (symlinked into each vault) |
-| `_vault_registry.yaml` | Editable vault metadata (mnemonic, label, and vault identity) |
-| `_common/templates/` | Templater templates for new notes (**Ctrl+Alt+M/P/I/T**) |
-| `_common/queries/` | DataviewJS query notes (open via QuickAdd picker) |
-| `_common/scripts/` | QuickAdd and helper scripts, run manually via **Ctrl+P** |
-| *(content folders)* | All other folders contain authored material only |
+| --- | --- |
+| `_common/` | Shared operational assets symlinked from Workbench. |
+| `_common/templates/` | Pure Markdown note templates used by Templater and `wkb`. |
+| `_common/scripts/new_note.js` | Dynamic template picker for note creation. |
+| `contents/`, `topics/`, `images/` | Authored material only; no routing by `class`. |
+| `_vault_registry` | Vault identity metadata (mnemonic and vault id). |
 
----
+## Note Creation
+1. Run `Templater: Run template`.
+2. Pick `_common/scripts/new_note.js`.
+3. Select a template from `_common/templates/`.
+4. Enter note name.
 
-## Hotkey Scheme
+Templates are pure Markdown and must not contain Templater commands.
 
-### 🔍 Global Navigation
-| Hotkey | Action |
-|---------|--------|
-| **Meta + O** | Quick Open (files, headings) |
-| **Meta + F** | Search vault |
-| **Meta + /** | Command Palette |
-| **Ctrl + Alt + ← / → / ↑** | Back / Forward / Reveal in Explorer |
-| **Alt + G** | Open Graph view |
-| **Ctrl + E** | Toggle Edit/Preview |
-
-### 🧩 Templates
-| Hotkey            | Template                                            |
-| ----------------- | --------------------------------------------------- |
-| **Mod + Alt + M** | New *message* note (`_common/templates/message.md`) |
-| **Mod + Alt + P** | New *passage* note (`_common/templates/passage.md`) |
-| **Mod + Alt + I** | New *image* note (`_common/templates/image.md`)     |
-| **Mod + Alt + T** | New *topic* note (`_common/templates/topic.md`)     |
-
-### 📊 Queries
-| Hotkey | Action |
-|---------|--------|
-| **Ctrl + Meta + Q** | Open Common Query picker |
-| **Ctrl + Meta + S** | Open *Draft Status* query |
-
-### ⚙️ QuickAdd Macros
-| Hotkey | Function |
-|---------|-----------|
-| **Ctrl + Alt + N** | New note / session (QuickAdd macro) |
-| **Ctrl + Alt + C** | Compile prompts |
-| **Ctrl + Alt + P** | Process or pipeline step |
-| **Alt + Shift + C** | Custom command (QuickAdd UUID choice) |
-
----
-
-## 📘 Philosophy
-Maintain a single `_common/` folder for all shared internal logic.  
-Keep every other folder focused on content, ensuring clean API input and minimal accidental inclusion of non-text assets.  
-Scripts can be invoked via QuickAdd hotkeys or via **Ctrl + P** as needed.
+## Class Semantics
+- `class` frontmatter is the source of note type semantics.
+- Folder path no longer determines note class.
+- Query by class:
+  - `rg '^class: passage'`
+  - Dataview `WHERE class = "scene"`

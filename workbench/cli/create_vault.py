@@ -25,7 +25,6 @@ from workbench.lib.identity import slug as identity_slug
 from workbench.lib.paths import normalize_vault_name
 from workbench.write.common import atomic_write_text
 
-EDITORIAL_REGISTRY_YAML_PATH = STUDIO_ROOT / "registries" / "editorial.yaml"
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
 VAULT_TEMPLATE_ROOT = DEFAULT_VAULT_TEMPLATE_ROOT
 OBSIDIAN_COMMON_ROOT = DEFAULT_OBSIDIAN_COMMON_ROOT
@@ -75,15 +74,9 @@ def _validate_required_directory(path: Path) -> None:
         raise CreateVaultError(f"Required directory is missing: {path}")
 
 
-def _validate_required_file(path: Path) -> None:
-    if not path.exists() or not path.is_file():
-        raise CreateVaultError(f"Required file is missing: {path}")
-
-
 def _validate_preconditions() -> None:
     _validate_required_directory(VAULT_TEMPLATE_ROOT)
     _validate_required_directory(OBSIDIAN_COMMON_ROOT)
-    _validate_required_file(EDITORIAL_REGISTRY_YAML_PATH)
 
 
 def _resolve_vault_path(vault_path: str) -> Path:
@@ -239,7 +232,6 @@ def _create_vault_registry(vault_path: Path) -> bool:
         return False
 
     mnemonic = _project_mnemonic(vault_path)
-    editorial_registry = load_registry(EDITORIAL_REGISTRY_YAML_PATH)
     assets_symlink_path, assets_target_path = _assets_paths(vault_path)
     record = {
         "vault_id": _generate_ulid(),
@@ -250,11 +242,7 @@ def _create_vault_registry(vault_path: Path) -> bool:
         "project_mnemonic": mnemonic,
         "assets_symlink_path": assets_symlink_path,
         "assets_target_path": assets_target_path,
-        "editorial_registry_yaml": str(EDITORIAL_REGISTRY_YAML_PATH),
-        "editorial_registry": editorial_registry,
         "registry_paths": {
-            "editorial": str(EDITORIAL_REGISTRY_YAML_PATH),
-            "editorial_yaml": str(EDITORIAL_REGISTRY_YAML_PATH),
             "assets_symlink": assets_symlink_path,
             "assets_target": assets_target_path,
         },

@@ -1,6 +1,6 @@
 {
   "command_timeout": 5,
-  "templates_folder": "_system/templates",
+  "templates_folder": "_common/templates",
   "templates_pairs": [
     [
       "",
@@ -11,7 +11,7 @@
   "auto_jump_to_cursor": false,
   "enable_system_commands": false,
   "shell_path": "",
-  "user_scripts_folder": "_system/scripts",
+  "user_scripts_folder": "_common/scripts",
   "enable_folder_templates": true,
   "folder_templates": [
     {
@@ -28,10 +28,7 @@
   ],
   "syntax_highlighting": true,
   "syntax_highlighting_mobile": false,
-  "enabled_templates_hotkeys": [
-    "_system/templates/passage.md",
-    "_system/templates/role.md"
-  ],
+  "enabled_templates_hotkeys": [],
   "startup_templates": [
     ""
   ],

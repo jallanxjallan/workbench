@@ -1,6 +1,6 @@
 ---
 slug: __SLUG__
-class: __CLASS__
+class: image
 stage: draft
 status: new
 shelved: false
@@ -12,3 +12,4 @@ autoscribe:
   hash: __HASH__
 ---
 
+# Image
