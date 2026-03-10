@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
@@ -10,6 +9,7 @@ from typing import Iterable
 
 from workbench.interop.document import Document
 from workbench.lib.rg import RipgrepError, rg_search
+from workbench.lib.regex_registry import RegexRegistryError, load_regex
 from workbench.lib.sentinel import (
     BATCH_SENTINEL_PATTERN,
     read_batch_sentinel,
@@ -17,7 +17,6 @@ from workbench.lib.sentinel import (
 from workbench.write.common import (
     WriteError,
     atomic_write_text,
-    has_piped_stdin,
     iter_input_records,
 )
 
@@ -26,24 +25,29 @@ MARKDOWN_SUFFIXES = (".md", ".markdown")
 
 def build_slug_index(root: Path) -> dict[str, Path]:
     root_path = Path(root).expanduser().resolve()
-    matches = rg_search(r"slug:\s*\S+", root_path)
+    try:
+        pattern = load_regex("slug_field")
+    except RegexRegistryError as exc:
+        raise RipgrepError(str(exc)) from exc
+
+    matches = rg_search(
+        pattern.pattern,
+        root_path,
+        ignore_case=pattern.ignore_case,
+        pcre2=pattern.pcre2,
+    )
     files: set[Path] = set()
 
     for line in matches:
-        try:
-            row = json.loads(line)
-            raw_path = row["path"]
-        except (json.JSONDecodeError, KeyError, TypeError):
-            continue
+        row = json.loads(line)
+        line_number = row["line"]
+        text = row["text"]
+        _ = line_number, text
+        file_path = Path(row["path"])
 
-        file_path = Path(raw_path)
-        if file_path.is_absolute():
-            resolved = file_path.resolve()
-        else:
-            resolved = (root_path / file_path).resolve()
-        if resolved.suffix.lower() not in MARKDOWN_SUFFIXES:
+        if file_path.suffix.lower() not in MARKDOWN_SUFFIXES:
             continue
-        files.add(resolved)
+        files.add(file_path)
 
     index: dict[str, Path] = {}
     for file_path in sorted(files):
@@ -59,19 +63,6 @@ def build_slug_index(root: Path) -> dict[str, Path]:
         index[slug] = file_path
 
     return index
-
-
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="write-back",
-        description=__doc__,
-    )
-    parser.add_argument(
-        "--studio-root",
-        default=str(Path.home().resolve() / "Studio"),
-        help="Studio root used for ripgrep slug resolution (default: ~/Studio).",
-    )
-    return parser
 
 
 def write_back_records(
@@ -115,25 +106,3 @@ def write_back_records(
             print(f"[write-back] record {index} overwrite -> {target_path}", file=sys.stderr)
 
         atomic_write_text(target_path, existing_doc.write_text())
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = _parser()
-    args = parser.parse_args(argv)
-    if not has_piped_stdin(sys.stdin):
-        parser.print_usage(sys.stderr)
-        print("ERROR: expected NDJSON input from stdin (pipe or < file)", file=sys.stderr)
-        return 1
-    try:
-        write_back_records(
-            studio_root=args.studio_root,
-            debug_routing=False,
-            input_stream=sys.stdin,
-        )
-        return 0
-    except WriteError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    except Exception as exc:  # noqa: BLE001
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1

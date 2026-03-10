@@ -4,78 +4,98 @@ from __future__ import annotations
 
 import importlib
 import sys
+from types import ModuleType
 from typing import Callable
 
-from workbench.cli.registry import REGISTRY, ROOT_COMMANDS, CommandEntry
+from workbench.cli import discover_commands
 
 
-def _print_root_help() -> None:
-    print("Usage: wkb <command> [args]")
-    print("       wkb <namespace> <command> [args]")
+def _load_module(module_name: str) -> ModuleType:
+    return importlib.import_module(module_name)
+
+
+def _get_parser(module: ModuleType) -> object | None:
+    parser_factory = getattr(module, "parser", None)
+    if callable(parser_factory):
+        return parser_factory()
+    parser_factory = getattr(module, "_parser", None)
+    if callable(parser_factory):
+        return parser_factory()
+    return None
+
+
+def _command_description(module_name: str) -> str:
+    module = _load_module(module_name)
+    parser = _get_parser(module)
+    if parser is None:
+        return ""
+    return str(getattr(parser, "description", "") or "")
+
+
+def _print_top_help(commands: dict[str, str]) -> None:
+    print("Workbench CLI")
     print()
-    print("Top-level commands:")
-    for name, entry in ROOT_COMMANDS.items():
-        print(f"  {name:<12} {entry.summary}")
+    print("Usage:")
+    print("  wkb <command> [options]")
     print()
-    print("Namespaces:")
-    for name, entry in REGISTRY.items():
-        print(f"  {name:<8} {entry.summary}")
+    print("Commands:")
     print()
-    print("Run `wkb <namespace>` to list commands.")
-    print("Run `wkb <command> --help` for top-level command help.")
-    print("Run `wkb <namespace> <command> --help` for command help.")
-
-
-def _print_namespace_help(namespace: str) -> None:
-    entry = REGISTRY[namespace]
-    print(f"Usage: wkb {namespace} <command> [args]")
+    for name, module_name in sorted(commands.items()):
+        print(f"  {name:18} {_command_description(module_name)}")
     print()
-    print(f"{namespace} commands:")
-    for cmd, cmd_entry in entry.commands.items():
-        print(f"  {cmd:<16} {cmd_entry.summary}")
+    print("Use:")
+    print("  wkb help <command>")
 
 
-def _load_main(entry: CommandEntry) -> Callable[[list[str] | None], int]:
-    module = importlib.import_module(entry.module)
+def _resolve_command(argv: list[str], commands: dict[str, str]) -> tuple[str, int] | None:
+    max_depth = min(4, len(argv))
+    for depth in range(max_depth, 0, -1):
+        candidate = "-".join(argv[:depth])
+        if candidate in commands:
+            return candidate, depth
+    return None
+
+
+def _load_main(module_name: str) -> Callable[[list[str] | None], int]:
+    module = _load_module(module_name)
     main = getattr(module, "main", None)
     if not callable(main):
-        raise RuntimeError(f"module missing callable main(argv): {entry.module}")
+        raise RuntimeError(f"module missing callable main(argv): {module_name}")
     return main
 
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
+    commands = discover_commands()
 
-    if not args or args[0] in {"-h", "--help"}:
-        _print_root_help()
+    if not args or args[0] in {"-h", "--help", "help"}:
+        if args and args[0] == "help" and len(args) > 1:
+            resolved = _resolve_command(args[1:], commands)
+            if resolved is None:
+                print(f"Unknown command: {' '.join(args[1:])}", file=sys.stderr)
+                return 2
+            command, _ = resolved
+            module = _load_module(commands[command])
+            parser = _get_parser(module)
+            if parser is None:
+                print(f"Command has no parser: {command}", file=sys.stderr)
+                return 2
+            parser.print_help()
+            return 0
+        _print_top_help(commands)
         return 0
 
-    root = args[0]
-    root_entry = ROOT_COMMANDS.get(root)
-    if root_entry is not None:
-        command_main = _load_main(root_entry)
-        return int(command_main(args[1:]))
-
-    namespace = root
-    if namespace not in REGISTRY:
-        print(f"wkb: unknown command/namespace '{namespace}'", file=sys.stderr)
-        _print_root_help()
+    resolved = _resolve_command(args, commands)
+    if resolved is None:
+        print(f"Unknown command: {' '.join(args)}", file=sys.stderr)
         return 2
 
-    if len(args) == 1 or args[1] in {"-h", "--help"}:
-        _print_namespace_help(namespace)
+    command, consumed = resolved
+    command_main = _load_main(commands[command])
+    result = command_main(args[consumed:])
+    if result is None:
         return 0
-
-    command = args[1]
-    namespace_entry = REGISTRY[namespace]
-    command_entry = namespace_entry.commands.get(command)
-    if command_entry is None:
-        print(f"wkb: unknown command '{namespace} {command}'", file=sys.stderr)
-        _print_namespace_help(namespace)
-        return 2
-
-    command_main = _load_main(command_entry)
-    return int(command_main(args[2:]))
+    return int(result)
 
 
 def entrypoint() -> int:

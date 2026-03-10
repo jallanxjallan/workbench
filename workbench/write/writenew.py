@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import copy
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +14,6 @@ from workbench.write.common import (
     WriteRecord,
     atomic_write_text,
     ensure_directory,
-    has_piped_stdin,
     iter_input_records,
     preferred_filename_stem,
     resolve_unique_markdown_path,
@@ -27,34 +25,6 @@ class WriteSchema:
     schema: str
     class_name: str
     defaults: dict[str, Any]
-
-
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="write-new",
-        description=__doc__,
-    )
-    parser.add_argument(
-        "--schema",
-        required=True,
-        help="Schema name from Studio/_schemas (for example: passage).",
-    )
-    parser.add_argument(
-        "--path",
-        required=True,
-        help="Target folder where new markdown files are created.",
-    )
-    parser.add_argument(
-        "--studio-root",
-        default=str(Path.home().resolve() / "Studio"),
-        help="Studio root containing _schemas (default: ~/Studio).",
-    )
-    parser.add_argument(
-        "--debug-routing",
-        action="store_true",
-        help="Print resolved output file for each record to stderr.",
-    )
-    return parser
 
 
 def write_new_records(
@@ -155,27 +125,3 @@ def _resolve_schema_path(*, schema_dir: Path, schema_name: str) -> Path | None:
         return yml_path
 
     return None
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = _parser()
-    args = parser.parse_args(argv)
-    if not has_piped_stdin(sys.stdin):
-        parser.print_usage(sys.stderr)
-        print("ERROR: expected NDJSON input from stdin (pipe or < file)", file=sys.stderr)
-        return 1
-    try:
-        write_new_records(
-            schema_name=args.schema,
-            target_path=args.path,
-            studio_root=args.studio_root,
-            debug_routing=args.debug_routing,
-            input_stream=sys.stdin,
-        )
-        return 0
-    except WriteError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    except Exception as exc:  # noqa: BLE001
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
