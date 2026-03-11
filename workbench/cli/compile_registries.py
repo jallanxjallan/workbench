@@ -1,4 +1,4 @@
-"""Compile Studio registry YAML files to runtime JSON registries."""
+"""Compile Workbench registry YAML files to runtime JSON registries."""
 
 from __future__ import annotations
 
@@ -6,10 +6,11 @@ import argparse
 from pathlib import Path
 import sys
 
-from workbench.config.roots import STUDIO_ROOT
+from workbench.config.roots import WORKBENCH_ROOT
 from workbench.lib.compile_registries import (
     CompileRegistriesError,
-    DEFAULT_RUNTIME_REGISTRIES_ROOT,
+    DEFAULT_REGISTRIES_ROOT,
+    DEFAULT_RUNTIME_ROOT,
     compile_registries,
 )
 
@@ -17,34 +18,28 @@ from workbench.lib.compile_registries import (
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="compile-registries",
-        description=(
-            "Compile all Workbench registries, including editorial and "
-            "regex outputs."
-        ),
+        description="Compile Workbench registries into _compiled/registries.",
     )
     parser.add_argument(
-        "--studio-root",
-        default=str(STUDIO_ROOT),
-        help="Studio root directory (default: ~/Studio).",
+        "--registries-root",
+        default=str(DEFAULT_REGISTRIES_ROOT),
+        help=f"Registry source root (default: {WORKBENCH_ROOT / 'registries'}).",
     )
     parser.add_argument(
         "--runtime-root",
-        default=str(DEFAULT_RUNTIME_REGISTRIES_ROOT),
-        help=(
-            "Runtime registries root (default: "
-            "~/Workbench/_compiled)."
-        ),
+        default=str(DEFAULT_RUNTIME_ROOT),
+        help=f"Compiled runtime root (default: {WORKBENCH_ROOT / '_compiled'}).",
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    studio_root = Path(args.studio_root).expanduser().resolve()
+    registries_root = Path(args.registries_root).expanduser().resolve()
     runtime_root = Path(args.runtime_root).expanduser().resolve()
 
     try:
-        compile_registries(studio_root, runtime_root)
+        compile_registries(registries_root, runtime_root)
     except CompileRegistriesError as exc:
         print(f"[compile-registries] error: {exc}", file=sys.stderr)
         return 1

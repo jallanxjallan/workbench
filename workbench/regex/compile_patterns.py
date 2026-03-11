@@ -1,24 +1,19 @@
-"""Compile Studio regex YAML definitions into runtime JSON pattern specs."""
+"""Compile regex YAML definitions into runtime JSON pattern specs."""
 
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 from workbench.cli.create_vault import load_registry
+from workbench.config.roots import WORKBENCH_ROOT
 
 
 SCHEMA_VERSION = 1
 SUPPORTED_ENGINES = {"default", "pcre2"}
 
-_WORKBENCH_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_STUDIO_ROOT = Path(
-    os.environ.get("STUDIO_ROOT", str(Path.home().resolve() / "Studio"))
-).expanduser().resolve()
-
-DEFAULT_PATTERN_SOURCE_ROOT = _DEFAULT_STUDIO_ROOT / "regex"
-DEFAULT_PATTERN_OUTPUT_ROOT = _WORKBENCH_ROOT / "_compiled" / "regex"
+DEFAULT_PATTERN_SOURCE_ROOT = WORKBENCH_ROOT / "regex" / "definitions"
+DEFAULT_PATTERN_OUTPUT_ROOT = WORKBENCH_ROOT / "_compiled" / "regex"
 
 
 class PatternCompileError(RuntimeError):

@@ -45,7 +45,7 @@ def write_new_records(
         markdown = Document(metadata=metadata, content=record.content).write_text()
 
         if debug_routing:
-            print(f"[write-new] record {index} -> {output_path}", file=sys.stderr)
+            print(f"[writenew] record {index} -> {output_path}", file=sys.stderr)
         atomic_write_text(output_path, markdown)
 
 
@@ -66,7 +66,7 @@ def write_new_records_with_template(
         markdown = Document(metadata=metadata, content=record.content).write_text()
 
         if debug_routing:
-            print(f"[write-new] record {index} -> {output_path}", file=sys.stderr)
+            print(f"[writenew] record {index} -> {output_path}", file=sys.stderr)
         atomic_write_text(output_path, markdown)
 
 

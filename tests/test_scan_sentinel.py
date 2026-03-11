@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import shutil
-from types import SimpleNamespace
 
 import pytest
 
@@ -68,23 +67,32 @@ def test_scan_recurses_nested_directories(tmp_path: Path) -> None:
 
 
 def test_scan_normalizes_match_paths_with_backslashes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    stdout = json.dumps(
-        {
-            "type": "match",
-            "data": {
-                "line_number": 1,
-                "path": {"text": ".\\nested\\doc.md"},
-                "lines": {"text": "--- ASC BATCH: slug.value ---\n"},
-            },
-        }
+    target = tmp_path / "nested" / "doc.md"
+    _write(target, "--- ASC BATCH: slug.value ---\nBody\n")
+
+    monkeypatch.setattr(
+        sentinel_scan,
+        "_collect_markdown_files",
+        lambda **_: [target],
     )
 
-    def _fake_run(*args: object, **kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+    def _fake_rg_search(**_: object):
+        yield {
+            "path": target,
+            "line": 1,
+            "text": "--- ASC BATCH: slug.value ---",
+            "groups": [],
+            "before": [],
+            "after": [],
+        }
 
-    monkeypatch.setattr(sentinel_scan.subprocess, "run", _fake_run)
+    monkeypatch.setattr(sentinel_scan, "rg_search", _fake_rg_search)
 
-    rows = sentinel_scan._scan_with_rg(root=tmp_path, query_paths=["."], follow_symlinks=False)
+    rows = sentinel_scan._scan_with_rg(
+        root=tmp_path,
+        query_paths=["."],
+        follow_symlinks=False,
+    )
 
     assert rows == ["nested/doc.md"]
 

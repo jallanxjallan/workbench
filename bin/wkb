@@ -10,8 +10,8 @@ WORKBENCH_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKBENCH_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKBENCH_ROOT))
 
-from workbench.cli.main import main
+from workbench.cli.main import app
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    app(prog_name="wkb")

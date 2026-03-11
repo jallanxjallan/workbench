@@ -4,40 +4,32 @@ import pytest
 
 from workbench.cli import discover_commands
 import workbench.cli.main as cli_main
-import workbench.cli.write_new as write_new_module
+import workbench.cli.writenew as writenew_module
 
 
 def test_discovery_includes_expected_root_commands() -> None:
     commands = discover_commands()
 
-    assert commands["write-new"] == "workbench.cli.write_new"
-    assert commands["write-back"] == "workbench.cli.write_back"
-    assert commands["write-stream"] == "workbench.cli.write_stream"
+    assert commands["writenew"] == "workbench.cli.writenew"
+    assert commands["writeback"] == "workbench.cli.writeback"
+    assert commands["writestream"] == "workbench.cli.writestream"
     assert commands["stream"] == "workbench.cli.stream"
     assert commands["generate-slugs"] == "workbench.cli.generate_slugs"
     assert commands["compile-registries"] == "workbench.cli.compile_registries"
+    assert commands["compile-regex"] == "workbench.cli.compile_regex"
     assert commands["compile-assets"] == "workbench.cli.compile_assets"
     assert commands["find-duplicates"] == "workbench.cli.find_duplicates"
 
 
-def test_discovery_excludes_non_command_modules() -> None:
+def test_discovery_excludes_removed_write_aliases() -> None:
     commands = discover_commands()
 
-    assert "main" not in commands
-    assert "slug" not in commands
+    assert "write-new" not in commands
+    assert "write-back" not in commands
+    assert "write-stream" not in commands
 
 
-def test_legacy_commands_not_discovered() -> None:
-    commands = discover_commands()
-
-    assert "ingest" not in commands
-    assert "create-project" not in commands
-    assert "import-project" not in commands
-    assert "generate-thumbs" not in commands
-    assert "compile-patterns" not in commands
-
-
-def test_hierarchical_dispatch_supports_write_new(
+def test_dispatch_calls_writenew_module_main(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     called: dict[str, list[str] | None] = {}
@@ -46,19 +38,21 @@ def test_hierarchical_dispatch_supports_write_new(
         called["argv"] = argv
         return 0
 
-    monkeypatch.setattr(write_new_module, "main", _fake_main)
+    monkeypatch.setattr(writenew_module, "main", _fake_main)
 
-    rc = cli_main.main(["write", "new", "--help"])
+    rc = cli_main.main(["writenew"])
 
     assert rc == 0
-    assert called["argv"] == ["--help"]
+    assert called["argv"] == []
 
 
-def test_help_subcommand_supports_hierarchical_command(
+def test_help_shows_standardized_write_commands(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    rc = cli_main.main(["help", "write", "new"])
+    rc = cli_main.main(["--help"])
     out = capsys.readouterr().out
 
     assert rc == 0
-    assert "usage: write-new" in out
+    assert "writenew" in out
+    assert "writeback" in out
+    assert "writestream" in out

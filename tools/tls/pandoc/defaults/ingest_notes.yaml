@@ -1,0 +1,5 @@
+from: markdown
+to: markdown
+standalone: false
+filters:
+  - /home/jeremy/Tools/tls/pandoc/filters/emit_ndjson.lua

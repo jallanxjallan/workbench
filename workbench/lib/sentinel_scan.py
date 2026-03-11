@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import re
-import subprocess
 
-from workbench.lib.ndjson_stream import iter_ndjson
 from workbench.lib.paths import PathError, ensure_within
+from workbench.lib.rg import RipgrepError, rg_search
 
 _BATCH_SENTINEL_LINE_RE = re.compile(
     r"^---\s*ASC\s+BATCH:\s*(?P<slug>.+?)\s*---\s*$",
     re.IGNORECASE,
 )
-_RG_BATCH_SENTINEL_REGEX = r"(?im)\A\s*---\s*ASC\s+BATCH:\s*[a-z0-9._-]+\s*---\s*$"
+_RG_BATCH_SENTINEL_LINE_REGEX = r"^---\s*ASC\s+BATCH:\s*[a-z0-9._-]+\s*---\s*$"
+_MARKDOWN_SUFFIXES = {".md", ".markdown"}
 
 
 def is_valid_batch_slug(value: str) -> bool:
@@ -70,55 +71,90 @@ def _scan_with_rg(
     query_paths: list[str],
     follow_symlinks: bool,
 ) -> list[str]:
-    cmd = [
-        "rg",
-        "--json",
-        "--pcre2",
-        "--multiline",
-        "--glob",
-        "*.md",
-        _RG_BATCH_SENTINEL_REGEX,
-        "--",
-        *query_paths,
-    ]
-    if follow_symlinks:
-        cmd.insert(1, "--follow")
-
     try:
-        proc = subprocess.run(
-            cmd,
-            cwd=str(root),
-            capture_output=True,
-            text=True,
+        files = _collect_markdown_files(
+            root=root,
+            query_paths=query_paths,
+            follow_symlinks=follow_symlinks,
         )
-    except FileNotFoundError as exc:
-        raise SentinelScanError("rg command not found") from exc
-
-    if proc.returncode not in (0, 1):
-        raise SentinelScanError(proc.stderr.strip() or "rg scan failed")
+    except OSError as exc:
+        raise SentinelScanError(str(exc)) from exc
 
     rows: list[str] = []
     try:
-        for input_record in iter_ndjson(proc.stdout):
-            if input_record.get("type") != "match":
+        matches = rg_search(
+            pattern=_RG_BATCH_SENTINEL_LINE_REGEX,
+            files=files,
+            extensions=["md", "markdown"],
+            exclude_dirs=[],
+        )
+        for record in matches:
+            line_number = record.get("line")
+            if not isinstance(line_number, int) or line_number != 1:
                 continue
 
-            data = input_record.get("data")
-            if not isinstance(data, dict):
+            line_text = record.get("text")
+            if not isinstance(line_text, str):
+                continue
+            if extract_batch_slug_from_first_line(line_text) is None:
                 continue
 
-            path_data = data.get("path")
-            if not isinstance(path_data, dict):
+            path_value = record.get("path")
+            if not isinstance(path_value, Path):
                 continue
-            path_text = path_data.get("text")
-            if not isinstance(path_text, str) or not path_text:
-                continue
-
-            rows.append(_normalize_match_path(path_text))
-    except ValueError as exc:
-        raise SentinelScanError("invalid rg output") from exc
+            rows.append(_to_relative_posix(root=root, matched_path=path_value))
+    except RipgrepError as exc:
+        raise SentinelScanError(str(exc)) from exc
 
     return rows
+
+
+def _collect_markdown_files(
+    *,
+    root: Path,
+    query_paths: list[str],
+    follow_symlinks: bool,
+) -> list[Path]:
+    root_path = root.expanduser().resolve()
+    discovered: set[Path] = set()
+
+    for raw in query_paths:
+        candidate = (root_path / raw).resolve() if raw != "." else root_path
+        if candidate.is_file():
+            if candidate.suffix.lower() in _MARKDOWN_SUFFIXES:
+                discovered.add(candidate)
+            continue
+        if not candidate.is_dir():
+            continue
+
+        for dirpath, dirnames, filenames in os.walk(
+            candidate,
+            followlinks=follow_symlinks,
+        ):
+            if not follow_symlinks:
+                dirnames[:] = [
+                    name
+                    for name in dirnames
+                    if not (Path(dirpath) / name).is_symlink()
+                ]
+            for filename in filenames:
+                file_path = Path(dirpath) / filename
+                if file_path.suffix.lower() in _MARKDOWN_SUFFIXES:
+                    discovered.add(file_path.resolve())
+
+    return sorted(discovered)
+
+
+def _to_relative_posix(*, root: Path, matched_path: Path) -> str:
+    normalized = _normalize_match_path(matched_path.as_posix())
+    normalized_path = Path(normalized)
+    root_path = root.expanduser().resolve()
+    if normalized_path.is_absolute():
+        try:
+            return normalized_path.relative_to(root_path).as_posix()
+        except ValueError:
+            return normalized_path.as_posix()
+    return normalized
 
 
 def _normalize_match_path(path_text: str) -> str:

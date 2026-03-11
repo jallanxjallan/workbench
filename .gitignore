@@ -25,6 +25,6 @@ dev/experiments/tmp_artifacts/
 pandoc-data
 
 # Noisy obsidian files
-vault_template/.obsidian/workspace.json
+obsidian/templates/.obsidian/workspace.json
 .obsidian/workspace-mobile.json
 .obsidian/cache

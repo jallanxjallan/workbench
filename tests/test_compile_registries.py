@@ -8,15 +8,23 @@ import yaml
 import workbench.cli.compile_registries as compile_registries_cli
 from workbench.lib.compile_registries import (
     compile_editorial_registry,
-    compile_regex_registry,
+    compile_pipeline_registry,
     compile_registries,
+    compile_verbs_registry,
 )
 
 
-def _write_editorial_yaml(studio_root: Path) -> Path:
-    source = studio_root / "registries" / "editorial.yaml"
+def _write_registry_yaml(registries_root: Path, name: str, payload: str) -> Path:
+    source = registries_root / f"{name}.yaml"
     source.parent.mkdir(parents=True, exist_ok=True)
-    source.write_text(
+    source.write_text(payload, encoding="utf-8")
+    return source
+
+
+def _write_standard_registries(registries_root: Path) -> None:
+    _write_registry_yaml(
+        registries_root,
+        "editorial",
         (
             "folders:\n"
             "  passages:\n"
@@ -34,35 +42,21 @@ def _write_editorial_yaml(studio_root: Path) -> Path:
             "    path: _common/templates/content_item.md\n"
             "    score: 100\n"
         ),
-        encoding="utf-8",
     )
-    return source
-
-
-def _write_regex_yaml(studio_root: Path) -> Path:
-    source = studio_root / "regex" / "indonesia_nickel_policy.yaml"
-    source.parent.mkdir(parents=True, exist_ok=True)
-    source.write_text(
-        (
-            "name: indonesia_nickel_policy\n"
-            "engine: pcre2\n"
-            "ignore_case: true\n"
-            "and:\n"
-            "  - indonesia\n"
-            "  - nickel\n"
-            "  - export\n"
-        ),
-        encoding="utf-8",
-    )
-    return source
+    _write_registry_yaml(registries_root, "pipeline", "pipeline: {}\n")
+    _write_registry_yaml(registries_root, "verbs", "verbs: {}\n")
 
 
 def test_compile_editorial_registry_creates_json_with_matching_structure(tmp_path: Path) -> None:
-    studio_root = tmp_path / "Studio"
+    registries_root = tmp_path / "Workbench" / "registries"
     runtime_root = tmp_path / "Workbench" / "_compiled"
-    source = _write_editorial_yaml(studio_root)
+    source = _write_registry_yaml(
+        registries_root,
+        "editorial",
+        "folders: {}\nclasses: {}\ntemplates: {}\n",
+    )
 
-    output = compile_editorial_registry(studio_root, runtime_root)
+    output = compile_editorial_registry(registries_root, runtime_root)
 
     assert output == runtime_root / "registries" / "editorial.json"
     assert output is not None
@@ -73,53 +67,52 @@ def test_compile_editorial_registry_creates_json_with_matching_structure(tmp_pat
     assert output_data == source_data
 
 
-def test_compile_regex_registry_writes_compiled_json(tmp_path: Path) -> None:
-    studio_root = tmp_path / "Studio"
+def test_compile_pipeline_and_verbs_registry_write_json(tmp_path: Path) -> None:
+    registries_root = tmp_path / "Workbench" / "registries"
     runtime_root = tmp_path / "Workbench" / "_compiled"
-    _write_regex_yaml(studio_root)
+    _write_registry_yaml(registries_root, "pipeline", "pipeline:\n  mode: strict\n")
+    _write_registry_yaml(registries_root, "verbs", "verbs:\n  write: {}\n")
 
-    outputs = compile_regex_registry(studio_root, runtime_root)
+    pipeline_output = compile_pipeline_registry(registries_root, runtime_root)
+    verbs_output = compile_verbs_registry(registries_root, runtime_root)
 
-    assert outputs == (runtime_root / "regex" / "indonesia_nickel_policy.json",)
-    data = json.loads(outputs[0].read_text(encoding="utf-8"))
-    assert data == {
-        "name": "indonesia_nickel_policy",
-        "pattern": r"(?s)(?=.*indonesia)(?=.*nickel)(?=.*export)",
-        "engine": "pcre2",
-        "ignore_case": True,
-        "version": 1,
+    assert pipeline_output == runtime_root / "registries" / "pipeline.json"
+    assert verbs_output == runtime_root / "registries" / "verbs.json"
+    assert json.loads(pipeline_output.read_text(encoding="utf-8")) == {
+        "pipeline": {"mode": "strict"}
     }
+    assert json.loads(verbs_output.read_text(encoding="utf-8")) == {"verbs": {"write": {}}}
 
 
 def test_compile_registries_skips_unchanged_sources(tmp_path: Path, capsys) -> None:
-    studio_root = tmp_path / "Studio"
+    registries_root = tmp_path / "Workbench" / "registries"
     runtime_root = tmp_path / "Workbench" / "_compiled"
-    _write_editorial_yaml(studio_root)
-    _write_regex_yaml(studio_root)
+    _write_standard_registries(registries_root)
 
-    first = compile_registries(studio_root, runtime_root)
+    first = compile_registries(registries_root, runtime_root)
     first_out = capsys.readouterr().out
 
-    second = compile_registries(studio_root, runtime_root)
+    second = compile_registries(registries_root, runtime_root)
     second_out = capsys.readouterr().out
 
-    assert len(first) == 2
+    assert len(first) == 3
     assert "compiled editorial" in first_out
-    assert "compiled regex indonesia_nickel_policy" in first_out
+    assert "compiled pipeline" in first_out
+    assert "compiled verbs" in first_out
     assert second == tuple()
     assert second_out.strip() == "registries up to date"
 
 
 def test_cli_compile_registries_command_writes_artifacts(tmp_path: Path) -> None:
-    studio_root = tmp_path / "Studio"
+    registries_root = tmp_path / "Workbench" / "registries"
     runtime_root = tmp_path / "Workbench" / "_compiled"
-    _write_editorial_yaml(studio_root)
-    _write_regex_yaml(studio_root)
+    _write_standard_registries(registries_root)
 
     rc = compile_registries_cli.main(
-        ["--studio-root", str(studio_root), "--runtime-root", str(runtime_root)]
+        ["--registries-root", str(registries_root), "--runtime-root", str(runtime_root)]
     )
 
     assert rc == 0
     assert (runtime_root / "registries" / "editorial.json").is_file()
-    assert (runtime_root / "regex" / "indonesia_nickel_policy.json").is_file()
+    assert (runtime_root / "registries" / "pipeline.json").is_file()
+    assert (runtime_root / "registries" / "verbs.json").is_file()

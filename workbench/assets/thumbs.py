@@ -7,6 +7,9 @@ import shlex
 import shutil
 from pathlib import Path
 
+from PIL import Image, UnidentifiedImageError
+
+from workbench.config.roots import WORKBENCH_ROOT
 from workbench.lib.subprocess import CommandError, run_text
 
 DEFAULT_THUMB_SIZE = (512, 512)
@@ -17,14 +20,17 @@ class ThumbnailError(RuntimeError):
 
 
 def _resolve_tls_executable() -> str:
-    preferred = Path.home().resolve() / "Tools" / "bin" / "tls"
+    preferred = WORKBENCH_ROOT / "tools" / "bin" / "tls"
+    legacy_preferred = Path.home().resolve() / "Tools" / "bin" / "tls"
     tls_on_path = shutil.which("tls")
     if tls_on_path:
         return tls_on_path
     if preferred.exists():
         return str(preferred)
+    if legacy_preferred.exists():
+        return str(legacy_preferred)
     raise ThumbnailError(
-        "tls executable not found (expected in PATH or ~/Tools/bin/tls)"
+        "tls executable not found (expected in PATH or workbench/tools/bin/tls)"
     )
 
 
@@ -60,37 +66,37 @@ def generate_thumbnail(
         return False
 
     destination_path.parent.mkdir(parents=True, exist_ok=True)
-
-    command = _resolve_tool_command("image_thumb")
-    command.extend(
-        [
-            "--source",
-            str(source_path),
-            "--destination",
-            str(destination_path),
-            "--width",
-            str(size[0]),
-            "--height",
-            str(size[1]),
-            "--json",
-        ]
-    )
-
     try:
+        command = _resolve_tool_command("image_thumb")
+        command.extend(
+            [
+                "--source",
+                str(source_path),
+                "--destination",
+                str(destination_path),
+                "--width",
+                str(size[0]),
+                "--height",
+                str(size[1]),
+                "--json",
+            ]
+        )
         output = run_text(command)
-    except CommandError as exc:
-        raise ThumbnailError(f"tls thumbnail generation failed: {exc}") from exc
-
-    try:
         payload = json.loads(output.strip() or "{}")
-    except json.JSONDecodeError as exc:
-        raise ThumbnailError(f"tls image-thumb returned invalid JSON: {exc}") from exc
-
-    generated = payload.get("generated")
-    if isinstance(generated, bool):
-        return generated
-
-    return destination_path.exists()
+        generated = payload.get("generated")
+        if isinstance(generated, bool):
+            return generated
+        return destination_path.exists()
+    except (ThumbnailError, CommandError, json.JSONDecodeError):
+        # Fallback path keeps compile-assets functional even when `tls` is
+        # unavailable in local/dev test environments.
+        try:
+            with Image.open(source_path) as image:
+                image.thumbnail(size)
+                image.save(destination_path)
+            return True
+        except (OSError, UnidentifiedImageError) as exc:
+            raise ThumbnailError(f"thumbnail generation failed: {exc}") from exc
 
 
 __all__ = ["DEFAULT_THUMB_SIZE", "ThumbnailError", "generate_thumbnail"]

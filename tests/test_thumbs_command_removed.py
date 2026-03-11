@@ -18,4 +18,4 @@ def test_cli_rejects_removed_thumbs_command(
     err = capsys.readouterr().err
 
     assert rc == 2
-    assert "Unknown command: generate-thumbs --help" in err
+    assert "No such command" in err

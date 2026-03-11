@@ -21,8 +21,8 @@ def _configure_roots(
 ) -> tuple[Path, Path, Path]:
     studio_root = tmp_path / "Studio"
     obsidian_root = studio_root / "obsidian"
-    template_root = obsidian_root / "vault-template"
-    common_root = obsidian_root / "vault-common"
+    template_root = obsidian_root / "templates"
+    common_root = obsidian_root / "common"
 
     _write_file(template_root / ".obsidian" / "app.json", content="{}\n")
     _write_file(template_root / ".obsidian" / "hotkeys.json", content="{}\n")

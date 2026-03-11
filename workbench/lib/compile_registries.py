@@ -1,4 +1,4 @@
-"""Compile Studio YAML registries into vault runtime JSON registries."""
+"""Compile Workbench YAML registries into runtime JSON registries."""
 
 from __future__ import annotations
 
@@ -7,14 +7,15 @@ from pathlib import Path
 
 from workbench.cli.create_vault import load_registry
 from workbench.config.roots import WORKBENCH_ROOT
-from workbench.regex.compile_patterns import PatternCompileError, compile_pattern_file
 
 
 class CompileRegistriesError(RuntimeError):
     """Raised when registry compilation fails."""
 
 
-DEFAULT_RUNTIME_REGISTRIES_ROOT = WORKBENCH_ROOT / "_compiled"
+DEFAULT_REGISTRIES_ROOT = WORKBENCH_ROOT / "registries"
+DEFAULT_RUNTIME_ROOT = WORKBENCH_ROOT / "_compiled"
+_REGISTRY_NAMES = ("editorial", "pipeline", "verbs")
 
 
 def _needs_recompile(src: Path, dst: Path) -> bool:
@@ -25,110 +26,91 @@ def _needs_recompile(src: Path, dst: Path) -> bool:
 
 def _load_yaml_mapping(path: Path) -> dict[str, object]:
     if not path.is_file():
-        raise CompileRegistriesError(f"Registry source not found: {path}")
-
-    parsed = load_registry(path)
+        raise CompileRegistriesError(f"registry source not found: {path}")
+    try:
+        parsed = load_registry(path)
+    except Exception as exc:  # noqa: BLE001
+        raise CompileRegistriesError(f"invalid registry source {path}: {exc}") from exc
     if not isinstance(parsed, dict):
-        raise CompileRegistriesError(f"Registry root must be a mapping: {path}")
+        raise CompileRegistriesError(f"registry root must be a mapping: {path}")
     return parsed
 
 
-def compile_editorial_registry(studio_root: Path, runtime_root: Path) -> Path | None:
-    src = studio_root / "registries" / "editorial.yaml"
-    dst = runtime_root / "registries" / "editorial.json"
-
+def _compile_named_registry(
+    *,
+    name: str,
+    registries_root: Path,
+    runtime_root: Path,
+) -> Path | None:
+    src = registries_root / f"{name}.yaml"
+    dst = runtime_root / "registries" / f"{name}.json"
     dst.parent.mkdir(parents=True, exist_ok=True)
+
     if not src.is_file():
-        raise CompileRegistriesError(f"Registry source not found: {src}")
+        raise CompileRegistriesError(f"registry source not found: {src}")
     if not _needs_recompile(src, dst):
         return None
 
-    data = _load_yaml_mapping(src)
-    dst.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    print("compiled editorial")
+    payload = _load_yaml_mapping(src)
+    dst.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"compiled {name}")
     return dst
 
 
-def compile_regex_registry(studio_root: Path, runtime_root: Path) -> tuple[Path, ...]:
-    src_dir = studio_root / "regex"
-    dst_dir = runtime_root / "regex"
-    dst_dir.mkdir(parents=True, exist_ok=True)
-
-    if not src_dir.exists():
-        return tuple()
-    if not src_dir.is_dir():
-        raise CompileRegistriesError(f"regex source is not a directory: {src_dir}")
-
-    compiled_paths: list[Path] = []
-    for src in sorted(src_dir.glob("*.yaml")):
-        dst = dst_dir / f"{src.stem}.json"
-        if not _needs_recompile(src, dst):
-            continue
-        try:
-            compiled = compile_pattern_file(src)
-        except PatternCompileError as exc:
-            raise CompileRegistriesError(str(exc)) from exc
-        dst.write_text(json.dumps(compiled, indent=2) + "\n", encoding="utf-8")
-        compiled_paths.append(dst)
-        print(f"compiled regex {src.stem}")
-
-    return tuple(compiled_paths)
+def compile_editorial_registry(registries_root: Path, runtime_root: Path) -> Path | None:
+    return _compile_named_registry(
+        name="editorial",
+        registries_root=registries_root,
+        runtime_root=runtime_root,
+    )
 
 
-def compile_verbs_registry(studio_root: Path, runtime_root: Path) -> None:
-    # TODO: implement registry compiler
-    _ = studio_root
-    _ = runtime_root
-    pass
+def compile_pipeline_registry(registries_root: Path, runtime_root: Path) -> Path | None:
+    return _compile_named_registry(
+        name="pipeline",
+        registries_root=registries_root,
+        runtime_root=runtime_root,
+    )
+
+
+def compile_verbs_registry(registries_root: Path, runtime_root: Path) -> Path | None:
+    return _compile_named_registry(
+        name="verbs",
+        registries_root=registries_root,
+        runtime_root=runtime_root,
+    )
 
 
 def compile_registries(
-    studio_root: Path, runtime_root: Path = DEFAULT_RUNTIME_REGISTRIES_ROOT
+    registries_root: Path = DEFAULT_REGISTRIES_ROOT,
+    runtime_root: Path = DEFAULT_RUNTIME_ROOT,
 ) -> tuple[Path, ...]:
-    runtime_root = Path(runtime_root).expanduser().resolve()
-    runtime_root.mkdir(parents=True, exist_ok=True)
-    (runtime_root / "registries").mkdir(parents=True, exist_ok=True)
-    (runtime_root / "regex").mkdir(parents=True, exist_ok=True)
+    source_root = Path(registries_root).expanduser().resolve()
+    compiled_root = Path(runtime_root).expanduser().resolve()
+    compiled_root.mkdir(parents=True, exist_ok=True)
+    (compiled_root / "registries").mkdir(parents=True, exist_ok=True)
 
     compiled_paths: list[Path] = []
-
-    editorial_dst = compile_editorial_registry(studio_root, runtime_root)
-    if editorial_dst is not None:
-        compiled_paths.append(editorial_dst)
-
-    compiled_paths.extend(compile_regex_registry(studio_root, runtime_root))
-
-    compile_verbs_registry(studio_root, runtime_root)
-    compile_pipeline_registry(studio_root, runtime_root)
-    compile_vault_registry(studio_root, runtime_root)
+    for name in _REGISTRY_NAMES:
+        output = _compile_named_registry(
+            name=name,
+            registries_root=source_root,
+            runtime_root=compiled_root,
+        )
+        if output is not None:
+            compiled_paths.append(output)
 
     if not compiled_paths:
         print("registries up to date")
-
     return tuple(compiled_paths)
-
-
-def compile_pipeline_registry(studio_root: Path, runtime_root: Path) -> None:
-    # TODO: implement registry compiler
-    _ = studio_root
-    _ = runtime_root
-    pass
-
-
-def compile_vault_registry(studio_root: Path, runtime_root: Path) -> None:
-    # TODO: implement registry compiler
-    _ = studio_root
-    _ = runtime_root
-    pass
 
 
 __all__ = [
     "CompileRegistriesError",
-    "DEFAULT_RUNTIME_REGISTRIES_ROOT",
-    "compile_regex_registry",
+    "DEFAULT_REGISTRIES_ROOT",
+    "DEFAULT_RUNTIME_ROOT",
     "compile_editorial_registry",
     "compile_pipeline_registry",
     "compile_registries",
-    "compile_vault_registry",
     "compile_verbs_registry",
 ]

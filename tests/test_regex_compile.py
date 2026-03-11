@@ -9,7 +9,7 @@ from workbench.regex.compile_patterns import (
     PatternCompileError,
     compile_patterns,
 )
-from workbench.cli.compile_registries import main as compile_registries_main
+from workbench.cli.compile_regex import main as compile_regex_main
 
 
 def _write_yaml(path: Path, content: str) -> Path:
@@ -18,18 +18,11 @@ def _write_yaml(path: Path, content: str) -> Path:
     return path
 
 
-def _write_editorial_yaml(studio_root: Path) -> Path:
-    return _write_yaml(
-        studio_root / "registries" / "editorial.yaml",
-        "folders: {}\nclasses: {}\ntemplates: {}\n",
-    )
-
-
 def test_compile_patterns_builds_and_pattern_json_and_logs(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    source_root = tmp_path / "Studio" / "regex"
+    source_root = tmp_path / "Workbench" / "regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "indonesia_nickel_policy.yaml",
@@ -61,7 +54,7 @@ def test_compile_patterns_builds_and_pattern_json_and_logs(
 
 
 def test_compile_patterns_preserves_or_regex_terms(tmp_path: Path) -> None:
-    source_root = tmp_path / "Studio" / "regex"
+    source_root = tmp_path / "Workbench" / "regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "languages.yaml",
@@ -82,7 +75,7 @@ def test_compile_patterns_preserves_or_regex_terms(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_missing_name(tmp_path: Path) -> None:
-    source_root = tmp_path / "Studio" / "regex"
+    source_root = tmp_path / "Workbench" / "regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "missing_name.yaml",
@@ -94,7 +87,7 @@ def test_compile_patterns_rejects_missing_name(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_both_and_and_or(tmp_path: Path) -> None:
-    source_root = tmp_path / "Studio" / "regex"
+    source_root = tmp_path / "Workbench" / "regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "invalid_mode.yaml",
@@ -113,7 +106,7 @@ def test_compile_patterns_rejects_both_and_and_or(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_empty_term(tmp_path: Path) -> None:
-    source_root = tmp_path / "Studio" / "regex"
+    source_root = tmp_path / "Workbench" / "regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "invalid_terms.yaml",
@@ -131,7 +124,7 @@ def test_compile_patterns_rejects_empty_term(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_and_without_pcre2(tmp_path: Path) -> None:
-    source_root = tmp_path / "Studio" / "regex"
+    source_root = tmp_path / "Workbench" / "regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "invalid_engine.yaml",
@@ -149,7 +142,7 @@ def test_compile_patterns_rejects_and_without_pcre2(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_name_filename_mismatch(tmp_path: Path) -> None:
-    source_root = tmp_path / "Studio" / "regex"
+    source_root = tmp_path / "Workbench" / "regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "filename_name_mismatch.yaml",
@@ -165,10 +158,9 @@ def test_compile_patterns_rejects_name_filename_mismatch(tmp_path: Path) -> None
         compile_patterns(source_root=source_root, output_root=output_root)
 
 
-def test_compile_registries_cli_compiles_regex_outputs(tmp_path: Path) -> None:
-    studio_root = tmp_path / "Studio"
-    source_root = studio_root / "regex"
-    runtime_root = tmp_path / "Workbench" / "_compiled"
+def test_compile_regex_cli_compiles_outputs(tmp_path: Path) -> None:
+    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    runtime_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "ai_regulation.yaml",
         (
@@ -180,11 +172,10 @@ def test_compile_registries_cli_compiles_regex_outputs(tmp_path: Path) -> None:
             "  - eu regulation\n"
         ),
     )
-    _write_editorial_yaml(studio_root)
 
-    rc = compile_registries_main(
-        ["--studio-root", str(studio_root), "--runtime-root", str(runtime_root)]
+    rc = compile_regex_main(
+        ["--source-root", str(source_root), "--output-root", str(runtime_root)]
     )
 
     assert rc == 0
-    assert (runtime_root / "regex" / "ai_regulation.json").is_file()
+    assert (runtime_root / "ai_regulation.json").is_file()

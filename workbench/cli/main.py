@@ -1,105 +1,137 @@
-"""`wkb` dispatcher entrypoint."""
+"""Typer-based `wkb` CLI entrypoint."""
 
 from __future__ import annotations
 
-import importlib
 import sys
-from types import ModuleType
-from typing import Callable
 
-from workbench.cli import discover_commands
+import typer
 
-
-def _load_module(module_name: str) -> ModuleType:
-    return importlib.import_module(module_name)
+from workbench.cli import load_command_module
 
 
-def _get_parser(module: ModuleType) -> object | None:
-    parser_factory = getattr(module, "parser", None)
-    if callable(parser_factory):
-        return parser_factory()
-    parser_factory = getattr(module, "_parser", None)
-    if callable(parser_factory):
-        return parser_factory()
-    return None
+_PASSTHROUGH_SETTINGS = {
+    "allow_extra_args": True,
+    "ignore_unknown_options": True,
+}
+
+app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+)
+vault_app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+)
+vault_template_app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+)
 
 
-def _command_description(module_name: str) -> str:
-    module = _load_module(module_name)
-    parser = _get_parser(module)
-    if parser is None:
-        return ""
-    return str(getattr(parser, "description", "") or "")
+def _dispatch(command_name: str, argv: list[str] | None = None) -> int:
+    module = load_command_module(command_name)
+    command_main = getattr(module, "main", None)
+    if not callable(command_main):
+        raise RuntimeError(f"command module missing main(argv): {module.__name__}")
 
-
-def _print_top_help(commands: dict[str, str]) -> None:
-    print("Workbench CLI")
-    print()
-    print("Usage:")
-    print("  wkb <command> [options]")
-    print()
-    print("Commands:")
-    print()
-    for name, module_name in sorted(commands.items()):
-        print(f"  {name:18} {_command_description(module_name)}")
-    print()
-    print("Use:")
-    print("  wkb help <command>")
-
-
-def _resolve_command(argv: list[str], commands: dict[str, str]) -> tuple[str, int] | None:
-    max_depth = min(4, len(argv))
-    for depth in range(max_depth, 0, -1):
-        candidate = "-".join(argv[:depth])
-        if candidate in commands:
-            return candidate, depth
-    return None
-
-
-def _load_main(module_name: str) -> Callable[[list[str] | None], int]:
-    module = _load_module(module_name)
-    main = getattr(module, "main", None)
-    if not callable(main):
-        raise RuntimeError(f"module missing callable main(argv): {module_name}")
-    return main
-
-
-def main(argv: list[str] | None = None) -> int:
-    args = list(sys.argv[1:] if argv is None else argv)
-    commands = discover_commands()
-
-    if not args or args[0] in {"-h", "--help", "help"}:
-        if args and args[0] == "help" and len(args) > 1:
-            resolved = _resolve_command(args[1:], commands)
-            if resolved is None:
-                print(f"Unknown command: {' '.join(args[1:])}", file=sys.stderr)
-                return 2
-            command, _ = resolved
-            module = _load_module(commands[command])
-            parser = _get_parser(module)
-            if parser is None:
-                print(f"Command has no parser: {command}", file=sys.stderr)
-                return 2
-            parser.print_help()
-            return 0
-        _print_top_help(commands)
-        return 0
-
-    resolved = _resolve_command(args, commands)
-    if resolved is None:
-        print(f"Unknown command: {' '.join(args)}", file=sys.stderr)
-        return 2
-
-    command, consumed = resolved
-    command_main = _load_main(commands[command])
-    result = command_main(args[consumed:])
+    try:
+        result = command_main(argv)
+    except SystemExit as exc:
+        code = exc.code
+        return int(code if isinstance(code, int) else 1)
     if result is None:
         return 0
     return int(result)
 
 
-def entrypoint() -> int:
-    return main()
+def _run_passthrough(command_name: str, ctx: typer.Context) -> None:
+    code = _dispatch(command_name, list(ctx.args))
+    if code != 0:
+        raise typer.Exit(code=code)
+
+
+@app.command("compile-assets", context_settings=_PASSTHROUGH_SETTINGS)
+def compile_assets_command(ctx: typer.Context) -> None:
+    _run_passthrough("compile-assets", ctx)
+
+
+@app.command("compile-registries", context_settings=_PASSTHROUGH_SETTINGS)
+def compile_registries_command(ctx: typer.Context) -> None:
+    _run_passthrough("compile-registries", ctx)
+
+
+@app.command("compile-regex", context_settings=_PASSTHROUGH_SETTINGS)
+def compile_regex_command(ctx: typer.Context) -> None:
+    _run_passthrough("compile-regex", ctx)
+
+
+@app.command("create-vault", context_settings=_PASSTHROUGH_SETTINGS)
+def create_vault_command(ctx: typer.Context) -> None:
+    _run_passthrough("create-vault", ctx)
+
+
+@app.command("find-duplicates", context_settings=_PASSTHROUGH_SETTINGS)
+def find_duplicates_command(ctx: typer.Context) -> None:
+    _run_passthrough("find-duplicates", ctx)
+
+
+@app.command("generate-slugs", context_settings=_PASSTHROUGH_SETTINGS)
+def generate_slugs_command(ctx: typer.Context) -> None:
+    _run_passthrough("generate-slugs", ctx)
+
+
+@app.command("scan-sentinel", context_settings=_PASSTHROUGH_SETTINGS)
+def scan_sentinel_command(ctx: typer.Context) -> None:
+    _run_passthrough("scan-sentinel", ctx)
+
+
+@app.command("stream", context_settings=_PASSTHROUGH_SETTINGS)
+def stream_command(ctx: typer.Context) -> None:
+    _run_passthrough("stream", ctx)
+
+
+@app.command("writeback", context_settings=_PASSTHROUGH_SETTINGS)
+def writeback_command(ctx: typer.Context) -> None:
+    _run_passthrough("writeback", ctx)
+
+
+@app.command("writenew", context_settings=_PASSTHROUGH_SETTINGS)
+def writenew_command(ctx: typer.Context) -> None:
+    _run_passthrough("writenew", ctx)
+
+
+@app.command("writestream", context_settings=_PASSTHROUGH_SETTINGS)
+def writestream_command(ctx: typer.Context) -> None:
+    _run_passthrough("writestream", ctx)
+
+
+@app.command("vault-template", context_settings=_PASSTHROUGH_SETTINGS, hidden=True)
+def vault_template_command(ctx: typer.Context) -> None:
+    _run_passthrough("vault-template", ctx)
+
+
+@vault_template_app.command("apply", context_settings=_PASSTHROUGH_SETTINGS)
+def vault_template_apply_command(ctx: typer.Context) -> None:
+    code = _dispatch("vault-template", ["apply", *list(ctx.args)])
+    if code != 0:
+        raise typer.Exit(code=code)
+
+
+vault_app.add_typer(vault_template_app, name="template")
+app.add_typer(vault_app, name="vault")
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    try:
+        app(args=args, prog_name="wkb")
+        return 0
+    except SystemExit as exc:
+        code = exc.code
+        return int(code if isinstance(code, int) else 1)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ import workbench.cli.main as cli_main
 
 
 def _fixture_root() -> Path:
-    return Path(__file__).resolve().parents[1] / "testdata_duplicates"
+    return Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "duplicates"
 
 
 def _copy_fixture(tmp_path: Path) -> Path:
