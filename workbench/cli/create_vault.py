@@ -22,12 +22,12 @@ from workbench.config.roots import (
     VAULT_TEMPLATE_ROOT as DEFAULT_VAULT_TEMPLATE_ROOT,
 )
 from workbench.lib.identity import slug as identity_slug
-from workbench.lib.paths import normalize_vault_name
 from workbench.write.common import atomic_write_text
 
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
 VAULT_TEMPLATE_ROOT = DEFAULT_VAULT_TEMPLATE_ROOT
 OBSIDIAN_COMMON_ROOT = DEFAULT_OBSIDIAN_COMMON_ROOT
+DROPBOX_ASSETS_ROOT = Path.home().resolve() / "Dropbox" / "Assets"
 
 ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
@@ -61,9 +61,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "vault_path",
+        nargs="?",
         help=(
-            "Vault name under ~/Studio (e.g. 'omaf') or path "
-            "(e.g. '~/Studio/omaf' or 'Studio/omaf')."
+            "Optional vault folder name under ~/Studio. "
+            "If omitted, uses current directory when it is a direct child of ~/Studio."
         ),
     )
     return parser
@@ -79,32 +80,25 @@ def _validate_preconditions() -> None:
     _validate_required_directory(OBSIDIAN_COMMON_ROOT)
 
 
-def _resolve_vault_path(vault_path: str) -> Path:
-    raw = str(vault_path).strip()
-    if not raw:
-        raise CreateVaultError("Vault path must be non-empty.")
+def _resolve_vault_path(vault_path: str | None, *, cwd: Path | None = None) -> Path:
+    if vault_path is not None:
+        raw = str(vault_path).strip()
+        if not raw:
+            raise CreateVaultError("Vault path must be non-empty.")
 
-    candidate = Path(raw).expanduser()
-    if candidate.is_absolute():
-        return candidate.resolve()
+        if "/" in raw or "\\" in raw:
+            raise CreateVaultError(
+                "Vault name must be a single folder name when passed as an argument."
+            )
+        return (STUDIO_ROOT / raw).resolve()
 
-    if len(candidate.parts) == 1:
-        try:
-            normalized = normalize_vault_name(raw)
-        except ValueError as exc:
-            raise CreateVaultError(str(exc)) from exc
-        normalized_lower = normalized.lower()
-        vault_name = (
-            normalized_lower
-            if _IDENTITY_SLUG_RE.fullmatch(normalized_lower)
-            else identity_slug(normalized)
-        )
-        return (STUDIO_ROOT / vault_name).resolve()
-
-    if candidate.parts[0] == "Studio":
-        return (STUDIO_ROOT.parent / candidate).resolve()
-
-    return candidate.resolve()
+    current = (cwd or Path.cwd()).expanduser().resolve()
+    studio_root = STUDIO_ROOT.expanduser().resolve()
+    if current.parent == studio_root:
+        return current
+    raise CreateVaultError(
+        "vault path is required unless current directory is a direct child of Studio"
+    )
 
 
 def is_vault(path: Path) -> bool:
@@ -221,7 +215,30 @@ def _assets_paths(vault_path: Path) -> tuple[str, str | None]:
     return assets_symlink, assets_target
 
 
-def _create_vault_registry(vault_path: Path) -> bool:
+def _ensure_assets_symlink(vault_path: Path, *, mnemonic: str) -> bool:
+    target = (DROPBOX_ASSETS_ROOT / mnemonic).expanduser().resolve()
+    target.mkdir(parents=True, exist_ok=True)
+
+    assets_link = vault_path / "_assets"
+    if assets_link.exists() or assets_link.is_symlink():
+        if not assets_link.is_symlink():
+            raise CreateVaultError(
+                f"Unsafe existing _assets path (not symlink): {assets_link}"
+            )
+
+        resolved = assets_link.resolve(strict=False)
+        if resolved != target:
+            raise CreateVaultError(
+                f"Existing _assets symlink points to {resolved}, expected {target}"
+            )
+        return False
+
+    relative_target = os.path.relpath(target, start=assets_link.parent.resolve())
+    assets_link.symlink_to(relative_target, target_is_directory=True)
+    return True
+
+
+def _create_vault_registry(vault_path: Path, *, mnemonic: str) -> bool:
     registry_path = vault_path / LEGACY_REGISTRY_FILENAME
     if registry_path.exists():
         return False
@@ -231,7 +248,6 @@ def _create_vault_registry(vault_path: Path) -> bool:
     if (vault_path / REGISTRY_JSON_FILENAME).exists():
         return False
 
-    mnemonic = _project_mnemonic(vault_path)
     assets_symlink_path, assets_target_path = _assets_paths(vault_path)
     record = {
         "vault_id": _generate_ulid(),
@@ -277,9 +293,9 @@ def load_registry(path: Path) -> dict[str, object]:
     return parsed
 
 
-def create_vault(vault_path: str) -> CreateVaultResult:
+def create_vault(vault_path: str | None, *, cwd: Path | None = None) -> CreateVaultResult:
     _validate_preconditions()
-    target = _resolve_vault_path(vault_path)
+    target = _resolve_vault_path(vault_path, cwd=cwd)
 
     if target.exists() and not target.is_dir():
         raise CreateVaultError(f"Vault path exists and is not a directory: {target}")
@@ -299,9 +315,11 @@ def create_vault(vault_path: str) -> CreateVaultResult:
         created_dir = True
 
     try:
+        mnemonic = _project_mnemonic(target)
         template_installed = _install_template_if_missing(target)
         common_link_created = _ensure_common_symlink(target)
-        registry_created = _create_vault_registry(target)
+        _ensure_assets_symlink(target, mnemonic=mnemonic)
+        registry_created = _create_vault_registry(target, mnemonic=mnemonic)
     except Exception as exc:
         if created_dir and target.exists() and not is_vault(target):
             shutil.rmtree(target, ignore_errors=True)
@@ -324,7 +342,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        result = create_vault(str(args.vault_path))
+        result = create_vault(args.vault_path)
     except CreateVaultError as exc:
         print(str(exc), file=sys.stderr)
         return 1
