@@ -1,0 +1,122 @@
+{
+  "generated_at": "2026-03-11T11:30:26+07:00",
+  "target_module": "workbench/lib/rg.py",
+  "consumer_count": 4,
+  "runtime_consumer_count": 3,
+  "test_consumer_count": 1,
+  "consumers": [
+    {
+      "path": "workbench/assets/discovery.py",
+      "type": "runtime",
+      "imports": ["RipgrepError", "rg_search"],
+      "usage": [
+        {
+          "function": "discover_uri_links",
+          "line": 30,
+          "rg_symbols": ["rg_search", "RipgrepError"],
+          "call_lines": [35, 43],
+          "description": "Discovers URI-style markdown links in studio content and returns sorted SourceLink records."
+        }
+      ],
+      "integration_status": "legacy_contract",
+      "notes": [
+        "Calls rg_search with positional arguments and engine flags (ignore_case, pcre2).",
+        "Parses matches as NDJSON via json.loads(line)."
+      ]
+    },
+    {
+      "path": "workbench/slug/writer.py",
+      "type": "runtime",
+      "imports": ["RipgrepError", "rg_search"],
+      "usage": [
+        {
+          "function": "_discover_slug_sentinel_files",
+          "line": 62,
+          "rg_symbols": ["rg_search"],
+          "call_lines": [64],
+          "description": "Finds markdown files containing slug placeholders for slug generation."
+        },
+        {
+          "function": "_find_files_with_slug_value",
+          "line": 83,
+          "rg_symbols": ["rg_search"],
+          "call_lines": [86],
+          "description": "Finds candidate files containing slug fields before metadata validation."
+        },
+        {
+          "function": "generate_slugs",
+          "line": 192,
+          "rg_symbols": ["RipgrepError"],
+          "call_lines": [199],
+          "description": "Orchestrates slug generation and maps ripgrep failures to SlugGenerationError."
+        },
+        {
+          "function": "ensure_slug",
+          "line": 345,
+          "rg_symbols": ["RipgrepError"],
+          "call_lines": [414],
+          "description": "Ensures a file slug is valid and checks collisions using rg-backed discovery."
+        }
+      ],
+      "integration_status": "legacy_contract",
+      "notes": [
+        "Calls rg_search with positional arguments and engine flags (ignore_case, pcre2).",
+        "Parses matches as NDJSON via json.loads(line)."
+      ]
+    },
+    {
+      "path": "workbench/write/writeback.py",
+      "type": "runtime",
+      "imports": ["RipgrepError", "rg_search"],
+      "usage": [
+        {
+          "function": "build_slug_index",
+          "line": 26,
+          "rg_symbols": ["rg_search", "RipgrepError"],
+          "call_lines": [33, 62],
+          "description": "Builds a slug-to-file index by scanning candidate markdown files and validating frontmatter slugs."
+        },
+        {
+          "function": "write_back_records",
+          "line": 68,
+          "rg_symbols": ["RipgrepError"],
+          "call_lines": [76],
+          "description": "Routes NDJSON write-back records to files via slug index and sentinel checks."
+        }
+      ],
+      "integration_status": "legacy_contract",
+      "notes": [
+        "Calls rg_search with positional arguments and engine flags (ignore_case, pcre2).",
+        "Parses matches as NDJSON via json.loads(line)."
+      ]
+    },
+    {
+      "path": "tests/test_rg_engine.py",
+      "type": "test",
+      "imports": ["rg_module", "RipgrepError", "rg_run", "rg_search"],
+      "usage": [
+        {
+          "function": "test_rg_search_*",
+          "line": 21,
+          "rg_symbols": ["rg_search"],
+          "description": "Validates schema, capture groups, context windows, file-list scoping, and strict candidate validation."
+        },
+        {
+          "function": "test_rg_run_*",
+          "line": 125,
+          "rg_symbols": ["rg_run", "RipgrepError"],
+          "description": "Validates JSON parsing, event ordering, incomplete-stream detection, regex mismatch handling, and line monotonicity."
+        }
+      ],
+      "integration_status": "current_contract",
+      "notes": [
+        "Uses current keyword-only rg_search API.",
+        "Asserts strict failure modes introduced in hardening refactor."
+      ]
+    }
+  ],
+  "search_basis": {
+    "direct_import_query": "rg -n \"workbench\\.lib\\.rg|from workbench\\.lib import rg|import workbench\\.lib\\.rg\" workbench tests",
+    "symbol_usage_query": "rg -n \"\\brg_search\\(|\\brg_run\\(|\\brg_build_command\\(|\\bRipgrepError\\b\" workbench tests"
+  }
+}
