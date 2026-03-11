@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 from pathlib import Path
 import re
 
@@ -28,27 +27,21 @@ class SourceLink:
 
 
 def discover_uri_links(studio_root: Path) -> list[SourceLink]:
-    """Discover URI-based markdown links using ripgrep NDJSON rows."""
+    """Discover URI-based markdown links using ripgrep match records."""
     root = studio_root.expanduser().resolve()
     try:
         pattern = load_regex("external_links")
-        matches = rg_search(
-            pattern.pattern,
-            root,
-            ignore_case=pattern.ignore_case,
-            pcre2=pattern.pcre2,
-        )
+        matches = rg_search(pattern=pattern.pattern, root=root)
     except RegexRegistryError as exc:
         raise AssetDiscoveryError(str(exc)) from exc
     except RipgrepError as exc:
         raise AssetDiscoveryError(str(exc)) from exc
 
     rows: list[SourceLink] = []
-    for line in matches:
-        row = json.loads(line)
-        markdown_file = Path(row["path"])
-        line_number = row["line"]
-        text = row["text"]
+    for match in matches:
+        markdown_file = match["path"]
+        line_number = match["line"]
+        text = match["text"]
         if markdown_file.suffix.lower() not in {".md", ".markdown"}:
             continue
 

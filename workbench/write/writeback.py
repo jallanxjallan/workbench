@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from typing import Iterable
@@ -30,20 +29,14 @@ def build_slug_index(root: Path) -> dict[str, Path]:
     except RegexRegistryError as exc:
         raise RipgrepError(str(exc)) from exc
 
-    matches = rg_search(
-        pattern.pattern,
-        root_path,
-        ignore_case=pattern.ignore_case,
-        pcre2=pattern.pcre2,
-    )
+    matches = rg_search(pattern=pattern.pattern, root=root_path)
     files: set[Path] = set()
 
-    for line in matches:
-        row = json.loads(line)
-        line_number = row["line"]
-        text = row["text"]
+    for match in matches:
+        line_number = match["line"]
+        text = match["text"]
         _ = line_number, text
-        file_path = Path(row["path"])
+        file_path = match["path"]
 
         if file_path.suffix.lower() not in MARKDOWN_SUFFIXES:
             continue

@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import json
 from pathlib import Path
 
 from PIL import Image
@@ -175,24 +173,27 @@ def test_discover_uri_links_uses_single_rg_pass(
     studio_root = tmp_path / "Studio"
     studio_root.mkdir(parents=True, exist_ok=True)
 
-    calls: list[tuple[str, Path, bool, bool]] = []
+    calls: list[tuple[str, Path]] = []
 
     def _fake_rg_search(
+        *,
         pattern: str,
         root: Path,
-        *,
-        ignore_case: bool = False,
-        pcre2: bool = False,
-    ) -> list[str]:
-        calls.append((pattern, root, ignore_case, pcre2))
+        files=None,
+        extensions=None,
+        exclude_dirs=None,
+    ) -> list[dict[str, object]]:
+        _ = files, extensions, exclude_dirs
+        calls.append((pattern, root))
         return [
-            json.dumps(
-                {
-                    "path": str(studio_root / "vault" / "doc.md"),
-                    "line": 1,
-                    "text": "[img](file:///tmp/pic.jpg)",
-                }
-            )
+            {
+                "path": studio_root / "vault" / "doc.md",
+                "line": 1,
+                "text": "[img](file:///tmp/pic.jpg)",
+                "groups": [],
+                "before": [],
+                "after": [],
+            }
         ]
 
     def _fake_load_regex(name: str) -> RegexPattern:
@@ -212,6 +213,4 @@ def test_discover_uri_links_uses_single_rg_pass(
     assert len(calls) == 1
     assert calls[0][0] == r"https?://[^\s\)]+"
     assert calls[0][1] == studio_root
-    assert calls[0][2] is True
-    assert calls[0][3] is False
     assert len(links) == 1

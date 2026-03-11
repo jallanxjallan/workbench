@@ -61,19 +61,13 @@ def _is_discoverable_slug_file(path: Path) -> bool:
 
 def _discover_slug_sentinel_files(root: Path) -> list[Path]:
     pattern = _load_rg_pattern("slug_placeholder")
-    matches = rg_search(
-        pattern.pattern,
-        root,
-        ignore_case=pattern.ignore_case,
-        pcre2=pattern.pcre2,
-    )
+    matches = rg_search(pattern=pattern.pattern, root=root)
     discovered: set[Path] = set()
-    for line in matches:
-        row = json.loads(line)
-        line_number = row["line"]
-        text = row["text"]
+    for match in matches:
+        line_number = match["line"]
+        text = match["text"]
         _ = line_number, text
-        file_path = Path(row["path"])
+        file_path = match["path"]
         if not _is_discoverable_slug_file(file_path):
             continue
         discovered.add(file_path)
@@ -83,19 +77,13 @@ def _discover_slug_sentinel_files(root: Path) -> list[Path]:
 def _find_files_with_slug_value(slug: str, *, root: Path) -> list[Path]:
     target_slug = slug.strip()
     pattern = _load_rg_pattern("slug_field")
-    matches = rg_search(
-        pattern.pattern,
-        root,
-        ignore_case=pattern.ignore_case,
-        pcre2=pattern.pcre2,
-    )
+    matches = rg_search(pattern=pattern.pattern, root=root)
     candidates: set[Path] = set()
-    for line in matches:
-        row = json.loads(line)
-        line_number = row["line"]
-        text = row["text"]
+    for match in matches:
+        line_number = match["line"]
+        text = match["text"]
         _ = line_number, text
-        file_path = Path(row["path"])
+        file_path = match["path"]
         if file_path.suffix.lower() not in MARKDOWN_SUFFIXES:
             continue
         candidates.add(file_path)

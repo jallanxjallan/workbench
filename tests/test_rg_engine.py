@@ -29,7 +29,7 @@ def test_rg_search_basic_match_returns_record_contract(tmp_path: Path) -> None:
 
     assert len(matches) == 1
     assert matches[0] == {
-        "path": str(target.resolve()),
+        "path": target.resolve(),
         "line": 2,
         "text": "needle line",
         "groups": [],
@@ -78,7 +78,7 @@ def test_rg_search_candidate_files_only_scans_provided_files(tmp_path: Path) -> 
     matches = list(rg_search(pattern="target", files=[include]))
 
     assert len(matches) == 1
-    assert matches[0]["path"] == str(include.resolve())
+    assert matches[0]["path"] == include.resolve()
 
 
 def test_rg_search_files_mode_raises_on_missing_candidate(tmp_path: Path) -> None:
@@ -118,8 +118,8 @@ def test_rg_search_applies_default_directory_exclusions(tmp_path: Path) -> None:
     matches = list(rg_search(pattern="needle", root=root))
     paths = {match["path"] for match in matches}
 
-    assert str(visible.resolve()) in paths
-    assert str(hidden.resolve()) not in paths
+    assert visible.resolve() in paths
+    assert hidden.resolve() not in paths
 
 
 def test_rg_run_raises_ripgrep_error_on_invalid_json(

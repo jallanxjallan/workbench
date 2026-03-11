@@ -23,14 +23,14 @@ class RipgrepError(RuntimeError):
 
 @dataclass
 class _PendingMatch:
-    path: str
+    path: Path
     line: int
     text: str
     groups: list[str]
     before: list[str]
     after: list[str] = field(default_factory=list)
 
-    def as_record(self) -> dict[str, str | int | list[str]]:
+    def as_record(self) -> dict[str, Path | int | str | list[str]]:
         return {
             "path": self.path,
             "line": self.line,
@@ -161,7 +161,7 @@ def _extract_text_field(value: object) -> str:
     return text.rstrip("\n")
 
 
-def _extract_path(data: dict[str, object]) -> str:
+def _extract_path(data: dict[str, object]) -> Path:
     raw_path = data.get("path")
     if not isinstance(raw_path, dict):
         raise RipgrepError("invalid ripgrep event: missing path")
@@ -171,7 +171,7 @@ def _extract_path(data: dict[str, object]) -> str:
     absolute = Path(path_text).expanduser().resolve()
     if not absolute.exists():
         raise RipgrepError(f"match path does not exist: {absolute}")
-    return str(absolute)
+    return absolute
 
 
 def _parse_groups(compiled_pattern: re.Pattern[str], text: str) -> list[str]:
@@ -187,12 +187,12 @@ def _finalize_ready_matches(
     state: _FileState,
     *,
     current_line: int,
-) -> Iterator[dict[str, str | int | list[str]]]:
+) -> Iterator[dict[str, Path | int | str | list[str]]]:
     while state.pending and (state.pending[0].line + CONTEXT_AFTER) < current_line:
         yield state.pending.popleft().as_record()
 
 
-def _flush_pending(state: _FileState) -> Iterator[dict[str, str | int | list[str]]]:
+def _flush_pending(state: _FileState) -> Iterator[dict[str, Path | int | str | list[str]]]:
     while state.pending:
         yield state.pending.popleft().as_record()
 
@@ -215,7 +215,7 @@ def rg_run(
     *,
     cmd: list[str],
     pattern: str,
-) -> Iterator[dict[str, str | int | list[str]]]:
+) -> Iterator[dict[str, Path | int | str | list[str]]]:
     """
     Execute ripgrep, parse JSON events, and yield match records.
     """
@@ -239,7 +239,7 @@ def rg_run(
         process.kill()
         raise RipgrepError("failed to capture ripgrep streams")
 
-    states: dict[str, _FileState] = {}
+    states: dict[Path, _FileState] = {}
     stderr = ""
     return_code = 0
     try:
@@ -330,7 +330,7 @@ def rg_search(
     files: Iterable[Path] | None = None,
     extensions: list[str] | None = None,
     exclude_dirs: list[str] | None = None,
-) -> Iterator[dict[str, str | int | list[str]]]:
+) -> Iterator[dict[str, Path | int | str | list[str]]]:
     """
     Search with ripgrep and emit normalized match records.
 
