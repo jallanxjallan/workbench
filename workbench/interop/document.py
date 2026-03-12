@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import importlib
 from pathlib import Path
-import re
 from typing import Any, Mapping
 
 from workbench.lib.text import strip_utf8_bom
@@ -131,8 +130,6 @@ class Document:
     def inspect_text(
         cls,
         text: str,
-        *,
-        sentinel_pattern: re.Pattern[str] | None = None,
     ) -> DocumentParseResult:
         normalized = strip_utf8_bom(text)
         lines = normalized.splitlines(keepends=True)
@@ -141,9 +138,6 @@ class Document:
             return DocumentParseResult(False, "", None, None)
 
         idx = 0
-
-        if sentinel_pattern and sentinel_pattern.match(lines[0].strip()):
-            idx = 1
 
         while idx < len(lines) and lines[idx].strip() == "":
             idx += 1
@@ -187,10 +181,8 @@ class Document:
     def read_text(
         cls,
         text: str,
-        *,
-        sentinel_pattern: re.Pattern[str] | None = None,
     ) -> Document:
-        parsed = cls.inspect_text(text, sentinel_pattern=sentinel_pattern)
+        parsed = cls.inspect_text(text)
         if parsed.error:
             raise ValueError(f"Failed to parse markdown: {parsed.error}")
         return cls(content=parsed.body, metadata=parsed.metadata or {})
@@ -199,8 +191,6 @@ class Document:
     def read_file(
         cls,
         filepath: str | Path,
-        *,
-        sentinel_pattern: re.Pattern[str] | None = None,
     ) -> Document:
         fp = Path(filepath)
 
@@ -211,7 +201,7 @@ class Document:
             raise ValueError(f"{filepath} is not a markdown document.")
 
         text = fp.read_text(encoding="utf-8")
-        doc = cls.read_text(text, sentinel_pattern=sentinel_pattern)
+        doc = cls.read_text(text)
         doc.filepath = fp
         return doc
 
@@ -219,18 +209,13 @@ class Document:
     def inspect_file(
         cls,
         filepath: str | Path,
-        *,
-        sentinel_pattern: re.Pattern[str] | None = None,
     ) -> DocumentParseResult:
         fp = Path(filepath)
         if not fp.exists():
             raise FileNotFoundError(f"{filepath} does not exist.")
         if fp.suffix.lower() not in (".md", ".markdown"):
             raise ValueError(f"{filepath} is not a markdown document.")
-        return cls.inspect_text(
-            fp.read_text(encoding="utf-8"),
-            sentinel_pattern=sentinel_pattern,
-        )
+        return cls.inspect_text(fp.read_text(encoding="utf-8"))
 
     @classmethod
     def read_kwargs(cls, **kwargs: Any) -> Document:

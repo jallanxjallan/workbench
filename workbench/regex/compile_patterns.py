@@ -1,4 +1,4 @@
-"""Compile regex YAML definitions into runtime JSON pattern specs."""
+"""Compile control regex YAML definitions into runtime JSON pattern specs."""
 
 from __future__ import annotations
 
@@ -6,13 +6,23 @@ import json
 from pathlib import Path
 
 from workbench.cli.create_vault import load_registry
-from workbench.config.roots import WORKBENCH_ROOT
+from workbench.config.roots import AUTOSCRIBE_CONTROL_ROOT, WORKBENCH_ROOT
 
 
 SCHEMA_VERSION = 1
 SUPPORTED_ENGINES = {"default", "pcre2"}
 
-DEFAULT_PATTERN_SOURCE_ROOT = WORKBENCH_ROOT / "regex" / "definitions"
+_CONTROL_REGEX_ROOT = AUTOSCRIBE_CONTROL_ROOT / "regex"
+_LEGACY_PATTERN_SOURCE_ROOT = WORKBENCH_ROOT / "regex" / "definitions"
+
+
+def _resolve_default_pattern_source_root() -> Path:
+    if _CONTROL_REGEX_ROOT.is_dir():
+        return _CONTROL_REGEX_ROOT
+    return _LEGACY_PATTERN_SOURCE_ROOT
+
+
+DEFAULT_PATTERN_SOURCE_ROOT = _resolve_default_pattern_source_root()
 DEFAULT_PATTERN_OUTPUT_ROOT = WORKBENCH_ROOT / "_compiled" / "regex"
 
 

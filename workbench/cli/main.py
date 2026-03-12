@@ -58,6 +58,11 @@ def compile_assets_command(ctx: typer.Context) -> None:
     _run_passthrough("compile-assets", ctx)
 
 
+@app.command("compile-control", context_settings=_PASSTHROUGH_SETTINGS)
+def compile_control_command(ctx: typer.Context) -> None:
+    _run_passthrough("compile-control", ctx)
+
+
 @app.command("compile-registries", context_settings=_PASSTHROUGH_SETTINGS)
 def compile_registries_command(ctx: typer.Context) -> None:
     _run_passthrough("compile-registries", ctx)
@@ -83,9 +88,14 @@ def generate_slugs_command(ctx: typer.Context) -> None:
     _run_passthrough("generate-slugs", ctx)
 
 
-@app.command("scan-sentinel", context_settings=_PASSTHROUGH_SETTINGS)
-def scan_sentinel_command(ctx: typer.Context) -> None:
-    _run_passthrough("scan-sentinel", ctx)
+@app.command("publish-context", context_settings=_PASSTHROUGH_SETTINGS)
+def publish_context_command(ctx: typer.Context) -> None:
+    _run_passthrough("publish-context", ctx)
+
+
+@app.command("publish-control", context_settings=_PASSTHROUGH_SETTINGS)
+def publish_control_command(ctx: typer.Context) -> None:
+    _run_passthrough("publish-control", ctx)
 
 
 @app.command("stream", context_settings=_PASSTHROUGH_SETTINGS)

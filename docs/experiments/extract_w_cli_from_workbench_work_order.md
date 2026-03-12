@@ -83,7 +83,7 @@ workbench/commands/
    - ingest_external_files
    - ingest_vault_content
    - select-records
-   - select-sentinel
+   - select-slug
    - smoke-split-write
    - split-files
    - write-vault-files

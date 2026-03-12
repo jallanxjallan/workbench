@@ -59,7 +59,7 @@ def _is_discoverable_slug_file(path: Path) -> bool:
     return True
 
 
-def _discover_slug_sentinel_files(root: Path) -> list[Path]:
+def _discover_slug_placeholder_files(root: Path) -> list[Path]:
     pattern = _load_rg_pattern("slug_placeholder")
     matches = rg_search(pattern=pattern.pattern, root=root)
     discovered: set[Path] = set()
@@ -183,7 +183,7 @@ def generate_slugs(*, root: Path, write: bool) -> GenerateSlugsResult:
         raise SlugGenerationError(f"studio root does not exist: {root_path}")
 
     try:
-        candidates = _discover_slug_sentinel_files(root_path)
+        candidates = _discover_slug_placeholder_files(root_path)
     except RipgrepError as exc:
         raise SlugGenerationError(str(exc)) from exc
 
@@ -301,7 +301,7 @@ def write_slug_to_document(
     existing = metadata.get("slug")
     if require_placeholder:
         if not isinstance(existing, str) or existing.strip() != "__SLUG__":
-            raise ValueError("slug sentinel '__SLUG__' not found")
+            raise ValueError("slug placeholder '__SLUG__' not found")
 
     metadata["slug"] = slug
     Document(content=document.content, metadata=metadata).write_file(

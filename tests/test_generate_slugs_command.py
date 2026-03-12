@@ -24,7 +24,7 @@ def _init_vault(tmp_path: Path) -> tuple[Path, Path]:
     return studio_root, vault_root
 
 
-def test_generate_slugs_write_replaces_sentinel(
+def test_generate_slugs_write_replaces_placeholder(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -39,6 +39,7 @@ def test_generate_slugs_write_replaces_sentinel(
     captured = capsys.readouterr()
 
     assert rc == 0
+    assert "discovered 1 placeholder file(s)" in captured.out
     assert "generated 1 slug(s)" in captured.out
     assert "written 1 slug(s)" in captured.out
 

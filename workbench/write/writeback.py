@@ -9,10 +9,6 @@ from typing import Iterable
 from workbench.interop.document import Document
 from workbench.lib.rg import RipgrepError, rg_search
 from workbench.lib.regex_registry import RegexRegistryError, load_regex
-from workbench.lib.sentinel import (
-    BATCH_SENTINEL_PATTERN,
-    read_batch_sentinel,
-)
 from workbench.write.common import (
     WriteError,
     atomic_write_text,
@@ -44,7 +40,7 @@ def build_slug_index(root: Path) -> dict[str, Path]:
 
     index: dict[str, Path] = {}
     for file_path in sorted(files):
-        doc = Document.read_file(file_path, sentinel_pattern=BATCH_SENTINEL_PATTERN)
+        doc = Document.read_file(file_path)
         raw_slug = doc.metadata.get("slug")
         if not isinstance(raw_slug, str):
             continue
@@ -76,22 +72,13 @@ def write_back_records(
         target_path = slug_index.get(record.slug)
         if target_path is None:
             raise WriteError(f"slug not found: {record.slug}")
-        existing_doc = Document.read_file(
-            target_path,
-            sentinel_pattern=BATCH_SENTINEL_PATTERN,
-        )
+        existing_doc = Document.read_file(target_path)
 
         file_slug = existing_doc.metadata.get("slug")
         if not isinstance(file_slug, str) or not file_slug.strip():
             raise WriteError("frontmatter slug does not match record.slug")
         if file_slug.strip() != record.slug:
             raise WriteError("frontmatter slug does not match record.slug")
-
-        sentinel_slug = read_batch_sentinel(target_path)
-        if sentinel_slug is None:
-            raise WriteError("batch sentinel missing")
-        if sentinel_slug != record.batch_slug:
-            raise WriteError("batch sentinel does not match record batch_slug")
 
         existing_doc.content = record.content
 

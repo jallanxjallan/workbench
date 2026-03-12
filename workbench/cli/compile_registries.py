@@ -1,4 +1,4 @@
-"""Compile Workbench registry YAML files to runtime JSON registries."""
+"""Compile control registry YAML files to runtime JSON registries."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import argparse
 from pathlib import Path
 import sys
 
-from workbench.config.roots import WORKBENCH_ROOT
 from workbench.lib.compile_registries import (
     CompileRegistriesError,
     DEFAULT_REGISTRIES_ROOT,
@@ -18,17 +17,17 @@ from workbench.lib.compile_registries import (
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="compile-registries",
-        description="Compile Workbench registries into _compiled/registries.",
+        description="Compile control registries into _compiled/registries.",
     )
     parser.add_argument(
         "--registries-root",
         default=str(DEFAULT_REGISTRIES_ROOT),
-        help=f"Registry source root (default: {WORKBENCH_ROOT / 'registries'}).",
+        help=f"Registry source root (default: {DEFAULT_REGISTRIES_ROOT}).",
     )
     parser.add_argument(
         "--runtime-root",
         default=str(DEFAULT_RUNTIME_ROOT),
-        help=f"Compiled runtime root (default: {WORKBENCH_ROOT / '_compiled'}).",
+        help=f"Compiled runtime root (default: {DEFAULT_RUNTIME_ROOT}).",
     )
     return parser
 

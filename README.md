@@ -16,8 +16,9 @@ Workbench never imports Autoscribe modules. Integration is stdin/stdout NDJSON o
 Runtime and source roots:
 
 - `workbench/`: Python package (`cli`, `lib`, `config`, `slug`, `write`, `assets`, `framing`, `interop`).
-- `registries/`: source registries (`editorial.yaml`, `pipeline.yaml`, `verbs.yaml`).
-- `regex/definitions/`: source regex definitions.
+- `~/Control`: pipeline behavior source repository (`verbs/`, `instructions/global/`, `regex/`, `registries/`, `pipeline/`).
+- `registries/` and `regex/definitions/` under `Workbench` are legacy fallback roots only.
+- `_compiled/control/`: compiled control artifacts (`verbs.json`, `global_instructions.json`, `regex.json`).
 - `_compiled/registries/`: compiled registry JSON outputs.
 - `_compiled/regex/`: compiled regex JSON outputs.
 - `tools/tls/`: bundled Workbench tooling support.
@@ -35,10 +36,12 @@ Core commands:
 
 - `wkb compile-registries`
 - `wkb compile-regex`
+- `wkb compile-control`
 - `wkb compile-assets`
 - `wkb find-duplicates`
 - `wkb generate-slugs [--write]`
-- `wkb scan-sentinel [paths...]`
+- `wkb publish-control`
+- `wkb publish-context`
 - `wkb stream`
 - `wkb writenew [--folder <name>] [--template <name>]`
 - `wkb writeback [--studio-root <path>]`
@@ -73,4 +76,16 @@ Compile regex definitions:
 wkb compile-regex
 ```
 
-Only `_compiled/registries` and `_compiled/regex` contain compiled artifacts.
+Compile external control behavior:
+
+```bash
+wkb compile-control
+```
+
+Publish compiled global instructions:
+
+```bash
+wkb publish-control
+```
+
+Only `_compiled/registries`, `_compiled/regex`, and `_compiled/control` contain compiled artifacts.

@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from workbench.interop.document import Document
-from workbench.lib.sentinel import BATCH_SENTINEL_PATTERN, insert_batch_sentinel
 
 
 def _write(path: Path, content: str) -> None:
@@ -23,15 +22,14 @@ def test_document_roundtrip_preserves_frontmatter() -> None:
     assert reparsed.content == doc.content
 
 
-def test_document_read_file_supports_batch_sentinel(tmp_path: Path) -> None:
+def test_document_read_file_with_frontmatter(tmp_path: Path) -> None:
     base = Document(metadata={"class": "passage", "slug": "hornbill"}, content="Body\n")
-    with_sentinel = insert_batch_sentinel(base.write_text(), "batch-1")
 
-    path = tmp_path / "sentinel.md"
-    _write(path, with_sentinel)
-    parsed = Document.read_file(path, sentinel_pattern=BATCH_SENTINEL_PATTERN)
+    path = tmp_path / "entry.md"
+    _write(path, base.write_text())
+    parsed = Document.read_file(path)
     assert parsed.metadata == base.metadata
-    assert parsed.content.endswith(base.content)
+    assert parsed.content == base.content
 
 
 def test_document_content_rewrite_preserves_metadata(tmp_path: Path) -> None:

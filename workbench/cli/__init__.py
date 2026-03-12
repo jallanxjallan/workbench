@@ -8,12 +8,14 @@ from types import ModuleType
 
 COMMAND_MODULES: dict[str, str] = {
     "compile-assets": "workbench.cli.compile_assets",
+    "compile-control": "workbench.cli.compile_control",
     "compile-registries": "workbench.cli.compile_registries",
     "compile-regex": "workbench.cli.compile_regex",
     "create-vault": "workbench.cli.create_vault",
     "find-duplicates": "workbench.cli.find_duplicates",
     "generate-slugs": "workbench.cli.generate_slugs",
-    "scan-sentinel": "workbench.cli.scan_sentinel",
+    "publish-context": "workbench.cli.publish_context",
+    "publish-control": "workbench.cli.publish_control",
     "stream": "workbench.cli.stream",
     "vault-template": "workbench.cli.vault_template",
     "writeback": "workbench.cli.writeback",

@@ -1,4 +1,4 @@
-"""Generate slugs for all slug-sentinel markdown files in Studio."""
+"""Generate slugs for markdown files using slug frontmatter placeholders."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--write",
         action="store_true",
-        help="Replace slug sentinel '__SLUG__' in matching files.",
+        help="Replace slug placeholder '__SLUG__' in matching files.",
     )
     return parser
 
@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         "[generate-slugs] complete: "
-        f"discovered {result.discovered} sentinel file(s), "
+        f"discovered {result.discovered} placeholder file(s), "
         f"skipped {result.skipped} template file(s), "
         f"generated {result.generated} slug(s), "
         f"written {result.written} slug(s), "

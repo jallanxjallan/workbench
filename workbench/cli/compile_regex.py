@@ -1,4 +1,4 @@
-"""Compile Workbench regex YAML definitions to runtime JSON artifacts."""
+"""Compile control regex YAML definitions to runtime JSON artifacts."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Compile Workbench YAML registries into runtime JSON registries."""
+"""Compile control YAML registries into runtime JSON registries."""
 
 from __future__ import annotations
 
@@ -6,14 +6,24 @@ import json
 from pathlib import Path
 
 from workbench.cli.create_vault import load_registry
-from workbench.config.roots import WORKBENCH_ROOT
+from workbench.config.roots import AUTOSCRIBE_CONTROL_ROOT, WORKBENCH_ROOT
 
 
 class CompileRegistriesError(RuntimeError):
     """Raised when registry compilation fails."""
 
 
-DEFAULT_REGISTRIES_ROOT = WORKBENCH_ROOT / "registries"
+_CONTROL_REGISTRIES_ROOT = AUTOSCRIBE_CONTROL_ROOT / "registries"
+_LEGACY_REGISTRIES_ROOT = WORKBENCH_ROOT / "registries"
+
+
+def _resolve_default_registries_root() -> Path:
+    if _CONTROL_REGISTRIES_ROOT.is_dir():
+        return _CONTROL_REGISTRIES_ROOT
+    return _LEGACY_REGISTRIES_ROOT
+
+
+DEFAULT_REGISTRIES_ROOT = _resolve_default_registries_root()
 DEFAULT_RUNTIME_ROOT = WORKBENCH_ROOT / "_compiled"
 _REGISTRY_NAMES = ("editorial", "pipeline", "verbs")
 
