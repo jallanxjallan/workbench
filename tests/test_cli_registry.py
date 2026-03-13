@@ -14,7 +14,6 @@ def test_discovery_includes_expected_root_commands() -> None:
     assert commands["writevault"] == "workbench.cli.writevault"
     assert commands["writestream"] == "workbench.cli.writestream"
     assert commands["stream"] == "workbench.cli.stream"
-    assert commands["generate-slugs"] == "workbench.cli.generate_slugs"
     assert commands["publish-control"] == "workbench.cli.publish_control"
     assert commands["publish-context"] == "workbench.cli.publish_context"
     assert commands["compile-control"] == "workbench.cli.compile_control"
@@ -32,6 +31,7 @@ def test_discovery_excludes_removed_write_aliases() -> None:
     assert "write-new" not in commands
     assert "write-back" not in commands
     assert "write-stream" not in commands
+    assert "generate-slugs" not in commands
 
 
 def test_dispatch_calls_writevault_module_main(

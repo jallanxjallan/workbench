@@ -8,7 +8,6 @@ from workbench.assets.discovery import (
 )
 from workbench.assets.handlers import AssetHandlerError, AssetResult
 from workbench.assets.manager import CompileAssetsError, CompileAssetsResult, compile_assets
-from workbench.assets.thumbs import ThumbnailError, generate_thumbnail
 
 __all__ = [
     "AssetDiscoveryError",
@@ -17,9 +16,7 @@ __all__ = [
     "CompileAssetsError",
     "CompileAssetsResult",
     "SourceLink",
-    "ThumbnailError",
     "compile_assets",
     "discover_uri_links",
     "extract_uri_from_markdown_link",
-    "generate_thumbnail",
 ]

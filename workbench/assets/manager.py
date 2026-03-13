@@ -26,8 +26,6 @@ class CompileAssetsResult:
     scanned_files: int
     matched_links: int
     updated_files: tuple[Path, ...]
-    generated_assets: int
-    reused_assets: int
     removed_inline_links: int
     errors: tuple[str, ...]
 
@@ -51,8 +49,6 @@ def compile_assets(studio_root: Path) -> CompileAssetsResult:
 
     updated_files: list[Path] = []
     errors: list[str] = []
-    generated_assets = 0
-    reused_assets = 0
     removed_inline_links = 0
 
     for markdown_file in sorted(grouped):
@@ -71,7 +67,6 @@ def compile_assets(studio_root: Path) -> CompileAssetsResult:
         source_set = set(sources)
         asset_set = set(assets)
 
-        assets_dir: Path | None = None
         for source_link in file_links:
             if source_link.uri not in source_set:
                 sources.append(source_link.uri)
@@ -92,16 +87,10 @@ def compile_assets(studio_root: Path) -> CompileAssetsResult:
                 asset_result = _handle_source(
                     scheme=scheme,
                     source_link=source_link,
-                    markdown_file=markdown_file,
-                    studio_root=root,
-                    assets_dir=assets_dir,
                 )
             except CompileAssetsError as exc:
                 errors.append(f"{markdown_file}: {exc}")
                 continue
-
-            if scheme == "file" and assets_dir is None:
-                assets_dir = _find_assets_directory(markdown_file, studio_root=root)
 
             if asset_result.asset_reference is None:
                 continue
@@ -110,11 +99,6 @@ def compile_assets(studio_root: Path) -> CompileAssetsResult:
                 assets.append(asset_result.asset_reference)
                 asset_set.add(asset_result.asset_reference)
                 file_changed = True
-
-            if asset_result.generated:
-                generated_assets += 1
-            else:
-                reused_assets += 1
 
         if file_changed:
             document.metadata = metadata
@@ -125,8 +109,6 @@ def compile_assets(studio_root: Path) -> CompileAssetsResult:
         scanned_files=len(grouped),
         matched_links=len(links),
         updated_files=tuple(updated_files),
-        generated_assets=generated_assets,
-        reused_assets=reused_assets,
         removed_inline_links=removed_inline_links,
         errors=tuple(errors),
     )
@@ -136,50 +118,16 @@ def _handle_source(
     *,
     scheme: str,
     source_link: SourceLink,
-    markdown_file: Path,
-    studio_root: Path,
-    assets_dir: Path | None,
 ) -> AssetResult:
     if scheme in {"http", "https"}:
         return handle_http_source(uri=source_link.uri)
     if scheme != "file":
-        return AssetResult(asset_reference=None, generated=False)
-
-    resolved_assets_dir = assets_dir or _find_assets_directory(
-        markdown_file, studio_root=studio_root
-    )
+        return AssetResult(asset_reference=None)
 
     try:
-        return handle_file_source(uri=source_link.uri, assets_dir=resolved_assets_dir)
+        return handle_file_source(uri=source_link.uri)
     except AssetHandlerError as exc:
         raise CompileAssetsError(str(exc)) from exc
-
-
-def _find_assets_directory(markdown_file: Path, *, studio_root: Path) -> Path:
-    resolved_file = markdown_file.resolve()
-    resolved_root = studio_root.resolve()
-
-    try:
-        resolved_file.relative_to(resolved_root)
-    except ValueError as exc:
-        raise CompileAssetsError(
-            f"markdown file outside studio root: {resolved_file}"
-        ) from exc
-
-    current = resolved_file.parent
-    while True:
-        assets_path = current / "_assets"
-        if assets_path.is_symlink():
-            resolved_assets_dir = assets_path.resolve()
-            resolved_assets_dir.mkdir(parents=True, exist_ok=True)
-            return resolved_assets_dir
-        if current == resolved_root:
-            break
-        current = current.parent
-
-    raise CompileAssetsError(
-        f"unable to locate vault _assets symlink for {resolved_file}"
-    )
 
 
 def _ensure_string_list(metadata: dict[str, object], field: str) -> list[str]:

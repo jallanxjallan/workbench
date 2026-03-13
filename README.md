@@ -58,7 +58,6 @@ Core commands:
 - `wkb compile-control`
 - `wkb compile-assets`
 - `wkb find-duplicates`
-- `wkb generate-slugs [--write]`
 - `wkb publish-control`
 - `wkb publish-context`
 - `wkb stream`

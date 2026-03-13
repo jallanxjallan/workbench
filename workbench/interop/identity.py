@@ -1,4 +1,4 @@
-"""Slug generation without registry-bound context."""
+"""Filename and identifier normalization helpers."""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ import os
 from pathlib import Path
 import re
 import unicodedata
-
-from workbench.slug.identity import slug as identity_slug
 
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 _MULTI_DASH_RE = re.compile(r"-{2,}")
@@ -30,4 +28,4 @@ def create_slug(target_dir: Path, filename_hint: str) -> str:
     del target_dir  # retained for backwards-compatible call signatures
     base_name = os.path.basename(str(filename_hint))
     stem, _ = os.path.splitext(base_name)
-    return identity_slug(stem or filename_hint)
+    return normalize_semantic_base(stem or filename_hint)

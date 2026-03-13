@@ -14,7 +14,6 @@ COMMAND_MODULES: dict[str, str] = {
     "compile-regex": "workbench.cli.compile_regex",
     "create-vault": "workbench.cli.create_vault",
     "find-duplicates": "workbench.cli.find_duplicates",
-    "generate-slugs": "workbench.cli.generate_slugs",
     "migrate": "workbench.cli.migrate",
     "publish-context": "workbench.cli.publish_context",
     "publish-control": "workbench.cli.publish_control",

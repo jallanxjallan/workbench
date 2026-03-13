@@ -1,4 +1,4 @@
-"""Compile URI-linked sources into managed vault assets/frontmatter entries."""
+"""Compile URI-linked sources into metadata updates."""
 
 from __future__ import annotations
 
@@ -41,8 +41,6 @@ def main(argv: list[str] | None = None) -> int:
         f"scanned {result.scanned_files} file(s), "
         f"matched {result.matched_links} URI link(s), "
         f"updated {len(result.updated_files)} file(s), "
-        f"generated {result.generated_assets} thumbnail(s), "
-        f"reused {result.reused_assets} existing asset(s), "
         f"removed {result.removed_inline_links} inline link(s)"
     )
 

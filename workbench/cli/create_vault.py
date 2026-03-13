@@ -21,7 +21,7 @@ from workbench.config.roots import (
     OBSIDIAN_ROOT as DEFAULT_OBSIDIAN_ROOT,
     VAULT_TEMPLATE_ROOT as DEFAULT_VAULT_TEMPLATE_ROOT,
 )
-from workbench.slug.identity import slug as identity_slug
+from workbench.interop.identity import normalize_semantic_base
 from workbench.write.common import atomic_write_text
 
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
@@ -191,7 +191,7 @@ def _ensure_common_symlink(vault_path: Path) -> bool:
 
 def _project_mnemonic(vault_path: Path) -> str:
     name = vault_path.name.strip().lower()
-    mnemonic = name if _IDENTITY_SLUG_RE.fullmatch(name) else identity_slug(name)
+    mnemonic = name if _IDENTITY_SLUG_RE.fullmatch(name) else normalize_semantic_base(name)
     if not mnemonic:
         raise CreateVaultError("Vault mnemonic is empty after normalization.")
     return mnemonic

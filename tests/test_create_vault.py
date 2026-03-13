@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import workbench.cli.create_vault as create_vault_module
-from workbench.slug.identity import slug as identity_slug
+from workbench.interop.identity import normalize_semantic_base
 
 
 def _write_file(path: Path, content: str = "{}\n") -> None:
@@ -51,7 +51,7 @@ def test_create_vault_new_path_creates_registry_template_and_links(
 
     result = create_vault_module.create_vault("omaf")
     vault_path = studio_root / "omaf"
-    vault_mnemonic = identity_slug("omaf")
+    vault_mnemonic = "omaf"
     assets_target = (dropbox_assets_root / vault_mnemonic).resolve()
 
     assert result.status == create_vault_module.STATUS_CREATED
@@ -103,7 +103,7 @@ def test_create_vault_uses_literal_argument_folder_name(
 
     result = create_vault_module.create_vault("My Project")
     vault_path = studio_root / "My Project"
-    mnemonic = identity_slug("My Project")
+    mnemonic = normalize_semantic_base("My Project")
 
     assert result.vault_path == vault_path
     assert vault_path.is_dir()

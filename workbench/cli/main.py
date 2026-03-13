@@ -88,11 +88,6 @@ def find_duplicates_command(ctx: typer.Context) -> None:
     _run_passthrough("find-duplicates", ctx)
 
 
-@app.command("generate-slugs", context_settings=_PASSTHROUGH_SETTINGS)
-def generate_slugs_command(ctx: typer.Context) -> None:
-    _run_passthrough("generate-slugs", ctx)
-
-
 @app.command("migrate", context_settings=_PASSTHROUGH_SETTINGS)
 def migrate_command(ctx: typer.Context) -> None:
     _run_passthrough("migrate", ctx)
