@@ -4,14 +4,14 @@ import pytest
 
 from workbench.cli import discover_commands
 import workbench.cli.main as cli_main
-import workbench.cli.writenew as writenew_module
+import workbench.cli.writevault as writevault_module
 
 
 def test_discovery_includes_expected_root_commands() -> None:
     commands = discover_commands()
 
-    assert commands["writenew"] == "workbench.cli.writenew"
-    assert commands["writeback"] == "workbench.cli.writeback"
+    assert commands["commit"] == "workbench.cli.commit"
+    assert commands["writevault"] == "workbench.cli.writevault"
     assert commands["writestream"] == "workbench.cli.writestream"
     assert commands["stream"] == "workbench.cli.stream"
     assert commands["generate-slugs"] == "workbench.cli.generate_slugs"
@@ -27,12 +27,14 @@ def test_discovery_includes_expected_root_commands() -> None:
 def test_discovery_excludes_removed_write_aliases() -> None:
     commands = discover_commands()
 
+    assert "writenew" not in commands
+    assert "writeback" not in commands
     assert "write-new" not in commands
     assert "write-back" not in commands
     assert "write-stream" not in commands
 
 
-def test_dispatch_calls_writenew_module_main(
+def test_dispatch_calls_writevault_module_main(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     called: dict[str, list[str] | None] = {}
@@ -41,9 +43,9 @@ def test_dispatch_calls_writenew_module_main(
         called["argv"] = argv
         return 0
 
-    monkeypatch.setattr(writenew_module, "main", _fake_main)
+    monkeypatch.setattr(writevault_module, "main", _fake_main)
 
-    rc = cli_main.main(["writenew"])
+    rc = cli_main.main(["writevault"])
 
     assert rc == 0
     assert called["argv"] == []
@@ -56,8 +58,8 @@ def test_help_shows_standardized_write_commands(
     out = capsys.readouterr().out
 
     assert rc == 0
-    assert "writenew" in out
-    assert "writeback" in out
+    assert "writevault" in out
     assert "writestream" in out
+    assert "commit" in out
     assert "compile-control" in out
     assert "publish-control" in out

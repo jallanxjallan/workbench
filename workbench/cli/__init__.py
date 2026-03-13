@@ -7,6 +7,7 @@ from types import ModuleType
 
 
 COMMAND_MODULES: dict[str, str] = {
+    "commit": "workbench.cli.commit",
     "compile-assets": "workbench.cli.compile_assets",
     "compile-control": "workbench.cli.compile_control",
     "compile-registries": "workbench.cli.compile_registries",
@@ -18,8 +19,7 @@ COMMAND_MODULES: dict[str, str] = {
     "publish-control": "workbench.cli.publish_control",
     "stream": "workbench.cli.stream",
     "vault-template": "workbench.cli.vault_template",
-    "writeback": "workbench.cli.writeback",
-    "writenew": "workbench.cli.writenew",
+    "writevault": "workbench.cli.writevault",
     "writestream": "workbench.cli.writestream",
 }
 

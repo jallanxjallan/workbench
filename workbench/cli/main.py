@@ -58,6 +58,11 @@ def compile_assets_command(ctx: typer.Context) -> None:
     _run_passthrough("compile-assets", ctx)
 
 
+@app.command("commit", context_settings=_PASSTHROUGH_SETTINGS)
+def commit_command(ctx: typer.Context) -> None:
+    _run_passthrough("commit", ctx)
+
+
 @app.command("compile-control", context_settings=_PASSTHROUGH_SETTINGS)
 def compile_control_command(ctx: typer.Context) -> None:
     _run_passthrough("compile-control", ctx)
@@ -103,14 +108,9 @@ def stream_command(ctx: typer.Context) -> None:
     _run_passthrough("stream", ctx)
 
 
-@app.command("writeback", context_settings=_PASSTHROUGH_SETTINGS)
-def writeback_command(ctx: typer.Context) -> None:
-    _run_passthrough("writeback", ctx)
-
-
-@app.command("writenew", context_settings=_PASSTHROUGH_SETTINGS)
-def writenew_command(ctx: typer.Context) -> None:
-    _run_passthrough("writenew", ctx)
+@app.command("writevault", context_settings=_PASSTHROUGH_SETTINGS)
+def writevault_command(ctx: typer.Context) -> None:
+    _run_passthrough("writevault", ctx)
 
 
 @app.command("writestream", context_settings=_PASSTHROUGH_SETTINGS)

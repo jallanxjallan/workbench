@@ -34,6 +34,7 @@ wkb
 
 Core commands:
 
+- `wkb commit <TYPE> <BATCH_SLUG>`
 - `wkb compile-registries`
 - `wkb compile-regex`
 - `wkb compile-control`
@@ -43,8 +44,7 @@ Core commands:
 - `wkb publish-control`
 - `wkb publish-context`
 - `wkb stream`
-- `wkb writenew [--folder <name>] [--template <name>]`
-- `wkb writeback [--studio-root <path>]`
+- `wkb writevault [--overwrite] [--folder <path>] [--template <name>]`
 - `wkb writestream`
 - `wkb create-vault <vault-name-or-path>`
 
@@ -61,6 +61,10 @@ rg ... | wkb stream | asc ingest
 ```
 
 Writers consume NDJSON from stdin and emit diagnostics to stderr.
+
+`wkb writevault` accepts NDJSON records with required `content` and `input_record`, plus optional `slug`, `batch`, `filename_hint`, and `folder`.
+
+To migrate existing vault files from `batch_id:` to `batch:`, run `tools/migrate_batch_field.zsh <vault-root>` and verify the updated keys with `rg '^batch:' <vault-root>`.
 
 ## Registry and Regex Compilation
 
