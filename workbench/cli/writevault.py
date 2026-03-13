@@ -6,14 +6,14 @@ import argparse
 from pathlib import Path
 import sys
 
-from workbench.write.vault import write_vault_records
+from workbench.lib.vault_writer import write_ingest_records
 from workbench.write.common import WriteError, has_piped_stdin
 
 
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(
         prog="writevault",
-        description="Write NDJSON records into the current vault and stage them with Git.",
+        description="Write NDJSON ingest records into the current vault's _ingest directory.",
     )
     return command_parser
 
@@ -23,7 +23,7 @@ def run(
     input_stream,
     cwd: Path | None = None,
 ) -> list[Path]:
-    return write_vault_records(
+    return write_ingest_records(
         input_stream=input_stream,
         cwd=cwd,
     )

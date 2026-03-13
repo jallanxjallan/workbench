@@ -9,9 +9,6 @@ from pathlib import Path
 import pytest
 
 from workbench.config.roots import WORKBENCH_ROOT
-from workbench.interop.document import Document
-
-
 pytestmark = pytest.mark.skipif(
     shutil.which("pandoc") is None,
     reason="pandoc is required for external ingest contract tests",
@@ -181,14 +178,5 @@ def test_migrate_pipe_writevault_succeeds_end_to_end(tmp_path: Path) -> None:
     assert migrate_rc == 0, migrate_stderr
     assert writevault_proc.returncode == 0, writevault_proc.stderr
 
-    alpha = Document.read_file(vault / "_ingest" / "Alpha Note.md")
-    beta = Document.read_file(vault / "_ingest" / "Beta Note.md")
-    assert alpha.content == "Alpha body.\n"
-    assert alpha.metadata["origin"]["source_type"] == "file"
-    assert alpha.metadata["origin"]["slug"] == "alpha-note"
-    assert alpha.metadata["filename_hint"] == "Alpha Note.md"
-    assert beta.content == "Beta body.\n"
-    assert beta.metadata["origin"]["source_type"] == "file"
-    assert beta.metadata["filename_hint"] == "Beta Note.md"
-    staged = set(_git(vault, "diff", "--cached", "--name-only").splitlines())
-    assert staged == {"_ingest/Alpha Note.md", "_ingest/Beta Note.md"}
+    assert (vault / "_ingest" / "Alpha Note.md").read_text(encoding="utf-8") == "Alpha body.\n"
+    assert (vault / "_ingest" / "Beta Note.md").read_text(encoding="utf-8") == "Beta body.\n"
