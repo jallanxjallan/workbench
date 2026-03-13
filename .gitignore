@@ -14,8 +14,7 @@ dist/
 .mypy_cache/
 
 # Deterministic generated Workbench artifacts
-/_compiled/regex/*.json
-/_compiled/registries/*.json
+/_compiled/
 
 # Local development scratch space
 dev/experiments/root_pytest_cache/
