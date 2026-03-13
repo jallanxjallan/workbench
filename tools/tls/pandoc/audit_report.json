@@ -1,0 +1,532 @@
+{
+  "generated_at": "2026-03-13",
+  "root": "/home/jeremy/Workbench/tools/tls/pandoc",
+  "summary": {
+    "total_files": 57,
+    "counts_by_category": {
+      "documentation": 2,
+      "pandoc-defaults": 2,
+      "lua-filter": 35,
+      "python-filter": 5,
+      "python-module": 1,
+      "template": 12
+    },
+    "findings": {
+      "high": 3,
+      "medium": 3,
+      "low": 1
+    }
+  },
+  "runtime_dependencies_observed": [
+    "pandoc",
+    "panflute",
+    "PyYAML",
+    "Pillow",
+    "git",
+    "xclip",
+    "redis-cli"
+  ],
+  "files": [
+    {
+      "path": "defaults/README.md",
+      "category": "documentation",
+      "purpose": "Placeholder README explaining that Pandoc defaults files should live in this directory."
+    },
+    {
+      "path": "defaults/ingest_notes.yaml",
+      "category": "pandoc-defaults",
+      "purpose": "Pandoc defaults preset for markdown-to-markdown note ingestion that runs the NDJSON emission filter."
+    },
+    {
+      "path": "defaults/label_notes.yaml",
+      "category": "pandoc-defaults",
+      "purpose": "Pandoc defaults preset for markdown labeling that applies the metadata fill filter."
+    },
+    {
+      "path": "filters/README.md",
+      "category": "documentation",
+      "purpose": "Usage notes for running Lua and Python panflute filters."
+    },
+    {
+      "path": "filters/emit_ndjson.lua",
+      "category": "lua-filter",
+      "purpose": "No-op placeholder filter for NDJSON-oriented pipelines; currently returns the document unchanged.",
+      "handlers": [
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/content-clipping/check_if_exists.lua",
+      "category": "lua-filter",
+      "purpose": "Stops conversion early if the configured Pandoc output file already exists.",
+      "handlers": [
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/content-clipping/clip_content.lua",
+      "category": "lua-filter",
+      "purpose": "Serializes the document to markdown, copies it to the X clipboard via xclip, prints a status line, and exits.",
+      "handlers": [
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/content-filtering/filter_by_heading.lua",
+      "category": "lua-filter",
+      "purpose": "Keeps only sections whose heading levels match the `heading_filter` metadata list.",
+      "handlers": [
+        "Meta",
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/content-filtering/filter_components.lua",
+      "category": "lua-filter",
+      "purpose": "Maps symbol-prefixed paragraphs to styled Div blocks, optionally limited by `components` metadata, and logs malformed paragraphs.",
+      "handlers": [
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/content-filtering/filter_unchanged_files.lua",
+      "category": "lua-filter",
+      "purpose": "Filters out links to unchanged local files by diffing the current tree against a submission commit.",
+      "handlers": [
+        "Meta",
+        "Para"
+      ]
+    },
+    {
+      "path": "filters/lua/content-stripping/strip_bulleted_para.lua",
+      "category": "lua-filter",
+      "purpose": "Wraps paragraphs that start with a non-alphabetic character in square brackets, despite the filename suggesting removal.",
+      "handlers": [
+        "Para"
+      ]
+    },
+    {
+      "path": "filters/lua/content-stripping/strip_comments.lua",
+      "category": "lua-filter",
+      "purpose": "Intended to recursively remove raw HTML comments from blocks and inlines.",
+      "handlers": [
+        "Block",
+        "Inline"
+      ]
+    },
+    {
+      "path": "filters/lua/content-stripping/strip_highlights.lua",
+      "category": "lua-filter",
+      "purpose": "Removes strong text and attempts to remove emphasis markup.",
+      "handlers": [
+        "Strong",
+        "Empahsis"
+      ]
+    },
+    {
+      "path": "filters/lua/content-stripping/strip_images.lua",
+      "category": "lua-filter",
+      "purpose": "Removes all image elements from the document.",
+      "handlers": [
+        "Image"
+      ]
+    },
+    {
+      "path": "filters/lua/content-stripping/strip_links.lua",
+      "category": "lua-filter",
+      "purpose": "Replaces links with their visible text only.",
+      "handlers": [
+        "Link"
+      ]
+    },
+    {
+      "path": "filters/lua/content-stripping/strip_spans.lua",
+      "category": "lua-filter",
+      "purpose": "Unwraps spans and returns their inline content directly.",
+      "handlers": [
+        "Span"
+      ]
+    },
+    {
+      "path": "filters/lua/content-transformation/codeblock_to_paragraph.lua",
+      "category": "lua-filter",
+      "purpose": "Converts code blocks into paragraphs, bullet lists, or nothing based on `codeblock-mode` metadata.",
+      "handlers": [
+        "Meta",
+        "CodeBlock"
+      ]
+    },
+    {
+      "path": "filters/lua/content-transformation/header_to_title.lua",
+      "category": "lua-filter",
+      "purpose": "Captures the first level-1 header, removes it from the body, and stores a sanitized version in metadata as `title`.",
+      "handlers": [
+        "Header",
+        "Meta"
+      ]
+    },
+    {
+      "path": "filters/lua/content-transformation/headline_to_heading.lua",
+      "category": "lua-filter",
+      "purpose": "Promotes any paragraph containing strong text into a level-1 heading.",
+      "handlers": [
+        "Para"
+      ]
+    },
+    {
+      "path": "filters/lua/document-structure/format_as_outline.lua",
+      "category": "lua-filter",
+      "purpose": "Restyles Sidebar headers and turns ordered lists into labeled image-outline blocks for layout-oriented output.",
+      "handlers": [
+        "Header",
+        "OrderedList"
+      ]
+    },
+    {
+      "path": "filters/lua/document-structure/insert_header_from_meta.lua",
+      "category": "lua-filter",
+      "purpose": "Prepends a generated H1 from the first available metadata field among `header`, `title`, `chapter`, or `image`.",
+      "handlers": [
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/document-structure/split_on_header.lua",
+      "category": "lua-filter",
+      "purpose": "Splits a document into section JSON files at a configured header level and annotates each chunk with provenance metadata.",
+      "handlers": [
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/formatting/align_images.lua",
+      "category": "lua-filter",
+      "purpose": "Adds fixed-height styling to images and flex-row styling to Divs with the `image_row` class.",
+      "handlers": [
+        "Image",
+        "Div"
+      ]
+    },
+    {
+      "path": "filters/lua/formatting/format_comments.lua",
+      "category": "lua-filter",
+      "purpose": "Transforms raw inline comment-like content into comment-start/comment-end spans with author and timestamp attributes.",
+      "handlers": [
+        "RawInline"
+      ]
+    },
+    {
+      "path": "filters/lua/formatting/format_headers.lua",
+      "category": "lua-filter",
+      "purpose": "Prefixes dotted header segments with human-readable labels like Section, Chapter, and Feature.",
+      "handlers": [
+        "Header"
+      ]
+    },
+    {
+      "path": "filters/lua/formatting/format_link.lua",
+      "category": "lua-filter",
+      "purpose": "Normalizes `file://` link targets into plain filesystem paths.",
+      "handlers": [
+        "Link"
+      ]
+    },
+    {
+      "path": "filters/lua/images/missing_image.lua",
+      "category": "lua-filter",
+      "purpose": "Replaces images with empty sources by strong text prompting that an image is needed.",
+      "handlers": [
+        "Image"
+      ]
+    },
+    {
+      "path": "filters/lua/images/thumbnail_inline.lua",
+      "category": "lua-filter",
+      "purpose": "Intended to inject a thumbnail image from metadata into the first paragraph or prepend it as its own paragraph.",
+      "handlers": [
+        "Doc"
+      ]
+    },
+    {
+      "path": "filters/lua/links/replace_with_linked_content.lua",
+      "category": "lua-filter",
+      "purpose": "Replaces a paragraph marked with a `content_to_expand` link by loading and inlining markdown from the other links in that paragraph.",
+      "handlers": [
+        "Para"
+      ]
+    },
+    {
+      "path": "filters/lua/metadata/doc_metadata.lua",
+      "category": "lua-filter",
+      "purpose": "Counts words, writes document metadata into Redis under a derived key, prints the key, and exits.",
+      "handlers": [
+        "Meta",
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/metadata/filepaths_to_meta.lua",
+      "category": "lua-filter",
+      "purpose": "Copies Pandoc input and output file paths into metadata fields such as `inputfile`, `source`, and `outputfile`.",
+      "handlers": [
+        "Meta"
+      ]
+    },
+    {
+      "path": "filters/lua/metadata/inputfile_to_metadata.lua",
+      "category": "lua-filter",
+      "purpose": "Captures the first level-1 header as `header` metadata and removes it from the body.",
+      "handlers": [
+        "Header",
+        "Meta"
+      ]
+    },
+    {
+      "path": "filters/lua/metadata/inspect_metadata.lua",
+      "category": "lua-filter",
+      "purpose": "Prints a readable representation of all metadata fields to stderr for debugging.",
+      "handlers": [
+        "Meta"
+      ]
+    },
+    {
+      "path": "filters/lua/metadata/meta_fill.lua",
+      "category": "lua-filter",
+      "purpose": "Fills missing `uid` and `slug` metadata and normalizes provenance-related metadata fields to strings.",
+      "handlers": [
+        "Meta"
+      ]
+    },
+    {
+      "path": "filters/lua/metadata/set_creation_date.lua",
+      "category": "lua-filter",
+      "purpose": "Adds a human-readable `created` date to metadata if one is not already present.",
+      "handlers": [
+        "Meta"
+      ]
+    },
+    {
+      "path": "filters/lua/output/print_output_filepath.lua",
+      "category": "lua-filter",
+      "purpose": "Prints the Pandoc output path or file URL and can optionally copy that path to the clipboard.",
+      "handlers": [
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/utilities/git_markup.lua",
+      "category": "lua-filter",
+      "purpose": "Appends raw changed git diff lines to the rendered document when the current input file has uncommitted changes.",
+      "handlers": [
+        "Meta",
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/utilities/stop_convert.lua",
+      "category": "lua-filter",
+      "purpose": "Terminates conversion immediately without producing normal output.",
+      "handlers": [
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/lua/utilities/wordcount.lua",
+      "category": "lua-filter",
+      "purpose": "Counts body words, prints the result using metadata or output filename as the label, and exits.",
+      "handlers": [
+        "Meta",
+        "Pandoc"
+      ]
+    },
+    {
+      "path": "filters/python/document-structure/split_sections.py",
+      "category": "python-filter",
+      "purpose": "Panflute filter that splits content whenever a block matches `split-pattern` metadata and emits the resulting sections as NDJSON documents.",
+      "functions": [
+        "_meta_to_str",
+        "prepare",
+        "_finalize_section",
+        "action",
+        "_records_from_markdown_items",
+        "_emit_payload_to_parent_stdout",
+        "finalize",
+        "main"
+      ]
+    },
+    {
+      "path": "filters/python/panflute/__init__.py",
+      "category": "python-module",
+      "purpose": "Package marker for standalone panflute filters in this toolchain."
+    },
+    {
+      "path": "filters/python/panflute/build_submission.py",
+      "category": "python-filter",
+      "purpose": "Standalone panflute filter that wraps symbol-prefixed paragraphs in custom-style Divs and expands `content_to_expand` links from local files.",
+      "functions": [
+        "_normalize_target_to_path",
+        "_load_layout_map",
+        "_resolve_target_path",
+        "_read_expansion_text",
+        "_custom_style_div_from_value",
+        "_style_reset_block",
+        "prepare",
+        "action",
+        "main"
+      ]
+    },
+    {
+      "path": "filters/python/panflute/format_submission.py",
+      "category": "python-filter",
+      "purpose": "Component-aware panflute formatter that surrounds symbol-tagged paragraphs with review or layout wrapper Divs.",
+      "functions": [
+        "load_definitions",
+        "resolve_components",
+        "prepare",
+        "page_divider",
+        "build_div",
+        "action",
+        "main"
+      ],
+      "classes": [
+        "SymbolHandler"
+      ]
+    },
+    {
+      "path": "filters/python/panflute/ingest_notes.py",
+      "category": "python-filter",
+      "purpose": "Splits notes by header, fills metadata, guards against duplicate outputs, and shells out to Pandoc to write chunked markdown files.",
+      "functions": [
+        "to_kebab",
+        "random_string",
+        "prepare",
+        "check_filename_guardrail",
+        "action",
+        "finalize",
+        "main"
+      ]
+    },
+    {
+      "path": "filters/python/panflute/render_pdf_layout.py",
+      "category": "python-filter",
+      "purpose": "Reads layout annotations from metadata, paints them onto page images with Pillow, and assembles the result into a PDF.",
+      "functions": [
+        "draw_annotations",
+        "render_layout_pdf",
+        "prepare",
+        "main"
+      ]
+    },
+    {
+      "path": "templates/caption.markdown",
+      "category": "template",
+      "purpose": "Front-matter template for image captions with page, position, description, word count, and status fields."
+    },
+    {
+      "path": "templates/chapter.markdown",
+      "category": "template",
+      "purpose": "Template for chapter notes with chapter number, title, and status front matter."
+    },
+    {
+      "path": "templates/comment.markdown",
+      "category": "template",
+      "purpose": "Simple heading-based template for collecting comments associated with a named item."
+    },
+    {
+      "path": "templates/completion.markdown",
+      "category": "template",
+      "purpose": "Template for storing AI completion metadata such as instruction, prompt, model, and max token count."
+    },
+    {
+      "path": "templates/content.markdown",
+      "category": "template",
+      "purpose": "Template for generated content with title and status front matter."
+    },
+    {
+      "path": "templates/document.markdown",
+      "category": "template",
+      "purpose": "Generic document template with identifying metadata, sequence, status, and header slots."
+    },
+    {
+      "path": "templates/edit_document.markdown",
+      "category": "template",
+      "purpose": "Flexible edit-focused template that conditionally emits common metadata fields before the body."
+    },
+    {
+      "path": "templates/instructions.markdown",
+      "category": "template",
+      "purpose": "Minimal instructions template with a `parents` metadata list."
+    },
+    {
+      "path": "templates/linkedin.markdown",
+      "category": "template",
+      "purpose": "Template for LinkedIn content with name, platform, heading, caption, and body content fields."
+    },
+    {
+      "path": "templates/passage.markdown",
+      "category": "template",
+      "purpose": "Passage note template with uid, slug, status, tags, and type metadata."
+    },
+    {
+      "path": "templates/resume-context.tpl",
+      "category": "template",
+      "purpose": "ConTeXt template for rendering a styled A4 resume with custom layout, colors, section styling, and helper macros."
+    },
+    {
+      "path": "templates/story.markdown",
+      "category": "template",
+      "purpose": "Template for story notes with title, note reference, and manual-creation status metadata."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "high",
+      "path": "defaults/ingest_notes.yaml",
+      "line": 5,
+      "issue": "The filter path is hard-coded to `/home/jeremy/Tools/...`, which does not match this checkout under `/home/jeremy/Workbench`.",
+      "impact": "This defaults preset will fail unless the same filters also exist at the older absolute path."
+    },
+    {
+      "severity": "high",
+      "path": "defaults/label_notes.yaml",
+      "line": 5,
+      "issue": "The filter path is hard-coded to `/home/jeremy/Tools/...` rather than the current repository location.",
+      "impact": "Running this defaults file from the current workspace is likely to miss the intended filter."
+    },
+    {
+      "severity": "high",
+      "path": "filters/lua/links/replace_with_linked_content.lua",
+      "line": 104,
+      "issue": "The filter treats `link_inline.target` like an array (`target[1]`, `target[2]`) even though Pandoc Lua links expose the target as a string.",
+      "impact": "Linked-content expansion is likely to resolve the wrong path or fail outright."
+    },
+    {
+      "severity": "medium",
+      "path": "filters/lua/images/thumbnail_inline.lua",
+      "line": 1,
+      "issue": "The top-level handler is named `Doc` instead of the standard Pandoc Lua document handler `Pandoc`.",
+      "impact": "The filter may never run, leaving thumbnail injection inactive."
+    },
+    {
+      "severity": "medium",
+      "path": "filters/lua/content-stripping/strip_comments.lua",
+      "line": 8,
+      "issue": "Comment stripping uses `gsub(\"\", \"\", 1)` instead of a comment-matching pattern.",
+      "impact": "HTML comments are unlikely to be removed as intended."
+    },
+    {
+      "severity": "medium",
+      "path": "filters/lua/content-stripping/strip_highlights.lua",
+      "line": 5,
+      "issue": "The emphasis handler is misspelled as `Empahsis`.",
+      "impact": "Emphasis markup will not be stripped, so the filter only affects strong text."
+    },
+    {
+      "severity": "low",
+      "path": "filters/python/panflute/build_submission.py",
+      "line": 26,
+      "issue": "The default layout companion file `layout_divs.yaml` is referenced but not present in this directory.",
+      "impact": "The filter falls back to an empty layout map unless `PANDOC_LAYOUT_FILE` is supplied."
+    }
+  ]
+}

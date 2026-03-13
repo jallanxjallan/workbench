@@ -15,6 +15,7 @@ COMMAND_MODULES: dict[str, str] = {
     "create-vault": "workbench.cli.create_vault",
     "find-duplicates": "workbench.cli.find_duplicates",
     "generate-slugs": "workbench.cli.generate_slugs",
+    "migrate": "workbench.cli.migrate",
     "publish-context": "workbench.cli.publish_context",
     "publish-control": "workbench.cli.publish_control",
     "stream": "workbench.cli.stream",

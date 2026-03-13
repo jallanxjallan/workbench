@@ -1,20 +1,11 @@
 # Filters
 
-## Lua
+Filters are organized by function rather than by workflow.
 
-Store Lua filters in `filters/lua/` and run with:
+Workflows are assembled through Pandoc defaults files, which select and order
+reusable filters for a given pipeline.
 
-```bash
-pandoc input.md --lua-filter filters/lua/path/to/filter.lua -o out.md
-```
+Lua filters live under `filters/lua/`.
+Python panflute filters live under `filters/python/panflute/`.
 
-## Python (panflute)
-
-Store panflute filters in `filters/python/` and run with:
-
-```bash
-python3 -m pip install panflute
-pandoc input.md --filter filters/python/path/to/filter.py -o out.md
-```
-
-Keep both filter families independent from Workbench internals.
+Filters in this tree should remain independent, composable, and reusable.

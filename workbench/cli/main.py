@@ -93,6 +93,11 @@ def generate_slugs_command(ctx: typer.Context) -> None:
     _run_passthrough("generate-slugs", ctx)
 
 
+@app.command("migrate", context_settings=_PASSTHROUGH_SETTINGS)
+def migrate_command(ctx: typer.Context) -> None:
+    _run_passthrough("migrate", ctx)
+
+
 @app.command("publish-context", context_settings=_PASSTHROUGH_SETTINGS)
 def publish_context_command(ctx: typer.Context) -> None:
     _run_passthrough("publish-context", ctx)
