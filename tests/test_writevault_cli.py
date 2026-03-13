@@ -47,7 +47,9 @@ def test_writevault_parser_is_flagless() -> None:
 def test_writevault_rejects_when_vault_registry_is_missing(tmp_path: Path) -> None:
     with pytest.raises(WriteError, match="_vault_registry.json"):
         writevault_cli.run(
-            input_stream=io.StringIO('{"content":"Body","input_record":{}}\n'),
+            input_stream=io.StringIO(
+                '{"content":"Body","input_record":{"origin":{"source_type":"stdin"}}}\n'
+            ),
             cwd=tmp_path,
         )
 
@@ -61,7 +63,7 @@ def test_writevault_discovers_vault_from_nested_cwd_and_writes_to_ingest(
 
     writevault_cli.run(
         input_stream=io.StringIO(
-            '{"content":"Draft body","input_record":{"slug":"omaf.first-flight","class":"passage"},"slug":"omaf.first-flight"}\n'
+            '{"content":"Draft body","input_record":{"slug":"omaf.first-flight","class":"passage","origin":{"source_type":"stdin"}}}\n'
         ),
         cwd=nested,
     )
@@ -70,6 +72,7 @@ def test_writevault_discovers_vault_from_nested_cwd_and_writes_to_ingest(
     assert Document.read_file(target).metadata == {
         "slug": "omaf.first-flight",
         "class": "passage",
+        "origin": {"source_type": "stdin"},
     }
     assert _git(vault, "diff", "--cached", "--name-only") == "_ingest/first-flight.md"
 
@@ -79,13 +82,17 @@ def test_writevault_accepts_batch_field_without_writing_it(tmp_path: Path) -> No
 
     writevault_cli.run(
         input_stream=io.StringIO(
-            '{"content":"Body","input_record":{"slug":"omaf.first-flight"},"slug":"omaf.first-flight","batch":"omaf.rewrite-03"}\n'
+            '{"content":"Body","input_record":{"slug":"omaf.first-flight","batch":"omaf.rewrite-03","origin":{"source_type":"stdin"}}}\n'
         ),
         cwd=vault,
     )
 
     target = vault / "_ingest" / "first-flight.md"
-    assert Document.read_file(target).metadata == {"slug": "omaf.first-flight"}
+    assert Document.read_file(target).metadata == {
+        "slug": "omaf.first-flight",
+        "batch": "omaf.rewrite-03",
+        "origin": {"source_type": "stdin"},
+    }
 
 
 def test_writevault_ignores_templates_directory(tmp_path: Path) -> None:
@@ -99,10 +106,12 @@ def test_writevault_ignores_templates_directory(tmp_path: Path) -> None:
 
     writevault_cli.run(
         input_stream=io.StringIO(
-            '{"content":"Body","input_record":{"class":"note"},"filename_hint":"Wrapped Note"}\n'
+            '{"content":"Body","input_record":{"class":"note","filename_hint":"Wrapped Note","origin":{"source_type":"stdin"}}}\n'
         ),
         cwd=vault,
     )
 
     target = vault / "_ingest" / "Wrapped Note.md"
-    assert target.read_text(encoding="utf-8") == "---\nclass: note\n---\n\nBody"
+    assert target.read_text(encoding="utf-8") == (
+        "---\nclass: note\nfilename_hint: Wrapped Note\norigin:\n  source_type: stdin\n---\n\nBody"
+    )

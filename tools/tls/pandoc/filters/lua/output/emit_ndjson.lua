@@ -1,11 +1,3 @@
-local top_level_fields = {
-  batch_slug = true,
-  assets = true,
-  priority = true,
-  context = true,
-  origin = true,
-}
-
 local valid_blocks = {
   Para = true,
   Plain = true,
@@ -123,22 +115,36 @@ local function prune_empty(value)
   return next(pruned) and pruned or nil
 end
 
+local function detect_source_descriptor()
+  local input_files = (PANDOC_STATE and PANDOC_STATE.input_files) or {}
+  local first = input_files[1]
+  if first and first ~= "" and first ~= "-" then
+    return {
+      source_type = "file",
+      path = first,
+    }, pandoc.path.filename(first)
+  end
+  return {
+    source_type = "stdin",
+  }, nil
+end
+
 local function fail_empty(doc)
-  io.stderr:write("emit_ndjson: document empty after filters\n")
+  local origin = nil
   if doc.meta.origin then
-    local origin = prune_empty(meta_to_lua(doc.meta.origin))
+    origin = prune_empty(meta_to_lua(doc.meta.origin))
+  end
+
+  io.stderr:write("emit_ndjson: document empty after filters\n")
+  if origin ~= nil then
     if type(origin) == "table" then
       io.stderr:write("origin: " .. pandoc.json.encode(origin) .. "\n")
     else
       io.stderr:write("origin: " .. tostring(origin) .. "\n")
     end
   end
-  local slug = doc.meta.slug
-  if not slug and doc.meta.origin and doc.meta.origin.slug then
-    slug = doc.meta.origin.slug
-  end
-  if slug then
-    io.stderr:write("slug: " .. pandoc.utils.stringify(slug) .. "\n")
+  if type(origin) == "table" and origin.slug then
+    io.stderr:write("slug: " .. tostring(origin.slug) .. "\n")
   end
   os.exit(1)
 end
@@ -153,25 +159,47 @@ function Pandoc(doc)
     fail_empty(doc)
   end
 
-  local record = { content = content }
+  local detected_origin, filename_hint = detect_source_descriptor()
   local input_record = {}
+  local origin = {}
 
   for key, value in pairs(doc.meta or {}) do
     local plain = prune_empty(meta_to_lua(value))
     if plain ~= nil then
-      if top_level_fields[key] then
-        record[key] = plain
+      if key == "origin" and type(plain) == "table" then
+        for origin_key, origin_value in pairs(plain) do
+          origin[origin_key] = origin_value
+        end
       else
         input_record[key] = plain
       end
     end
   end
 
-  input_record = prune_empty(input_record)
-  if input_record ~= nil then
-    record.input_record = input_record
+  if type(origin.filename_hint) == "string" and origin.filename_hint:match("%S") then
+    filename_hint = origin.filename_hint
+    origin.filename_hint = nil
   end
 
-  print(pandoc.json.encode(prune_empty(record)))
+  for key, value in pairs(detected_origin) do
+    if origin[key] == nil then
+      origin[key] = value
+    end
+  end
+
+  input_record.origin = prune_empty(origin) or { source_type = detected_origin.source_type }
+  if filename_hint and filename_hint:match("%S") then
+    input_record.filename_hint = filename_hint
+  end
+
+  input_record = prune_empty(input_record) or { origin = { source_type = detected_origin.source_type } }
+  if input_record.origin == nil then
+    input_record.origin = { source_type = detected_origin.source_type }
+  end
+
+  print(pandoc.json.encode({
+    content = content,
+    input_record = input_record,
+  }))
   os.exit()
 end

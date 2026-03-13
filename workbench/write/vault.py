@@ -12,7 +12,7 @@ from typing import Any, Iterable, Iterator
 
 from workbench.interop.document import Document
 from workbench.interop.identity import normalize_semantic_base
-from workbench.lib.ndjson_stream import iter_ndjson
+from workbench.write.ndjson import iter_ndjson
 from workbench.write.common import WriteError
 
 VAULT_REGISTRY_FILENAME = "_vault_registry.json"
@@ -25,6 +25,7 @@ class VaultWriteRecord:
     envelope: dict[str, Any]
     content: str
     input_record: dict[str, Any]
+    origin: dict[str, Any]
     slug: str | None
     batch: str | None
     filename_hint: str | None
@@ -202,7 +203,7 @@ def _validate_writeback_against_git(
 def stage_written_file(*, repo_root: Path, target_path: Path) -> None:
     relative = _relative_to_repo(repo_root, target_path)
     proc = subprocess.run(
-        ["git", "-C", str(repo_root), "add", "--", relative],
+        ["git", "-C", str(repo_root), "add", "-f", "--", relative],
         capture_output=True,
         text=True,
         check=False,
@@ -219,21 +220,47 @@ def _coerce_record(*, record: dict[str, Any], index: int) -> VaultWriteRecord:
     content = record.get("content")
     if not isinstance(content, str):
         raise WriteError(f"record {index}: missing required record field: content")
+    if not content.strip():
+        raise WriteError(f"record {index}: invalid record field: content")
 
+    if "input_record" not in record:
+        raise WriteError(f"record {index}: missing required record field: input_record")
     input_record = record.get("input_record")
     if not isinstance(input_record, dict):
-        raise WriteError(f"record {index}: missing required record field: input_record")
+        raise WriteError(f"record {index}: invalid record field: input_record")
+
+    if "origin" not in input_record:
+        raise WriteError(f"record {index}: missing required record field: input_record.origin")
+    origin = input_record.get("origin")
+    if not isinstance(origin, dict):
+        raise WriteError(f"record {index}: invalid record field: input_record.origin")
+
+    if "source_type" not in origin:
+        raise WriteError(
+            f"record {index}: missing required record field: input_record.origin.source_type"
+        )
+    if not isinstance(origin.get("source_type"), str) or not origin["source_type"].strip():
+        raise WriteError(f"record {index}: invalid record field: input_record.origin.source_type")
 
     return VaultWriteRecord(
         envelope=copy.deepcopy(record),
         content=content,
         input_record=copy.deepcopy(input_record),
-        slug=_normalize_optional_string(record.get("slug"), field=f"record {index} slug"),
-        batch=_normalize_optional_string(
-            record.get("batch"), field=f"record {index} batch"
+        origin=copy.deepcopy(origin),
+        slug=_first_non_empty_string(
+            input_record.get("slug"),
+            origin.get("slug"),
+            field=f"record {index} input_record.slug",
         ),
-        filename_hint=_normalize_optional_string(
-            record.get("filename_hint"), field=f"record {index} filename_hint"
+        batch=_first_non_empty_string(
+            input_record.get("batch"),
+            input_record.get("batch_slug"),
+            field=f"record {index} input_record.batch",
+        ),
+        filename_hint=_first_non_empty_string(
+            input_record.get("filename_hint"),
+            origin.get("filename_hint"),
+            field=f"record {index} input_record.filename_hint",
         ),
         assets=copy.deepcopy(record.get("assets")),
     )
@@ -245,6 +272,14 @@ def _normalize_optional_string(value: Any, *, field: str) -> str | None:
     if not isinstance(value, str) or not value.strip():
         raise WriteError(f"{field} must be a non-empty string")
     return value.strip()
+
+
+def _first_non_empty_string(*values: Any, field: str) -> str | None:
+    for value in values:
+        if value is None:
+            continue
+        return _normalize_optional_string(value, field=field)
+    return None
 
 
 def _normalize_filename_hint(value: str) -> str:

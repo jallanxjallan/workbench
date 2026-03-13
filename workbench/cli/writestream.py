@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from workbench.lib.streams import read_stdin_text, write_stdout_text
-from workbench.write.writestream import write_stream_text
+from workbench.write.stream import write_stream_text
 
 
 def parser() -> argparse.ArgumentParser:

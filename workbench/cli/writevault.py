@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from workbench.lib.vault_writer import write_vault_records
+from workbench.write.vault import write_vault_records
 from workbench.write.common import WriteError, has_piped_stdin
 
 
