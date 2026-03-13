@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from workbench.lib.duplicates import (
+from workbench.assets.duplicates import (
     DuplicateScanResult,
     DuplicateScannerError,
     prune_duplicates,

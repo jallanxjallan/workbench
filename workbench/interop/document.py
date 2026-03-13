@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from typing import Any, Mapping
 
-from workbench.lib.text import strip_utf8_bom
+from workbench.runtime.text import strip_utf8_bom
 
 _SERDE_MODULE = importlib.import_module("YAML".lower())
 

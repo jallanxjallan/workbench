@@ -6,8 +6,8 @@ import shutil
 
 import pytest
 
-from workbench.lib import rg as rg_module
-from workbench.lib.rg import RipgrepError, rg_run, rg_search
+import workbench.scan.rg as rg_module
+from workbench.scan.rg import RipgrepError, rg_run, rg_search
 
 pytestmark = pytest.mark.skipif(shutil.which("rg") is None, reason="rg not installed")
 

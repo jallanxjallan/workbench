@@ -10,7 +10,7 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 
 from workbench.config.roots import WORKBENCH_ROOT
-from workbench.lib.subprocess import CommandError, run_text
+from workbench.runtime.subprocess import CommandError, run_text
 
 DEFAULT_THUMB_SIZE = (512, 512)
 

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import workbench.cli.create_vault as create_vault_module
-from workbench.lib.identity import slug as identity_slug
+from workbench.slug.identity import slug as identity_slug
 
 
 def _write_file(path: Path, content: str = "{}\n") -> None:

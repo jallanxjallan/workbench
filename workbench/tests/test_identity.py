@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from workbench.lib.identity import slug
+from workbench.slug.identity import slug
 
 
 def test_examples() -> None:

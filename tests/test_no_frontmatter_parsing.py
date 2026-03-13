@@ -14,7 +14,7 @@ def test_no_legacy_frontmatter_module() -> None:
 
 def test_no_internal_frontmatter_parsing_outside_document() -> None:
     forbidden = [
-        "workbench.lib.frontmatter",
+        "workbench.frontmatter",
         "parse_frontmatter(",
         "yaml.",
         "safe_load",

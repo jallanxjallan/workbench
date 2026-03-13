@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from workbench.lib.streams import read_stdin_text, write_stdout_text
+from workbench.scan.streams import read_stdin_text, write_stdout_text
 from workbench.write.stream import write_stream_text
 
 

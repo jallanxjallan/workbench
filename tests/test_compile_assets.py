@@ -5,10 +5,10 @@ from PIL import Image
 
 import workbench.cli.main as cli_main
 from workbench.interop.document import Document
-import workbench.lib.compile_assets as compile_assets_module
+import workbench.registry.compile_assets as compile_assets_module
 import workbench.assets.discovery as assets_discovery_module
-from workbench.lib.compile_assets import compile_assets
-from workbench.lib.regex_registry import RegexPattern
+from workbench.registry.compile_assets import compile_assets
+from workbench.registry.regex_registry import RegexPattern
 
 
 def _create_vault(tmp_path: Path, name: str) -> tuple[Path, Path, Path]:

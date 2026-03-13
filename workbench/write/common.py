@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator
 
 from workbench.interop.identity import normalize_semantic_base
-from workbench.write.ndjson import iter_ndjson
+from workbench.ingest.ndjson import iter_ndjson
 
 
 class WriteError(RuntimeError):

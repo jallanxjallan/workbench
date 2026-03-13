@@ -21,7 +21,7 @@ from workbench.config.roots import (
     OBSIDIAN_ROOT as DEFAULT_OBSIDIAN_ROOT,
     VAULT_TEMPLATE_ROOT as DEFAULT_VAULT_TEMPLATE_ROOT,
 )
-from workbench.lib.identity import slug as identity_slug
+from workbench.slug.identity import slug as identity_slug
 from workbench.write.common import atomic_write_text
 
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT

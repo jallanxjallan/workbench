@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from workbench.interop.document import Document
-from workbench.lib.rg import RipgrepError, rg_search
-from workbench.lib.regex_registry import RegexPattern, RegexRegistryError, load_regex
+from workbench.scan.rg import RipgrepError, rg_search
+from workbench.registry.regex_registry import RegexPattern, RegexRegistryError, load_regex
 from workbench.slug.builder import build_slug
 from workbench.slug.validator import validate_slug
 

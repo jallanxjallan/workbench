@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import unicodedata
 
-from workbench.lib.identity import slug as identity_slug
+from workbench.slug.identity import slug as identity_slug
 
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 _MULTI_DASH_RE = re.compile(r"-{2,}")

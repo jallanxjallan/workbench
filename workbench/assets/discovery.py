@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 
-from workbench.lib.rg import RipgrepError, rg_search
-from workbench.lib.regex_registry import RegexRegistryError, load_regex
+from workbench.scan.rg import RipgrepError, rg_search
+from workbench.registry.regex_registry import RegexRegistryError, load_regex
 
 URI_LINK_RE = re.compile(
     r"\[[^\]]*\]\((?P<uri>(?:file|https?)://[^)]+)\)"

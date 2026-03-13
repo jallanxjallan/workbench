@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from workbench.lib.compile_registries import (
+from workbench.registry.compile_registries import (
     CompileRegistriesError,
     DEFAULT_REGISTRIES_ROOT,
     DEFAULT_RUNTIME_ROOT,

@@ -12,7 +12,7 @@ from typing import Any, Iterable, Iterator
 
 from workbench.interop.document import Document
 from workbench.interop.identity import normalize_semantic_base
-from workbench.write.ndjson import iter_ndjson
+from workbench.ingest.ndjson import iter_ndjson
 from workbench.write.common import WriteError
 
 VAULT_REGISTRY_FILENAME = "_vault_registry.json"
