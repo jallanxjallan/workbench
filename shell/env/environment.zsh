@@ -9,9 +9,11 @@ if [[ -z "${AUTOSCRIBE_HOME:-}" || "${AUTOSCRIBE_HOME}" == "$HOME/Autoscribe" ]]
   AUTOSCRIBE_HOME="$HOME/Autoscribe"
 fi
 export AUTOSCRIBE_HOME
-if [[ -z "${AUTOSCRIBE_CONTROL_ROOT:-}" || "${AUTOSCRIBE_CONTROL_ROOT}" == "$HOME/Projects/autoscribe-control" ]]; then
-  AUTOSCRIBE_CONTROL_ROOT="$HOME/Control"
+if [[ -z "${WORKBENCH_CONTROL_ROOT:-}" || "${WORKBENCH_CONTROL_ROOT}" == "$HOME/Projects/autoscribe-control" ]]; then
+  WORKBENCH_CONTROL_ROOT="$HOME/Control"
 fi
+export WORKBENCH_CONTROL_ROOT
+AUTOSCRIBE_CONTROL_ROOT="$WORKBENCH_CONTROL_ROOT"
 export AUTOSCRIBE_CONTROL_ROOT
 if [[ -z "${STUDIO_ROOT:-}" ]]; then
   STUDIO_ROOT="$HOME/Studio"

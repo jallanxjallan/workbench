@@ -20,7 +20,7 @@ def _write(path: Path, content: str) -> Path:
 def _seed_control_tree(root: Path) -> None:
     _write(root / "verbs" / "editorial.yaml", "folders: {}\nclasses: {}\ntemplates: {}\n")
     _write(
-        root / "regex" / "slug_field.yaml",
+        root / "Regex" / "definitions" / "slug_field.yaml",
         (
             "name: slug_field\n"
             "engine: default\n"

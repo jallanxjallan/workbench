@@ -8,15 +8,15 @@ from pathlib import Path
 from typing import Any
 
 from workbench.cli.create_vault import load_registry
-from workbench.config.roots import AUTOSCRIBE_CONTROL_ROOT, STUDIO_ROOT, WORKBENCH_ROOT
+from workbench.config.roots import STUDIO_ROOT, WORKBENCH_CONTROL_ROOT, WORKBENCH_ROOT
 from workbench.interop.document import Document
-from workbench.lib.rg import RipgrepError, rg_search
+from workbench.scan.rg import RipgrepError, rg_search
 from workbench.regex.compile_patterns import PatternCompileError, compile_pattern_file
 
 _MARKDOWN_SUFFIXES = {".md", ".markdown"}
 _SLUG_LINE_PATTERN = r"^\s*slug:\s*([a-z0-9._-]+)\s*$"
 
-DEFAULT_CONTROL_ROOT = AUTOSCRIBE_CONTROL_ROOT
+DEFAULT_CONTROL_ROOT = WORKBENCH_CONTROL_ROOT
 DEFAULT_COMPILED_CONTROL_ROOT = WORKBENCH_ROOT / "_compiled" / "control"
 
 
@@ -58,7 +58,7 @@ def _compile_verbs(control_root: Path) -> dict[str, dict[str, Any]]:
 
 
 def _compile_regex(control_root: Path) -> dict[str, dict[str, Any]]:
-    regex_dir = control_root / "regex"
+    regex_dir = control_root / "Regex" / "definitions"
     compiled: dict[str, dict[str, Any]] = {}
     for source in _iter_yaml_files(regex_dir):
         try:

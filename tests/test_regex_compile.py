@@ -22,7 +22,7 @@ def test_compile_patterns_builds_and_pattern_json_and_logs(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "indonesia_nickel_policy.yaml",
@@ -54,7 +54,7 @@ def test_compile_patterns_builds_and_pattern_json_and_logs(
 
 
 def test_compile_patterns_preserves_or_regex_terms(tmp_path: Path) -> None:
-    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "languages.yaml",
@@ -75,7 +75,7 @@ def test_compile_patterns_preserves_or_regex_terms(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_missing_name(tmp_path: Path) -> None:
-    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "missing_name.yaml",
@@ -87,7 +87,7 @@ def test_compile_patterns_rejects_missing_name(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_both_and_and_or(tmp_path: Path) -> None:
-    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "invalid_mode.yaml",
@@ -106,7 +106,7 @@ def test_compile_patterns_rejects_both_and_and_or(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_empty_term(tmp_path: Path) -> None:
-    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "invalid_terms.yaml",
@@ -124,7 +124,7 @@ def test_compile_patterns_rejects_empty_term(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_and_without_pcre2(tmp_path: Path) -> None:
-    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "invalid_engine.yaml",
@@ -142,7 +142,7 @@ def test_compile_patterns_rejects_and_without_pcre2(tmp_path: Path) -> None:
 
 
 def test_compile_patterns_rejects_name_filename_mismatch(tmp_path: Path) -> None:
-    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
     output_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "filename_name_mismatch.yaml",
@@ -159,7 +159,7 @@ def test_compile_patterns_rejects_name_filename_mismatch(tmp_path: Path) -> None
 
 
 def test_compile_regex_cli_compiles_outputs(tmp_path: Path) -> None:
-    source_root = tmp_path / "Workbench" / "regex" / "definitions"
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
     runtime_root = tmp_path / "Workbench" / "_compiled" / "regex"
     _write_yaml(
         source_root / "ai_regulation.yaml",
@@ -179,3 +179,26 @@ def test_compile_regex_cli_compiles_outputs(tmp_path: Path) -> None:
 
     assert rc == 0
     assert (runtime_root / "ai_regulation.json").is_file()
+
+
+def test_compile_patterns_removes_stale_compiled_outputs(tmp_path: Path) -> None:
+    source_root = tmp_path / "Control" / "Regex" / "definitions"
+    output_root = tmp_path / "Workbench" / "_compiled" / "regex"
+    _write_yaml(
+        source_root / "slug_field.yaml",
+        (
+            "name: slug_field\n"
+            "engine: default\n"
+            "ignore_case: false\n"
+            "or:\n"
+            "  - \"slug:\\\\s*[a-z0-9._-]+\"\n"
+        ),
+    )
+    output_root.mkdir(parents=True, exist_ok=True)
+    stale = output_root / "obsolete_pattern.json"
+    stale.write_text("{\"name\": \"obsolete_pattern\"}\n", encoding="utf-8")
+
+    outputs = compile_patterns(source_root=source_root, output_root=output_root)
+
+    assert outputs == (output_root / "slug_field.json",)
+    assert not stale.exists()

@@ -6,23 +6,13 @@ import json
 from pathlib import Path
 
 from workbench.cli.create_vault import load_registry
-from workbench.config.roots import AUTOSCRIBE_CONTROL_ROOT, WORKBENCH_ROOT
+from workbench.config.roots import CONTROL_REGEX_ROOT, WORKBENCH_ROOT
 
 
 SCHEMA_VERSION = 1
 SUPPORTED_ENGINES = {"default", "pcre2"}
 
-_CONTROL_REGEX_ROOT = AUTOSCRIBE_CONTROL_ROOT / "regex"
-_LEGACY_PATTERN_SOURCE_ROOT = WORKBENCH_ROOT / "regex" / "definitions"
-
-
-def _resolve_default_pattern_source_root() -> Path:
-    if _CONTROL_REGEX_ROOT.is_dir():
-        return _CONTROL_REGEX_ROOT
-    return _LEGACY_PATTERN_SOURCE_ROOT
-
-
-DEFAULT_PATTERN_SOURCE_ROOT = _resolve_default_pattern_source_root()
+DEFAULT_PATTERN_SOURCE_ROOT = CONTROL_REGEX_ROOT
 DEFAULT_PATTERN_OUTPUT_ROOT = WORKBENCH_ROOT / "_compiled" / "regex"
 
 
@@ -155,5 +145,12 @@ def compile_patterns(
         destination.write_text(json.dumps(compiled, indent=2) + "\n", encoding="utf-8")
         compiled_paths.append(destination)
         print(f"compiled {name}")
+
+    expected_outputs = {path.name for path in compiled_paths}
+    for existing_output in sorted(output_path.glob("*.json")):
+        if existing_output.name in expected_outputs:
+            continue
+        existing_output.unlink()
+        print(f"removed stale {existing_output.stem}")
 
     return tuple(compiled_paths)

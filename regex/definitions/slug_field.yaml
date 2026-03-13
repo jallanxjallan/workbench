@@ -1,6 +1,0 @@
-name: slug_field
-engine: default
-ignore_case: false
-
-or:
-  - "slug:\\s*[a-z0-9._-]+"

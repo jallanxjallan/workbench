@@ -1,6 +1,0 @@
-name: slug_placeholder
-engine: default
-ignore_case: false
-
-or:
-  - "slug:\\s*__SLUG__"

@@ -1,7 +1,0 @@
-name: external_links
-engine: default
-ignore_case: true
-
-or:
-  - "https?://[^\\s\\)]+"
-  - "file://[^\\s\\)]+"

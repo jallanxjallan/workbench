@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 
 import workbench.cli.compile_registries as compile_registries_cli
-from workbench.lib.compile_registries import (
+from workbench.registry.compile_registries import (
     compile_editorial_registry,
     compile_pipeline_registry,
     compile_registries,
@@ -48,7 +48,7 @@ def _write_standard_registries(registries_root: Path) -> None:
 
 
 def test_compile_editorial_registry_creates_json_with_matching_structure(tmp_path: Path) -> None:
-    registries_root = tmp_path / "Workbench" / "registries"
+    registries_root = tmp_path / "Control" / "Registry"
     runtime_root = tmp_path / "Workbench" / "_compiled"
     source = _write_registry_yaml(
         registries_root,
@@ -68,7 +68,7 @@ def test_compile_editorial_registry_creates_json_with_matching_structure(tmp_pat
 
 
 def test_compile_pipeline_and_verbs_registry_write_json(tmp_path: Path) -> None:
-    registries_root = tmp_path / "Workbench" / "registries"
+    registries_root = tmp_path / "Control" / "Registry"
     runtime_root = tmp_path / "Workbench" / "_compiled"
     _write_registry_yaml(registries_root, "pipeline", "pipeline:\n  mode: strict\n")
     _write_registry_yaml(registries_root, "verbs", "verbs:\n  write: {}\n")
@@ -85,7 +85,7 @@ def test_compile_pipeline_and_verbs_registry_write_json(tmp_path: Path) -> None:
 
 
 def test_compile_registries_skips_unchanged_sources(tmp_path: Path, capsys) -> None:
-    registries_root = tmp_path / "Workbench" / "registries"
+    registries_root = tmp_path / "Control" / "Registry"
     runtime_root = tmp_path / "Workbench" / "_compiled"
     _write_standard_registries(registries_root)
 
@@ -104,7 +104,7 @@ def test_compile_registries_skips_unchanged_sources(tmp_path: Path, capsys) -> N
 
 
 def test_cli_compile_registries_command_writes_artifacts(tmp_path: Path) -> None:
-    registries_root = tmp_path / "Workbench" / "registries"
+    registries_root = tmp_path / "Control" / "Registry"
     runtime_root = tmp_path / "Workbench" / "_compiled"
     _write_standard_registries(registries_root)
 

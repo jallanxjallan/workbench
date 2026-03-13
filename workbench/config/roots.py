@@ -9,6 +9,7 @@ WORKBENCH_CONTENT_ROOT = "WORKBENCH_CONTENT_ROOT"
 WORKBENCH_CONFIG_DIR = "WORKBENCH_CONFIG_DIR"
 WORKBENCH_CACHE_DIR = "WORKBENCH_CACHE_DIR"
 WORKBENCH_HOME_ENV = "WORKBENCH_HOME"
+WORKBENCH_CONTROL_ROOT_ENV = "WORKBENCH_CONTROL_ROOT"
 AUTOSCRIBE_HOME_ENV = "AUTOSCRIBE_HOME"
 AUTOSCRIBE_CONTROL_ROOT_ENV = "AUTOSCRIBE_CONTROL_ROOT"
 STUDIO_ROOT_ENV = "STUDIO_ROOT"
@@ -24,7 +25,14 @@ def _resolve_anchor(name: str, default: Path) -> Path:
 
 
 def _resolve_control_root() -> Path:
-    resolved = _resolve_anchor(AUTOSCRIBE_CONTROL_ROOT_ENV, _CONTROL_ROOT_DEFAULT)
+    selected = os.environ.get(WORKBENCH_CONTROL_ROOT_ENV)
+    if selected is None or not selected.strip():
+        selected = os.environ.get(AUTOSCRIBE_CONTROL_ROOT_ENV)
+
+    if selected is None or not selected.strip():
+        resolved = _CONTROL_ROOT_DEFAULT.expanduser().resolve()
+    else:
+        resolved = Path(selected).expanduser().resolve()
     # Migrate legacy default path to the new Control location when the old
     # location no longer exists.
     if resolved == _CONTROL_ROOT_LEGACY and not resolved.exists() and _CONTROL_ROOT_DEFAULT.exists():
@@ -40,7 +48,11 @@ AUTOSCRIBE_HOME = _resolve_anchor(
     AUTOSCRIBE_HOME_ENV,
     Path.home().resolve() / "Autoscribe",
 )
-AUTOSCRIBE_CONTROL_ROOT = _resolve_control_root()
+WORKBENCH_CONTROL_ROOT = _resolve_control_root()
+AUTOSCRIBE_CONTROL_ROOT = WORKBENCH_CONTROL_ROOT
+CONTROL_ROOT = WORKBENCH_CONTROL_ROOT
+CONTROL_REGISTRY_ROOT = WORKBENCH_CONTROL_ROOT / "Registry"
+CONTROL_REGEX_ROOT = WORKBENCH_CONTROL_ROOT / "Regex" / "definitions"
 STUDIO_ROOT = _resolve_anchor(
     STUDIO_ROOT_ENV,
     Path.home().resolve() / "Studio",

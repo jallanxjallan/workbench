@@ -16,13 +16,31 @@ Workbench never imports Autoscribe modules. Integration is stdin/stdout NDJSON o
 Runtime and source roots:
 
 - `workbench/`: Python package (`cli`, `lib`, `config`, `slug`, `write`, `assets`, `framing`, `interop`).
-- `~/Control`: pipeline behavior source repository (`verbs/`, `instructions/global/`, `regex/`, `registries/`, `pipeline/`).
-- `registries/` and `regex/definitions/` under `Workbench` are legacy fallback roots only.
+- `~/Control`: authoritative control plane repository.
+- `~/Control/Registry/`: authoritative registry YAML (`editorial.yaml`, `pipeline.yaml`, `verbs.yaml`, `git_commit_messages.yaml`).
+- `~/Control/Regex/definitions/`: authoritative regex YAML definitions.
 - `_compiled/control/`: compiled control artifacts (`verbs.json`, `global_instructions.json`, `regex.json`).
 - `_compiled/registries/`: compiled registry JSON outputs.
 - `_compiled/regex/`: compiled regex JSON outputs.
 - `tools/tls/`: bundled Workbench tooling support.
 - `obsidian/common/`, `obsidian/templates/`: support assets only.
+
+## Workbench Architecture
+
+Code:
+
+- `~/Workbench`
+
+Control plane:
+
+- `~/Control`
+
+Compiled artifacts:
+
+- `~/Workbench/_compiled`
+
+Workbench reads compiled JSON artifacts from `_compiled/`.
+The Control repo stores the authoritative YAML sources used to build them.
 
 ## CLI
 
@@ -90,6 +108,12 @@ Publish compiled global instructions:
 
 ```bash
 wkb publish-control
+```
+
+Set the control root explicitly in your shell environment:
+
+```bash
+export WORKBENCH_CONTROL_ROOT=~/Control
 ```
 
 Only `_compiled/registries`, `_compiled/regex`, and `_compiled/control` contain compiled artifacts.
