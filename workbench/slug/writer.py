@@ -14,6 +14,7 @@ from workbench.slug.validator import validate_slug
 
 MARKDOWN_SUFFIXES = (".md", ".markdown")
 SLUG_DISCOVERY_EXCLUDED_DIRS = {"_common", "00-templates", ".obsidian"}
+VAULT_REGISTRY_FILENAME = "_vault_registry.json"
 
 
 class SlugGenerationError(RuntimeError):
@@ -105,7 +106,7 @@ def find_vault_root(path_value: str | Path) -> Path:
     start = path.parent if path.is_file() else path
 
     for parent in [start, *start.parents]:
-        if (parent / ".obsidian").is_dir():
+        if (parent / VAULT_REGISTRY_FILENAME).is_file():
             return parent
 
     raise SlugGenerationError(f"vault root not found for {path}")
@@ -113,7 +114,7 @@ def find_vault_root(path_value: str | Path) -> Path:
 
 def vault_namespace(path_value: str | Path) -> str:
     root = find_vault_root(path_value)
-    registry_path = root / "_vault_registry"
+    registry_path = root / VAULT_REGISTRY_FILENAME
     if not registry_path.is_file():
         raise SlugGenerationError(f"vault registry not found under {root}")
 
@@ -202,7 +203,7 @@ def generate_slugs(*, root: Path, write: bool) -> GenerateSlugsResult:
         )
 
     namespace_source = root_path
-    if not (namespace_source / ".obsidian").is_dir():
+    if not (namespace_source / VAULT_REGISTRY_FILENAME).is_file():
         namespace_source = candidates[0]
     namespace = vault_namespace(namespace_source)
 

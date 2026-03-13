@@ -1,9 +1,10 @@
-"""Vault write primitive for NDJSON -> file -> git index workflows."""
+"""Vault write primitive for NDJSON -> Obsidian vault -> git index workflows."""
 
 from __future__ import annotations
 
 import copy
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,9 +13,10 @@ from typing import Any, Iterable, Iterator
 from workbench.interop.document import Document
 from workbench.interop.identity import normalize_semantic_base
 from workbench.lib.ndjson_stream import iter_ndjson
-from workbench.write.common import WriteError, atomic_write_text
+from workbench.write.common import WriteError
 
 VAULT_REGISTRY_FILENAME = "_vault_registry.json"
+INGEST_DIRNAME = "_ingest"
 _MARKDOWN_SUFFIXES = {".md", ".markdown"}
 
 
@@ -26,7 +28,13 @@ class VaultWriteRecord:
     slug: str | None
     batch: str | None
     filename_hint: str | None
-    folder: str | None
+    assets: Any = None
+
+
+@dataclass(frozen=True)
+class WritePlan:
+    path: Path
+    writeback: bool
 
 
 def iter_vault_write_records(stream: Iterable[str]) -> Iterator[VaultWriteRecord]:
@@ -47,77 +55,6 @@ def discover_vault_root(start: Path) -> Path:
     )
 
 
-def load_template(vault_root: Path, template_name: str) -> str:
-    raw = _normalize_optional_string(template_name, field="template")
-    if raw is None:
-        raise WriteError("template must be a non-empty string")
-    if "/" in raw or "\\" in raw:
-        raise WriteError(f"invalid template '{raw}': expected template name only")
-    stem = raw[:-3] if raw.endswith(".md") else raw
-    if stem.startswith("_"):
-        raise WriteError(f"template names starting with '_' are not selectable: {stem}")
-
-    templates_root = (vault_root / "_templates").resolve()
-    if not templates_root.is_dir():
-        raise WriteError(f"template directory is missing: {templates_root}")
-
-    template_path = (templates_root / f"{stem}.md").resolve()
-    try:
-        template_path.relative_to(templates_root)
-    except ValueError as exc:
-        raise WriteError(f"template path escapes template root: {template_path}") from exc
-    if not template_path.is_file():
-        raise WriteError(f"template not found: {template_path}")
-    try:
-        return template_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise WriteError(f"failed to read template: {template_path}") from exc
-
-
-def apply_template(template_text: str, content: str) -> str:
-    if "{{content}}" in template_text or "{{ content }}" in template_text:
-        return (
-            template_text.replace("{{ content }}", content).replace("{{content}}", content)
-        )
-    if not template_text:
-        return content
-    if template_text.endswith(("\n", "\r")):
-        return f"{template_text}{content}"
-    return f"{template_text}\n{content}"
-
-
-def resolve_destination_folder(
-    *,
-    vault_root: Path,
-    cwd: Path,
-    cli_folder: str | None,
-    record_folder: str | None,
-) -> Path:
-    raw_folder = cli_folder if cli_folder is not None else record_folder
-    if raw_folder is None:
-        target = cwd.expanduser().resolve()
-    else:
-        folder_value = _normalize_optional_string(raw_folder, field="folder")
-        if folder_value is None:
-            raise WriteError("folder must be a non-empty string")
-        folder_path = Path(folder_value).expanduser()
-        target = (
-            folder_path.resolve()
-            if folder_path.is_absolute()
-            else (vault_root / folder_path).resolve()
-        )
-
-    try:
-        target.relative_to(vault_root)
-    except ValueError as exc:
-        raise WriteError(f"folder escapes vault root: {target}") from exc
-
-    target.mkdir(parents=True, exist_ok=True)
-    if not target.is_dir():
-        raise WriteError(f"target folder is not a directory: {target}")
-    return target
-
-
 def resolve_filename(record: VaultWriteRecord) -> str:
     if record.filename_hint is not None:
         return _normalize_filename_hint(record.filename_hint)
@@ -130,89 +67,139 @@ def resolve_filename(record: VaultWriteRecord) -> str:
 def write_vault_records(
     *,
     input_stream: Iterable[str],
-    overwrite: bool,
-    folder: str | None,
-    template: str | None,
     cwd: Path | None = None,
     debug_routing: bool = False,
 ) -> list[Path]:
     working_dir = (cwd or Path.cwd()).expanduser().resolve()
     vault_root = discover_vault_root(working_dir)
-    template_text = load_template(vault_root, template) if template is not None else None
+    repo_root = _repo_root_for(vault_root)
+    _ensure_git_internal_state_safe(repo_root)
+    slug_index = _index_vault_markdown_by_slug(vault_root)
+    ingest_dir = (vault_root / INGEST_DIRNAME).resolve()
 
     written_paths: list[Path] = []
     for index, record in enumerate(iter_vault_write_records(input_stream), start=1):
-        target_dir = resolve_destination_folder(
+        plan = _resolve_write_plan(
+            record=record,
+            index=index,
             vault_root=vault_root,
-            cwd=working_dir,
-            cli_folder=folder,
-            record_folder=record.folder,
+            ingest_dir=ingest_dir,
+            slug_index=slug_index,
         )
-        target_path = target_dir / resolve_filename(record)
+        _relative_to_repo(repo_root, plan.path)
 
-        if target_path.exists():
-            if not overwrite:
-                raise WriteError(f"record {index}: target already exists: {target_path}")
-            verify_overwrite_allowed(
-                target_path=target_path,
-                incoming_slug=record.slug,
-                incoming_batch=record.batch,
+        if plan.writeback:
+            _validate_writeback_against_git(
+                path=plan.path,
+                slug=record.slug,
+                batch=record.batch,
+                repo_root=repo_root,
             )
+            doc = Document.read_file(plan.path)
+            doc.content = record.content
+            doc.write(plan.path, overwrite=True)
+        else:
+            plan.path.parent.mkdir(parents=True, exist_ok=True)
+            doc = Document(metadata=copy.deepcopy(record.input_record), content=record.content)
+            doc.write(plan.path, emit_empty_frontmatter=False)
+            if record.slug is not None:
+                slug_index.setdefault(record.slug, []).append(plan.path)
 
-        output = (
-            apply_template(template_text, record.content)
-            if template_text is not None
-            else record.content
-        )
-        atomic_write_text(target_path, output)
-        stage_written_file(target_path)
+        stage_written_file(repo_root=repo_root, target_path=plan.path)
 
         if debug_routing:
-            print(f"[writevault] record {index} -> {target_path}")
+            print(f"[writevault] record {index} -> {plan.path}")
 
-        written_paths.append(target_path)
+        written_paths.append(plan.path)
 
     return written_paths
 
 
-def verify_overwrite_allowed(
+def _resolve_write_plan(
     *,
-    target_path: Path,
-    incoming_slug: str | None,
-    incoming_batch: str | None,
+    record: VaultWriteRecord,
+    index: int,
+    vault_root: Path,
+    ingest_dir: Path,
+    slug_index: dict[str, list[Path]],
+) -> WritePlan:
+    if record.slug is not None:
+        matches = slug_index.get(record.slug, [])
+        if len(matches) > 1:
+            raise WriteError(
+                f"record {index}: multiple files match slug {record.slug!r}"
+            )
+        if len(matches) == 1:
+            return WritePlan(path=matches[0], writeback=True)
+
+    target_path = _resolve_new_file_path(
+        ingest_dir=ingest_dir,
+        filename=resolve_filename(record),
+    )
+    try:
+        target_path.relative_to(vault_root)
+    except ValueError as exc:
+        raise WriteError(f"target path escapes vault root: {target_path}") from exc
+    return WritePlan(path=target_path, writeback=False)
+
+
+def _resolve_new_file_path(*, ingest_dir: Path, filename: str) -> Path:
+    ingest_dir.mkdir(parents=True, exist_ok=True)
+    candidate = ingest_dir / filename
+    if not candidate.exists():
+        return candidate
+
+    stem = candidate.stem or "Untitled"
+    suffix = candidate.suffix or ".md"
+    counter = 2
+    while True:
+        numbered = ingest_dir / f"{stem}-{counter}{suffix}"
+        if not numbered.exists():
+            return numbered
+        counter += 1
+
+
+def _index_vault_markdown_by_slug(vault_root: Path) -> dict[str, list[Path]]:
+    slug_index: dict[str, list[Path]] = {}
+    for path in _iter_vault_markdown_files(vault_root):
+        inspection = Document.inspect_file(path)
+        if inspection.error is not None:
+            continue
+        slug = _normalize_optional_string(
+            (inspection.metadata or {}).get("slug"),
+            field=f"slug in {path}",
+        )
+        if slug is None:
+            continue
+        slug_index.setdefault(slug, []).append(path)
+    return slug_index
+
+
+def _iter_vault_markdown_files(vault_root: Path) -> Iterator[Path]:
+    for current_root, dirnames, filenames in os.walk(vault_root, followlinks=False):
+        dirnames[:] = [dirname for dirname in dirnames if dirname != ".git"]
+        current_dir = Path(current_root)
+        for filename in sorted(filenames):
+            path = current_dir / filename
+            if path.suffix.lower() in _MARKDOWN_SUFFIXES and path.is_file():
+                yield path.resolve()
+
+
+def _validate_writeback_against_git(
+    *,
+    path: Path,
+    slug: str | None,
+    batch: str | None,
+    repo_root: Path,
 ) -> None:
-    repo_root = _repo_root_for(target_path)
-    _ensure_git_internal_state_safe(repo_root)
-    _ensure_file_is_unmodified(repo_root, target_path, cached=False)
-    _ensure_file_is_unmodified(repo_root, target_path, cached=True)
-
-    inspection = Document.inspect_file(target_path)
-    metadata = inspection.metadata if inspection.error is None else None
-    existing_slug = _normalize_optional_string(
-        (metadata or {}).get("slug"),
-        field="existing slug",
-    )
-    if existing_slug is None:
-        raise WriteError(f"cannot overwrite artifact or workspace file: {target_path}")
-
-    existing_batch = _normalize_optional_string(
-        (metadata or {}).get("batch"),
-        field="existing batch",
-    )
-    if existing_slug != incoming_slug:
-        raise WriteError(
-            f"cannot overwrite {target_path}: existing slug {existing_slug!r} "
-            f"!= incoming slug {incoming_slug!r}"
-        )
-    if existing_batch != incoming_batch:
-        raise WriteError(
-            f"cannot overwrite {target_path}: existing batch {existing_batch!r} "
-            f"!= incoming batch {incoming_batch!r}"
-        )
+    del batch  # Reserved for git-history provenance checks.
+    if slug is None:
+        raise WriteError(f"slug is required for writeback: {path}")
+    _ensure_file_is_unmodified(repo_root, path, cached=False)
+    _ensure_file_is_unmodified(repo_root, path, cached=True)
 
 
-def stage_written_file(target_path: Path) -> None:
-    repo_root = _repo_root_for(target_path)
+def stage_written_file(*, repo_root: Path, target_path: Path) -> None:
     relative = _relative_to_repo(repo_root, target_path)
     proc = subprocess.run(
         ["git", "-C", str(repo_root), "add", "--", relative],
@@ -248,7 +235,7 @@ def _coerce_record(*, record: dict[str, Any], index: int) -> VaultWriteRecord:
         filename_hint=_normalize_optional_string(
             record.get("filename_hint"), field=f"record {index} filename_hint"
         ),
-        folder=_normalize_optional_string(record.get("folder"), field=f"record {index} folder"),
+        assets=copy.deepcopy(record.get("assets")),
     )
 
 

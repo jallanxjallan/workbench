@@ -26,7 +26,7 @@ def _init_vault_repo(tmp_path: Path) -> Path:
     vault = tmp_path / "VaultA"
     vault.mkdir(parents=True, exist_ok=True)
     (vault / "_vault_registry.json").write_text(
-        json.dumps({"vault": "vault-a"}) + "\n",
+        json.dumps({"mnemonic": "vault-a"}) + "\n",
         encoding="utf-8",
     )
     _git(vault, "init")
@@ -38,152 +38,144 @@ def _init_vault_repo(tmp_path: Path) -> Path:
     return vault
 
 
-def _write_markdown(path: Path, *, slug: str | None, batch: str | None, body: str) -> None:
-    metadata: dict[str, object] = {}
-    if slug is not None:
-        metadata["slug"] = slug
-    if batch is not None:
-        metadata["batch"] = batch
-    document = Document(metadata=metadata, content=body)
+def _write_markdown(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(document.write_text(), encoding="utf-8")
+    path.write_text(text, encoding="utf-8")
 
 
-def test_writevault_basic_write_stages_new_file(tmp_path: Path) -> None:
+def test_writevault_existing_slug_writeback_preserves_frontmatter(tmp_path: Path) -> None:
+    vault = _init_vault_repo(tmp_path)
+    target = vault / "notes" / "first-flight.md"
+    original = (
+        "---\n"
+        "slug: omaf.first-flight\n"
+        "class: passage\n"
+        "status: draft\n"
+        "---\n"
+        "\n"
+        "Old body\n"
+    )
+    _write_markdown(target, original)
+    _git(vault, "add", "notes/first-flight.md")
+    _git(vault, "commit", "-m", "seed note")
+
+    written = write_vault_records(
+        input_stream=io.StringIO(
+            '{"content":"Updated body\\n","input_record":{"slug":"omaf.first-flight","class":"passage"},"slug":"omaf.first-flight","batch":"omaf.rewrite-01"}\n'
+        ),
+        cwd=vault,
+    )
+
+    assert written == [target]
+    assert target.read_text(encoding="utf-8") == (
+        "---\n"
+        "slug: omaf.first-flight\n"
+        "class: passage\n"
+        "status: draft\n"
+        "---\n"
+        "\n"
+        "Updated body\n"
+    )
+    assert _git(vault, "diff", "--cached", "--name-only") == "notes/first-flight.md"
+
+
+def test_writevault_new_slugged_record_writes_to_ingest(tmp_path: Path) -> None:
     vault = _init_vault_repo(tmp_path)
 
     written = write_vault_records(
         input_stream=io.StringIO(
-            '{"content":"Body","input_record":{"source":"x"},"filename_hint":"First Flight"}\n'
+            '{"content":"Body\\n","input_record":{"slug":"omaf.first-flight.k3f7","class":"passage"},"slug":"omaf.first-flight.k3f7"}\n'
         ),
-        overwrite=False,
-        folder="notes",
-        template=None,
         cwd=vault,
     )
 
-    target = vault / "notes" / "First Flight.md"
+    target = vault / "_ingest" / "k3f7.md"
     assert written == [target]
-    assert target.read_text(encoding="utf-8") == "Body"
-    assert _git(vault, "diff", "--cached", "--name-only") == "notes/First Flight.md"
+    written_doc = Document.read_file(target)
+    assert written_doc.metadata == {
+        "slug": "omaf.first-flight.k3f7",
+        "class": "passage",
+    }
+    assert written_doc.content == "Body\n"
+    assert _git(vault, "diff", "--cached", "--name-only") == "_ingest/k3f7.md"
 
 
-def test_writevault_overwrite_succeeds_when_slug_and_batch_match(tmp_path: Path) -> None:
-    vault = _init_vault_repo(tmp_path)
-    target = vault / "notes" / "first-flight.md"
-    _write_markdown(
-        target,
-        slug="omaf.first-flight",
-        batch="omaf.rewrite-01",
-        body="Old body",
-    )
-    _git(vault, "add", "notes/first-flight.md")
-    _git(vault, "commit", "-m", "seed note")
-
-    write_vault_records(
-        input_stream=io.StringIO(
-            '{"content":"Updated body","input_record":{"source":"x"},"slug":"omaf.first-flight","batch":"omaf.rewrite-01"}\n'
-        ),
-        overwrite=True,
-        folder="notes",
-        template=None,
-        cwd=vault,
-    )
-
-    assert target.read_text(encoding="utf-8") == "Updated body"
-    assert _git(vault, "diff", "--cached", "--name-only") == "notes/first-flight.md"
-
-
-def test_writevault_overwrite_fails_on_slug_mismatch(tmp_path: Path) -> None:
-    vault = _init_vault_repo(tmp_path)
-    target = vault / "notes" / "first-flight.md"
-    _write_markdown(
-        target,
-        slug="omaf.first-flight",
-        batch="omaf.rewrite-01",
-        body="Old body",
-    )
-    _git(vault, "add", "notes/first-flight.md")
-    _git(vault, "commit", "-m", "seed note")
-
-    with pytest.raises(WriteError, match="existing slug"):
-        write_vault_records(
-            input_stream=io.StringIO(
-                '{"content":"Updated body","input_record":{"source":"x"},"slug":"site.first-flight","batch":"omaf.rewrite-01"}\n'
-            ),
-            overwrite=True,
-            folder="notes",
-            template=None,
-            cwd=vault,
-        )
-
-
-def test_writevault_overwrite_fails_on_batch_mismatch(tmp_path: Path) -> None:
-    vault = _init_vault_repo(tmp_path)
-    target = vault / "notes" / "first-flight.md"
-    _write_markdown(
-        target,
-        slug="omaf.first-flight",
-        batch="omaf.rewrite-01",
-        body="Old body",
-    )
-    _git(vault, "add", "notes/first-flight.md")
-    _git(vault, "commit", "-m", "seed note")
-
-    with pytest.raises(WriteError, match="existing batch"):
-        write_vault_records(
-            input_stream=io.StringIO(
-                '{"content":"Updated body","input_record":{"source":"x"},"slug":"omaf.first-flight","batch":"omaf.rewrite-02"}\n'
-            ),
-            overwrite=True,
-            folder="notes",
-            template=None,
-            cwd=vault,
-        )
-
-
-def test_writevault_protects_existing_unslugged_artifact(tmp_path: Path) -> None:
-    vault = _init_vault_repo(tmp_path)
-    target = vault / "notes" / "artifact.md"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("artifact\n", encoding="utf-8")
-    _git(vault, "add", "notes/artifact.md")
-    _git(vault, "commit", "-m", "seed artifact")
-
-    with pytest.raises(WriteError, match="artifact or workspace file"):
-        write_vault_records(
-            input_stream=io.StringIO(
-                '{"content":"Updated body","input_record":{"source":"x"},"filename_hint":"artifact"}\n'
-            ),
-            overwrite=True,
-            folder="notes",
-            template=None,
-            cwd=vault,
-        )
-
-
-def test_writevault_overwrite_fails_when_file_has_unstaged_modifications(
+def test_writevault_slugless_record_creates_new_ingest_file_without_writeback(
     tmp_path: Path,
 ) -> None:
     vault = _init_vault_repo(tmp_path)
-    target = vault / "notes" / "first-flight.md"
-    _write_markdown(
-        target,
-        slug="omaf.first-flight",
-        batch="omaf.rewrite-01",
-        body="Old body",
-    )
-    _git(vault, "add", "notes/first-flight.md")
-    _git(vault, "commit", "-m", "seed note")
-    target.write_text("locally modified\n", encoding="utf-8")
+    existing = vault / "_ingest" / "Inbox.md"
+    _write_markdown(existing, "First body\n")
+    _git(vault, "add", "_ingest/Inbox.md")
+    _git(vault, "commit", "-m", "seed ingest")
 
-    with pytest.raises(WriteError, match="modified file"):
+    written = write_vault_records(
+        input_stream=io.StringIO(
+            '{"content":"Second body\\n","input_record":{"class":"note"},"filename_hint":"Inbox"}\n'
+        ),
+        cwd=vault,
+    )
+
+    assert written == [vault / "_ingest" / "Inbox-2.md"]
+    assert existing.read_text(encoding="utf-8") == "First body\n"
+    created = Document.read_file(written[0])
+    assert created.metadata == {"class": "note"}
+    assert created.content == "Second body\n"
+
+
+def test_writevault_slug_collision_aborts(tmp_path: Path) -> None:
+    vault = _init_vault_repo(tmp_path)
+    _write_markdown(
+        vault / "notes" / "first.md",
+        "---\nslug: omaf.first-flight\n---\n\nOne\n",
+    )
+    _write_markdown(
+        vault / "archive" / "first.md",
+        "---\nslug: omaf.first-flight\n---\n\nTwo\n",
+    )
+    _git(vault, "add", "notes/first.md")
+    _git(vault, "add", "archive/first.md")
+    _git(vault, "commit", "-m", "seed collision")
+
+    with pytest.raises(WriteError, match="multiple files match slug"):
         write_vault_records(
             input_stream=io.StringIO(
-                '{"content":"Updated body","input_record":{"source":"x"},"slug":"omaf.first-flight","batch":"omaf.rewrite-01"}\n'
+                '{"content":"Updated\\n","input_record":{"slug":"omaf.first-flight"},"slug":"omaf.first-flight"}\n'
             ),
-            overwrite=True,
-            folder="notes",
-            template=None,
             cwd=vault,
         )
+
+
+def test_writevault_requires_git_repo_before_writing(tmp_path: Path) -> None:
+    vault = tmp_path / "VaultA"
+    vault.mkdir(parents=True, exist_ok=True)
+    (vault / "_vault_registry.json").write_text(
+        json.dumps({"mnemonic": "vault-a"}) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(WriteError, match="git"):
+        write_vault_records(
+            input_stream=io.StringIO(
+                '{"content":"Body\\n","input_record":{"class":"note"},"filename_hint":"Inbox"}\n'
+            ),
+            cwd=vault,
+        )
+
+    assert not (vault / "_ingest").exists()
+
+
+def test_writevault_does_not_require_templates_directory(tmp_path: Path) -> None:
+    vault = _init_vault_repo(tmp_path)
+
+    written = write_vault_records(
+        input_stream=io.StringIO(
+            '{"content":"Body\\n","input_record":{"class":"note"},"filename_hint":"No Template"}\n'
+        ),
+        cwd=vault,
+    )
+
+    assert written == [vault / "_ingest" / "No Template.md"]
+    assert written[0].read_text(encoding="utf-8") == (
+        "---\nclass: note\n---\n\nBody\n"
+    )

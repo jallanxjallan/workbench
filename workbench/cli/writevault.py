@@ -15,37 +15,16 @@ def parser() -> argparse.ArgumentParser:
         prog="writevault",
         description="Write NDJSON records into the current vault and stage them with Git.",
     )
-    command_parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Allow overwriting existing files after slug and git safety checks.",
-    )
-    command_parser.add_argument(
-        "--folder",
-        default=None,
-        help="Vault-relative destination folder override (default: current working directory).",
-    )
-    command_parser.add_argument(
-        "--template",
-        default=None,
-        help="Template name under <vault>/_templates to wrap content before write.",
-    )
     return command_parser
 
 
 def run(
     *,
-    overwrite: bool,
-    folder: str | None,
-    template: str | None,
     input_stream,
     cwd: Path | None = None,
 ) -> list[Path]:
     return write_vault_records(
         input_stream=input_stream,
-        overwrite=overwrite,
-        folder=folder,
-        template=template,
         cwd=cwd,
     )
 
@@ -60,9 +39,6 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         run(
-            overwrite=args.overwrite,
-            folder=args.folder,
-            template=args.template,
             input_stream=sys.stdin,
         )
         return 0

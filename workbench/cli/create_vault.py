@@ -1,4 +1,4 @@
-"""Provision or initialize a vault with per-vault `_vault_registry` metadata."""
+"""Provision or initialize a vault with per-vault `_vault_registry.json` metadata."""
 
 from __future__ import annotations
 
@@ -35,9 +35,7 @@ STATUS_CREATED = "created"
 STATUS_INITIALIZED = "initialized"
 STATUS_ALREADY = "already_initialized"
 
-LEGACY_REGISTRY_FILENAME = "_vault_registry"
 REGISTRY_JSON_FILENAME = "_vault_registry.json"
-REGISTRY_YAML_FILENAME = "_vault_registry.yaml"
 _IDENTITY_SLUG_RE = re.compile(r"^[a-z0-9]+-[0-9a-f]{3,}$")
 
 
@@ -57,7 +55,7 @@ class CreateVaultResult:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="create-vault",
-        description="Create or initialize a vault with internal _vault_registry metadata.",
+        description="Create or initialize a vault with internal _vault_registry.json metadata.",
     )
     parser.add_argument(
         "vault_path",
@@ -102,14 +100,7 @@ def _resolve_vault_path(vault_path: str | None, *, cwd: Path | None = None) -> P
 
 
 def is_vault(path: Path) -> bool:
-    return any(
-        (path / candidate).is_file()
-        for candidate in (
-            REGISTRY_JSON_FILENAME,
-            LEGACY_REGISTRY_FILENAME,
-            REGISTRY_YAML_FILENAME,
-        )
-    )
+    return (path / REGISTRY_JSON_FILENAME).is_file()
 
 
 def _display_path(path: Path) -> str:
@@ -239,13 +230,8 @@ def _ensure_assets_symlink(vault_path: Path, *, mnemonic: str) -> bool:
 
 
 def _create_vault_registry(vault_path: Path, *, mnemonic: str) -> bool:
-    registry_path = vault_path / LEGACY_REGISTRY_FILENAME
+    registry_path = vault_path / REGISTRY_JSON_FILENAME
     if registry_path.exists():
-        return False
-
-    if (vault_path / REGISTRY_YAML_FILENAME).exists():
-        return False
-    if (vault_path / REGISTRY_JSON_FILENAME).exists():
         return False
 
     assets_symlink_path, assets_target_path = _assets_paths(vault_path)
@@ -277,12 +263,6 @@ def load_registry(path: Path) -> dict[str, object]:
         parsed = yaml.safe_load(raw)
     elif suffix == ".json":
         parsed = json.loads(raw)
-    elif path.name == LEGACY_REGISTRY_FILENAME:
-        first_record = next(
-            (line.strip() for line in raw.splitlines() if line.strip()),
-            "",
-        )
-        parsed = json.loads(first_record) if first_record else {}
     else:
         raise CreateVaultError(f"Unsupported vault registry format: {path}")
 

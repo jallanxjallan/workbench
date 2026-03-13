@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import importlib
 from pathlib import Path
+import re
 from typing import Any, Mapping
 
 from workbench.lib.text import strip_utf8_bom
@@ -30,6 +31,7 @@ class DocumentParseResult:
     body: str
     metadata: dict[str, Any] | None
     error: str | None
+    raw_frontmatter: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +59,9 @@ class Document:
     content: str | None = None
     metadata: dict[str, Any] | None = field(default_factory=dict)
     filepath: Path | None = None
+    raw_frontmatter: str | None = None
+    preserve_raw_frontmatter: bool = False
+    source_metadata: dict[str, Any] | None = None
 
     # ------------------------------------------------------------------
     # Initialization
@@ -83,6 +88,13 @@ class Document:
             self.metadata = _to_json_value(dict(self.metadata))
         else:
             raise ValueError("metadata must be a mapping object")
+
+        if self.source_metadata is None:
+            self.source_metadata = _to_json_value(dict(self.metadata))
+        elif isinstance(self.source_metadata, Mapping):
+            self.source_metadata = _to_json_value(dict(self.source_metadata))
+        else:
+            raise ValueError("source_metadata must be a mapping object")
 
         # Normalize filepath
         if self.filepath is not None and not isinstance(self.filepath, Path):
@@ -169,9 +181,16 @@ class Document:
                 body,
                 None,
                 f"invalid YAML frontmatter: {exc}",
+                raw_frontmatter=raw_metadata,
             )
 
-        return DocumentParseResult(True, body, metadata, None)
+        return DocumentParseResult(
+            True,
+            body,
+            metadata,
+            None,
+            raw_frontmatter=raw_metadata,
+        )
 
     # ------------------------------------------------------------------
     # Constructors
@@ -185,7 +204,13 @@ class Document:
         parsed = cls.inspect_text(text)
         if parsed.error:
             raise ValueError(f"Failed to parse markdown: {parsed.error}")
-        return cls(content=parsed.body, metadata=parsed.metadata or {})
+        return cls(
+            content=parsed.body,
+            metadata=parsed.metadata or {},
+            raw_frontmatter=parsed.raw_frontmatter,
+            preserve_raw_frontmatter=parsed.has_frontmatter,
+            source_metadata=parsed.metadata or {},
+        )
 
     @classmethod
     def read_file(
@@ -235,7 +260,7 @@ class Document:
     # Serialization
     # ------------------------------------------------------------------
 
-    def write_text(self) -> str:
+    def write_text(self, *, emit_empty_frontmatter: bool = True) -> str:
         """
         Deterministic markdown serialization.
 
@@ -243,6 +268,15 @@ class Document:
         - Always emit YAML frontmatter with stable formatting
         """
         metadata = self.metadata or {}
+        if not metadata and not emit_empty_frontmatter:
+            return self.content or ""
+
+        if (
+            self.preserve_raw_frontmatter
+            and self.raw_frontmatter is not None
+            and metadata == (self.source_metadata or {})
+        ):
+            return f"---\n{self.raw_frontmatter}---\n\n{self.content}"
 
         try:
             serialized_metadata = _SERDE_MODULE.safe_dump(
@@ -260,6 +294,8 @@ class Document:
         self,
         filepath: str | Path | None = None,
         overwrite: bool = False,
+        *,
+        emit_empty_frontmatter: bool = True,
     ) -> Path:
         fp = Path(filepath) if filepath is not None else self.filepath
 
@@ -269,12 +305,25 @@ class Document:
         if fp.exists() and not overwrite:
             raise FileExistsError(f"{fp} exists and overwrite not permitted.")
 
-        serialized = self.write_text()
+        serialized = self.write_text(emit_empty_frontmatter=emit_empty_frontmatter)
 
         fp.parent.mkdir(parents=True, exist_ok=True)
         fp.write_text(serialized, encoding="utf-8")
 
         return fp
+
+    def write(
+        self,
+        filepath: str | Path | None = None,
+        overwrite: bool = False,
+        *,
+        emit_empty_frontmatter: bool = True,
+    ) -> Path:
+        return self.write_file(
+            filepath=filepath,
+            overwrite=overwrite,
+            emit_empty_frontmatter=emit_empty_frontmatter,
+        )
 
     # ------------------------------------------------------------------
     # Introspection

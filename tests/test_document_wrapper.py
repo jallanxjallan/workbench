@@ -48,3 +48,31 @@ def test_document_content_rewrite_preserves_metadata(tmp_path: Path) -> None:
     rewritten = Document.read_file(target)
     assert rewritten.metadata == metadata_before
     assert rewritten.content == "Updated\n"
+
+
+def test_document_write_preserves_existing_frontmatter_bytes(tmp_path: Path) -> None:
+    target = tmp_path / "entry.md"
+    original = (
+        "---\n"
+        "slug: omaf.passage.entry\n"
+        "class: passage\n"
+        "status: draft\n"
+        "---\n"
+        "\n"
+        "Old\n"
+    )
+    _write(target, original)
+
+    doc = Document.read_file(target)
+    doc.content = "Updated\n"
+    doc.write(target, overwrite=True)
+
+    assert target.read_text(encoding="utf-8") == (
+        "---\n"
+        "slug: omaf.passage.entry\n"
+        "class: passage\n"
+        "status: draft\n"
+        "---\n"
+        "\n"
+        "Updated\n"
+    )

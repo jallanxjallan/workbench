@@ -20,7 +20,7 @@ def _init_vault(tmp_path: Path) -> tuple[Path, Path]:
     vault_root = studio_root / "omaf"
     vault_root.mkdir(parents=True, exist_ok=True)
     (vault_root / ".obsidian").mkdir(parents=True, exist_ok=True)
-    _write(vault_root / "_vault_registry", '{"mnemonic":"omaf"}\n')
+    _write(vault_root / "_vault_registry.json", '{"mnemonic":"omaf"}\n')
     return studio_root, vault_root
 
 
@@ -97,7 +97,7 @@ def test_generate_slugs_requires_mnemonic_in_registry(
 ) -> None:
     studio_root, vault_root = _init_vault(tmp_path)
     target = vault_root / "contents" / "Aphorisms.md"
-    _write(vault_root / "_vault_registry", "{}\n")
+    _write(vault_root / "_vault_registry.json", "{}\n")
     _write(target, "---\nclass: passage\nslug: __SLUG__\n---\n\nBody\n")
 
     monkeypatch.setattr(generate_slugs_module, "STUDIO_ROOT", studio_root)
