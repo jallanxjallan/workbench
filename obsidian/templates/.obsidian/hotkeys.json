@@ -23,7 +23,7 @@
   "workspace:toggle-pin": [
     {
       "modifiers": [
-        "Mod",
+        "Alt",
         "Shift"
       ],
       "key": "P"

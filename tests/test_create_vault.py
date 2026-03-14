@@ -18,12 +18,11 @@ def _write_file(path: Path, content: str = "{}\n") -> None:
 def _configure_roots(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[Path, Path, Path, Path]:
+) -> tuple[Path, Path, Path]:
     studio_root = tmp_path / "Studio"
     obsidian_root = studio_root / "obsidian"
     template_root = obsidian_root / "templates"
     common_root = obsidian_root / "common"
-    dropbox_assets_root = tmp_path / "Dropbox" / "Assets"
 
     _write_file(template_root / ".obsidian" / "app.json", content="{}\n")
     _write_file(template_root / ".obsidian" / "hotkeys.json", content="{}\n")
@@ -32,9 +31,8 @@ def _configure_roots(
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_ROOT", obsidian_root)
     monkeypatch.setattr(create_vault_module, "VAULT_TEMPLATE_ROOT", template_root)
     monkeypatch.setattr(create_vault_module, "OBSIDIAN_COMMON_ROOT", common_root)
-    monkeypatch.setattr(create_vault_module, "DROPBOX_ASSETS_ROOT", dropbox_assets_root)
 
-    return studio_root, template_root, common_root, dropbox_assets_root
+    return studio_root, template_root, common_root
 
 
 def _read_registry(vault_path: Path) -> dict[str, object]:
@@ -43,30 +41,33 @@ def _read_registry(vault_path: Path) -> dict[str, object]:
     return json.loads(raw)
 
 
+def _read_gitignore(vault_path: Path) -> str:
+    return (vault_path / ".gitignore").read_text(encoding="utf-8")
+
+
 def test_create_vault_new_path_creates_registry_template_and_links(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, common_root, dropbox_assets_root = _configure_roots(tmp_path, monkeypatch)
+    studio_root, _, common_root = _configure_roots(tmp_path, monkeypatch)
 
     result = create_vault_module.create_vault("omaf")
     vault_path = studio_root / "omaf"
     vault_mnemonic = "omaf"
-    assets_target = (dropbox_assets_root / vault_mnemonic).resolve()
 
     assert result.status == create_vault_module.STATUS_CREATED
     assert result.vault_path == vault_path
+    assert result.common_link_created is True
     assert result.registry_created is True
 
     assert (vault_path / "_vault_registry.json").is_file()
     assert (vault_path / ".obsidian").is_dir()
     assert (vault_path / "_common").is_symlink()
-    assert (vault_path / "_assets").is_symlink()
+    assert not (vault_path / "_assets").exists()
+    assert _read_gitignore(vault_path) == create_vault_module.VAULT_GITIGNORE_TEMPLATE
     assert os.readlink(vault_path / "_common") == os.path.relpath(
         common_root.resolve(), start=vault_path.resolve()
     )
-    assert (vault_path / "_assets").resolve() == assets_target
-    assert assets_target.is_dir()
 
     registry = _read_registry(vault_path)
     assert set(registry.keys()) == {
@@ -76,9 +77,6 @@ def test_create_vault_new_path_creates_registry_template_and_links(
         "version",
         "mnemonic",
         "project_mnemonic",
-        "assets_symlink_path",
-        "assets_target_path",
-        "registry_paths",
     }
     assert isinstance(registry["vault_id"], str)
     assert len(registry["vault_id"]) == 26
@@ -86,20 +84,14 @@ def test_create_vault_new_path_creates_registry_template_and_links(
     assert registry["version"] == 1
     assert registry["mnemonic"] == vault_mnemonic
     assert registry["project_mnemonic"] == vault_mnemonic
-    assert registry["assets_symlink_path"] == str((vault_path / "_assets").absolute())
-    assert registry["assets_target_path"] == str(assets_target)
     assert str(registry["created"]).endswith("Z")
-    assert (
-        registry["registry_paths"]["assets_symlink"] == registry["assets_symlink_path"]
-    )
-    assert registry["registry_paths"]["assets_target"] == registry["assets_target_path"]
 
 
 def test_create_vault_uses_literal_argument_folder_name(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, dropbox_assets_root = _configure_roots(tmp_path, monkeypatch)
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
 
     result = create_vault_module.create_vault("My Project")
     vault_path = studio_root / "My Project"
@@ -107,7 +99,7 @@ def test_create_vault_uses_literal_argument_folder_name(
 
     assert result.vault_path == vault_path
     assert vault_path.is_dir()
-    assert (vault_path / "_assets").resolve() == (dropbox_assets_root / mnemonic).resolve()
+    assert not (vault_path / "_assets").exists()
     registry = _read_registry(vault_path)
     assert registry["mnemonic"] == mnemonic
 
@@ -116,7 +108,7 @@ def test_create_vault_existing_folder_preserves_existing_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, _ = _configure_roots(tmp_path, monkeypatch)
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
 
     existing = studio_root / "existing"
     existing.mkdir(parents=True, exist_ok=True)
@@ -129,14 +121,15 @@ def test_create_vault_existing_folder_preserves_existing_files(
     assert (existing / "_vault_registry.json").is_file()
     assert (existing / ".obsidian").is_dir()
     assert (existing / "_common").is_symlink()
-    assert (existing / "_assets").is_symlink()
+    assert not (existing / "_assets").exists()
+    assert _read_gitignore(existing) == create_vault_module.VAULT_GITIGNORE_TEMPLATE
 
 
 def test_create_vault_existing_registry_is_idempotent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, _ = _configure_roots(tmp_path, monkeypatch)
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
 
     existing = studio_root / "existing"
     existing.mkdir(parents=True, exist_ok=True)
@@ -152,13 +145,14 @@ def test_create_vault_existing_registry_is_idempotent(
     assert second.status == create_vault_module.STATUS_ALREADY
     assert first_registry == second_registry
     assert (existing / "note.md").read_text(encoding="utf-8") == "keep\n"
+    assert _read_gitignore(existing) == create_vault_module.VAULT_GITIGNORE_TEMPLATE
 
 
 def test_create_vault_without_argument_uses_cwd_if_studio_direct_child(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, _ = _configure_roots(tmp_path, monkeypatch)
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
     target = studio_root / "cwd-vault"
     target.mkdir(parents=True, exist_ok=True)
 
@@ -173,7 +167,7 @@ def test_create_vault_without_argument_fails_outside_studio_child(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _, _, _, _ = _configure_roots(tmp_path, monkeypatch)
+    _, _, _ = _configure_roots(tmp_path, monkeypatch)
     outside = tmp_path / "outside"
     outside.mkdir(parents=True, exist_ok=True)
 
@@ -188,7 +182,7 @@ def test_create_vault_fails_when_common_path_exists_and_is_not_symlink(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    studio_root, _, _, _ = _configure_roots(tmp_path, monkeypatch)
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
 
     existing = studio_root / "existing"
     existing.mkdir(parents=True, exist_ok=True)
@@ -200,12 +194,49 @@ def test_create_vault_fails_when_common_path_exists_and_is_not_symlink(
         create_vault_module.create_vault("existing")
 
 
+def test_create_vault_skips_template_common_symlink_and_installs_managed_one(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, template_root, common_root = _configure_roots(tmp_path, monkeypatch)
+    (template_root / "_common").symlink_to("../common", target_is_directory=True)
+
+    result = create_vault_module.create_vault("symlinked")
+    vault_path = studio_root / "symlinked"
+
+    assert result.status == create_vault_module.STATUS_CREATED
+    assert (vault_path / "_common").is_symlink()
+    assert (vault_path / "_common").resolve() == common_root.resolve()
+    assert os.readlink(vault_path / "_common") == os.path.relpath(
+        common_root.resolve(), start=vault_path.resolve()
+    )
+
+
+def test_create_vault_preserves_existing_gitignore(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
+
+    existing = studio_root / "existing"
+    existing.mkdir(parents=True, exist_ok=True)
+    _write_file(existing / ".gitignore", content="notes/\ncustom.tmp\n")
+
+    create_vault_module.create_vault("existing")
+    first = _read_gitignore(existing)
+    assert first == "notes/\ncustom.tmp\n"
+
+    create_vault_module.create_vault("existing")
+    second = _read_gitignore(existing)
+    assert second == "notes/\ncustom.tmp\n"
+
+
 def test_main_prints_status_messages(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    studio_root, _, _, _ = _configure_roots(tmp_path, monkeypatch)
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
 
     rc_created = create_vault_module.main(["omaf"])
     created_output = capsys.readouterr().out

@@ -1,5 +1,5 @@
 ---
-slug: __SLUG__
+slug:
 class: topic
 stage: draft
 status: new
@@ -9,7 +9,7 @@ autoscribe:
   last_step:
   revision: 0
   updated:
-  hash: __HASH__
+  hash:
 ---
 
 # Topic
