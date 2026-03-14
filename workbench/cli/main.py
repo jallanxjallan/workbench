@@ -103,6 +103,11 @@ def publish_control_command(ctx: typer.Context) -> None:
     _run_passthrough("publish-control", ctx)
 
 
+@app.command("select-records", context_settings=_PASSTHROUGH_SETTINGS)
+def select_records_command(ctx: typer.Context) -> None:
+    _run_passthrough("select-records", ctx)
+
+
 @app.command("stream", context_settings=_PASSTHROUGH_SETTINGS)
 def stream_command(ctx: typer.Context) -> None:
     _run_passthrough("stream", ctx)

@@ -17,6 +17,7 @@ COMMAND_MODULES: dict[str, str] = {
     "migrate": "workbench.cli.migrate",
     "publish-context": "workbench.cli.publish_context",
     "publish-control": "workbench.cli.publish_control",
+    "select-records": "workbench.cli.select_records",
     "stream": "workbench.cli.stream",
     "vault-template": "workbench.cli.vault_template",
     "writevault": "workbench.cli.writevault",
