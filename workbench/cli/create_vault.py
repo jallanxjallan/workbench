@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import builtins
 import json
 import os
 import re
@@ -10,6 +11,7 @@ import secrets
 import shutil
 import sys
 import textwrap
+from typing import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,7 +24,8 @@ from workbench.config.roots import (
     OBSIDIAN_ROOT as DEFAULT_OBSIDIAN_ROOT,
     VAULT_TEMPLATE_ROOT as DEFAULT_VAULT_TEMPLATE_ROOT,
 )
-from workbench.interop.identity import normalize_semantic_base
+from workbench.interop.identity import create_mnemonic
+from workbench.scan.rg import RipgrepError, rg_search
 from workbench.write.common import atomic_write_text
 
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
@@ -36,7 +39,8 @@ STATUS_INITIALIZED = "initialized"
 STATUS_ALREADY = "already_initialized"
 
 REGISTRY_JSON_FILENAME = "_vault_registry.json"
-_IDENTITY_SLUG_RE = re.compile(r"^[a-z0-9]+-[0-9a-f]{3,}$")
+_MNEMONIC_RE = re.compile(r"^[a-z0-9]{1,5}$")
+_MAX_VAULT_MNEMONIC_LENGTH = 5
 VAULT_GITIGNORE_TEMPLATE = (
     textwrap.dedent(
         """\
@@ -281,12 +285,111 @@ def _ensure_common_symlink(vault_path: Path) -> bool:
     return True
 
 
+def _normalize_mnemonic(value: str) -> str:
+    return str(value).strip()
+
+
+def _validate_mnemonic(mnemonic: str) -> str:
+    normalized = _normalize_mnemonic(mnemonic)
+    if not _MNEMONIC_RE.fullmatch(normalized):
+        raise CreateVaultError(
+            "Mnemonic must be 1-5 characters of lowercase letters and digits only."
+        )
+    return normalized
+
+
 def _project_mnemonic(vault_path: Path) -> str:
-    name = vault_path.name.strip().lower()
-    mnemonic = name if _IDENTITY_SLUG_RE.fullmatch(name) else normalize_semantic_base(name)
+    mnemonic = create_mnemonic(vault_path.name)
+    mnemonic = _validate_mnemonic(mnemonic)
     if not mnemonic:
         raise CreateVaultError("Vault mnemonic is empty after normalization.")
     return mnemonic
+
+
+def _find_mnemonic_collisions(
+    mnemonic: str,
+    *,
+    studio_root: Path | None = None,
+    exclude_vault: Path | None = None,
+) -> tuple[Path, ...]:
+    root = Path(studio_root or STUDIO_ROOT).expanduser().resolve()
+    if not root.exists() or not root.is_dir():
+        return ()
+
+    pattern = rf'"mnemonic"\s*:\s*"{re.escape(mnemonic)}"'
+    matches: set[Path] = set()
+    try:
+        for match in rg_search(
+            pattern=pattern,
+            root=root,
+            extensions=["json"],
+        ):
+            path = match.get("path")
+            if not isinstance(path, Path) or path.name != REGISTRY_JSON_FILENAME:
+                continue
+            resolved = path.resolve()
+            if exclude_vault is not None and resolved.parent == exclude_vault.resolve():
+                continue
+            matches.add(resolved)
+    except RipgrepError as exc:
+        raise CreateVaultError(str(exc)) from exc
+    return tuple(sorted(matches))
+
+
+def _ensure_mnemonic_available(
+    mnemonic: str,
+    *,
+    studio_root: Path | None = None,
+    exclude_vault: Path | None = None,
+) -> str:
+    validated = _validate_mnemonic(mnemonic)
+    collisions = _find_mnemonic_collisions(
+        validated,
+        studio_root=studio_root,
+        exclude_vault=exclude_vault,
+    )
+    if collisions:
+        raise CreateVaultError(f'Mnemonic "{validated}" already exists.')
+    return validated
+
+
+def _is_interactive() -> bool:
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _prompt_for_mnemonic(
+    vault_path: Path,
+    *,
+    input_func: Callable[[str], str] = builtins.input,
+    studio_root: Path | None = None,
+) -> str:
+    suggested = _project_mnemonic(vault_path)
+    print(f"Suggested mnemonic: {suggested}")
+    response = str(input_func("Accept? [Y/n] ")).strip().lower()
+    if response in {"", "y", "yes"}:
+        candidate = suggested
+    else:
+        candidate = ""
+
+    while True:
+        if candidate:
+            try:
+                return _ensure_mnemonic_available(
+                    candidate,
+                    studio_root=studio_root,
+                    exclude_vault=vault_path,
+                )
+            except CreateVaultError as exc:
+                print(str(exc))
+
+        candidate = str(
+            input_func(f"Enter alternate mnemonic (<=5 chars): ")
+        ).strip()
+        try:
+            candidate = _validate_mnemonic(candidate)
+        except CreateVaultError as exc:
+            print(str(exc))
+            candidate = ""
 
 
 def _create_vault_registry(vault_path: Path, *, mnemonic: str) -> bool:
@@ -326,7 +429,12 @@ def load_registry(path: Path) -> dict[str, object]:
     return parsed
 
 
-def create_vault(vault_path: str | None, *, cwd: Path | None = None) -> CreateVaultResult:
+def create_vault(
+    vault_path: str | None,
+    *,
+    cwd: Path | None = None,
+    mnemonic: str | None = None,
+) -> CreateVaultResult:
     _validate_preconditions()
     target = _resolve_vault_path(vault_path, cwd=cwd)
 
@@ -348,11 +456,15 @@ def create_vault(vault_path: str | None, *, cwd: Path | None = None) -> CreateVa
         created_dir = True
 
     try:
-        mnemonic = _project_mnemonic(target)
+        selected_mnemonic = _project_mnemonic(target) if mnemonic is None else mnemonic
+        selected_mnemonic = _ensure_mnemonic_available(
+            selected_mnemonic,
+            exclude_vault=target,
+        )
         template_installed = _install_template_if_missing(target)
         _install_gitignore_if_missing(target)
         common_link_created = _ensure_common_symlink(target)
-        registry_created = _create_vault_registry(target, mnemonic=mnemonic)
+        registry_created = _create_vault_registry(target, mnemonic=selected_mnemonic)
     except Exception as exc:
         if created_dir and target.exists() and not is_vault(target):
             shutil.rmtree(target, ignore_errors=True)
@@ -375,7 +487,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        result = create_vault(args.vault_path)
+        target = _resolve_vault_path(args.vault_path)
+        selected_mnemonic = (
+            _prompt_for_mnemonic(target) if _is_interactive() else None
+        )
+        result = create_vault(args.vault_path, mnemonic=selected_mnemonic)
     except CreateVaultError as exc:
         print(str(exc), file=sys.stderr)
         return 1

@@ -95,13 +95,62 @@ def test_create_vault_uses_literal_argument_folder_name(
 
     result = create_vault_module.create_vault("My Project")
     vault_path = studio_root / "My Project"
-    mnemonic = normalize_semantic_base("My Project")
+    mnemonic = normalize_semantic_base("My Project").replace("-", "")[
+        : create_vault_module._MAX_VAULT_MNEMONIC_LENGTH
+    ]
 
     assert result.vault_path == vault_path
     assert vault_path.is_dir()
     assert not (vault_path / "_assets").exists()
     registry = _read_registry(vault_path)
     assert registry["mnemonic"] == mnemonic
+
+
+def test_create_vault_caps_mnemonic_at_five_characters(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
+
+    create_vault_module.create_vault("Encyclopedia Notes")
+    registry = _read_registry(studio_root / "Encyclopedia Notes")
+
+    assert registry["mnemonic"] == "encyc"
+    assert registry["project_mnemonic"] == "encyc"
+
+
+def test_create_vault_detects_mnemonic_collision_with_rg(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
+    existing = studio_root / "Existing Vault"
+    existing.mkdir(parents=True, exist_ok=True)
+    (existing / "_vault_registry.json").write_text(
+        json.dumps({"mnemonic": "batav"}) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(create_vault_module.CreateVaultError, match='Mnemonic "batav" already exists.'):
+        create_vault_module.create_vault("Batavia Triptych")
+
+
+@pytest.mark.parametrize(
+    "mnemonic",
+    ["", "abcdef", "ab-cd", "ab cd", "abc!", "ABCDE"],
+)
+def test_create_vault_rejects_invalid_explicit_mnemonic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mnemonic: str,
+) -> None:
+    _configure_roots(tmp_path, monkeypatch)
+
+    with pytest.raises(
+        create_vault_module.CreateVaultError,
+        match="Mnemonic must be 1-5 characters of lowercase letters and digits only.",
+    ):
+        create_vault_module.create_vault("Custom Vault", mnemonic=mnemonic)
 
 
 def test_create_vault_existing_folder_preserves_existing_files(
@@ -260,3 +309,46 @@ def test_main_prints_status_messages(
     assert rc_already == 0
     assert "Vault already initialized:" in already_output
     assert "existing" in already_output
+
+
+def test_prompt_for_mnemonic_accepts_suggested_when_unique(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
+
+    result = create_vault_module._prompt_for_mnemonic(
+        studio_root / "Batavia Triptych",
+        input_func=lambda prompt: "",
+        studio_root=studio_root,
+    )
+    captured = capsys.readouterr()
+
+    assert result == "batav"
+    assert "Suggested mnemonic: batav" in captured.out
+
+
+def test_prompt_for_mnemonic_requests_alternate_after_collision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    studio_root, _, _ = _configure_roots(tmp_path, monkeypatch)
+    existing = studio_root / "Existing Vault"
+    existing.mkdir(parents=True, exist_ok=True)
+    (existing / "_vault_registry.json").write_text(
+        json.dumps({"mnemonic": "batav"}) + "\n",
+        encoding="utf-8",
+    )
+    responses = iter(["", "batv2"])
+
+    result = create_vault_module._prompt_for_mnemonic(
+        studio_root / "Batavia Triptych",
+        input_func=lambda prompt: next(responses),
+        studio_root=studio_root,
+    )
+    captured = capsys.readouterr()
+
+    assert result == "batv2"
+    assert 'Mnemonic "batav" already exists.' in captured.out
