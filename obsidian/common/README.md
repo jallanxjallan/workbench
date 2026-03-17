@@ -1,25 +1,28 @@
-# common
+# _common
 
-Shared Obsidian tooling intended to be symlinked into project vaults as `_common`.
+`_common` is the shared infrastructure layer for all Studio vaults.
 
-## Vault Contract
-- Every project vault exposes `_project` (project-owned source material).
-- Every project vault exposes `_common` (this directory).
-- Symlinks should be relative where possible.
-- Generated output must never be written into `_project` or `_common`.
+It contains:
 
-## Tools
-- `tools/obsidian-vault-sanity.zsh`: validate symlink safety and common foot-guns.
+- templates
+- Dataview queries
+- macros
+- workflow documentation
+- configuration notes
 
-## Minimal Layout
-- `scripts/`: shared Obsidian scripts/macros.
-- `queries/`: shared search/query assets.
-- `tools/`: shell helpers for validation/audit.
+No project content should ever live here.
 
-Note templates live under `_common/templates/`.
-Use `_common/scripts/new_note.js` for dynamic template picking in Templater.
+## Directory Map
 
-## Manual Setup
-- Create `_project` symlink to project-owned source material.
-- Create `_common` symlink to `Workbench/obsidian/common`.
-- Keep both links relative where possible.
+- `queries/`: baseline inspection queries for authored content.
+- `templates/`: reusable note templates.
+- `macros/`: documentation stubs for command palette and QuickAdd actions.
+- `docs/`: shared editorial and metadata conventions.
+- `config/`: stable settings references and commit patterns.
+- `_archive/`: legacy or uncertain material preserved during cleanup.
+
+## Rules
+
+- Keep `_common` deterministic and reusable across Studio vaults.
+- Do not store project notes, scratch notes, pipeline output, or experiments here.
+- Archive uncertain legacy material under `_common/_archive/` instead of deleting it immediately.

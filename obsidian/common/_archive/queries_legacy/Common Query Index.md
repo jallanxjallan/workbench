@@ -2,6 +2,7 @@
 
 ## content
 
+- [[_common/queries/content/Compile Batch|Compile Batch]]
 - [[_common/queries/content/Content Index|Content Index]]
 - [[_common/queries/content/Content Status|Content Status]]
 
