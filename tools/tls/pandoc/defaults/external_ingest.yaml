@@ -1,3 +1,4 @@
 filters:
+  - control_blocks.lua
   - provenance_capture.lua
   - emit_ndjson.lua

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import importlib
 import subprocess
 from pathlib import Path
@@ -123,6 +124,55 @@ def get_changed_files(repo: Path, since_commit: str) -> list[Path]:
         for line in output.splitlines()
         if line.strip()
     ]
+
+
+def get_tracked_files(repo: Path) -> list[Path]:
+    repo_root = get_repo_root(repo)
+    output = git(repo_root, "ls-files")
+    return [
+        (repo_root / line).resolve()
+        for line in output.splitlines()
+        if line.strip()
+    ]
+
+
+def tag_exists(repo: Path, tag_name: str) -> bool:
+    repo_root = get_repo_root(repo)
+    return git(repo_root, "tag", "-l", tag_name).strip() == tag_name
+
+
+def read_annotated_tag_message(repo: Path, tag_name: str) -> str:
+    repo_root = get_repo_root(repo)
+    ref = f"refs/tags/{tag_name}"
+    object_type = git(repo_root, "cat-file", "-t", ref).strip()
+    if object_type != "tag":
+        raise GitRepoError(f"tag is not annotated: {tag_name}")
+    message = git(repo_root, "tag", "-l", tag_name, "--format=%(contents)")
+    if message.strip() == "":
+        raise GitRepoError(f"tag annotation unreadable: {tag_name}")
+    return message
+
+
+def create_annotated_tag(
+    repo: Path,
+    tag_name: str,
+    *,
+    message: str,
+    target: str | None = None,
+) -> None:
+    repo_root = get_repo_root(repo)
+    if tag_exists(repo_root, tag_name):
+        raise GitRepoError(f"tag already exists: {tag_name}")
+
+    args = ["tag", "-a", tag_name]
+    if target:
+        args.append(target)
+    args.extend(["-m", message])
+    git(repo_root, *args)
+
+
+def utc_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _load_templates(path: Path | None = None) -> dict[str, str]:
@@ -257,13 +307,18 @@ __all__ = [
     "commit_batch",
     "commit_new_files",
     "create_batch_tag",
+    "create_annotated_tag",
     "get_changed_files",
     "get_current_branch",
     "get_dirty_files",
     "get_head_commit",
     "get_repo_root",
     "get_short_commit",
+    "get_tracked_files",
     "get_untracked_files",
     "git",
     "is_repo_clean",
+    "read_annotated_tag_message",
+    "tag_exists",
+    "utc_timestamp",
 ]

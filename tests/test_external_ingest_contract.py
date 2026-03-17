@@ -142,6 +142,50 @@ def test_external_ingest_omits_empty_keys(tmp_path: Path) -> None:
     assert "context" not in origin
 
 
+def test_external_ingest_control_blocks_capture_batch_and_inline_instruction() -> None:
+    proc = _run_external_ingest(
+        args=["--from", "markdown"],
+        input_text=(
+            "---\nslug: control-blocks\n---\n\n"
+            "::: batch\n"
+            "demo.batch\n"
+            ":::\n\n"
+            "::: inline_instruction\n"
+            "Tighten the prose.\n"
+            ":::\n\n"
+            "Hello world.\n"
+        ),
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    record = _parse_single_record(proc.stdout)
+    assert record["batch_slug"] == "demo.batch"
+    assert record["input_record"]["batch"] == "demo.batch"
+    assert record["input_record"]["origin"]["slug"] == "control-blocks"
+    assert "::: batch" not in record["content"]
+    assert "::: inline_instruction" not in record["content"]
+    assert "Tighten the prose." in record["content"]
+    assert "Hello world." in record["content"]
+
+
+def test_external_ingest_empty_inline_instruction_emits_no_wrapper_leakage() -> None:
+    proc = _run_external_ingest(
+        args=["--from", "markdown"],
+        input_text=(
+            "---\nslug: control-blocks\n---\n\n"
+            "::: inline_instruction\n"
+            "\n"
+            ":::\n\n"
+            "Hello world.\n"
+        ),
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    record = _parse_single_record(proc.stdout)
+    assert "::: inline_instruction" not in record["content"]
+    assert record["content"].strip() == "Hello world."
+
+
 def test_migrate_pipe_writevault_succeeds_end_to_end(tmp_path: Path) -> None:
     vault = _init_vault_repo(tmp_path)
     source_dir = tmp_path / "source"

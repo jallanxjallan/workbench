@@ -11,6 +11,7 @@ def test_discovery_includes_expected_root_commands() -> None:
     commands = discover_commands()
 
     assert commands["commit"] == "workbench.cli.commit"
+    assert commands["compile-batch"] == "workbench.cli.compile_batch"
     assert commands["writevault"] == "workbench.cli.writevault"
     assert commands["writestream"] == "workbench.cli.writestream"
     assert commands["stream"] == "workbench.cli.stream"
@@ -62,6 +63,7 @@ def test_help_shows_standardized_write_commands(
     assert "writevault" in out
     assert "writestream" in out
     assert "commit" in out
+    assert "compile-batch" in out
     assert "compile-control" in out
     assert "publish-control" in out
     assert "select-records" in out

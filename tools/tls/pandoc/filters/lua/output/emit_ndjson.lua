@@ -197,9 +197,14 @@ function Pandoc(doc)
     input_record.origin = { source_type = detected_origin.source_type }
   end
 
-  print(pandoc.json.encode({
+  local payload = {
     content = content,
     input_record = input_record,
-  }))
+  }
+  if type(input_record.batch) == "string" and input_record.batch:match("%S") then
+    payload.batch_slug = input_record.batch
+  end
+
+  print(pandoc.json.encode(payload))
   os.exit()
 end

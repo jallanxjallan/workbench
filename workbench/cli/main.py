@@ -63,6 +63,11 @@ def commit_command(ctx: typer.Context) -> None:
     _run_passthrough("commit", ctx)
 
 
+@app.command("compile-batch", context_settings=_PASSTHROUGH_SETTINGS)
+def compile_batch_command(ctx: typer.Context) -> None:
+    _run_passthrough("compile-batch", ctx)
+
+
 @app.command("compile-control", context_settings=_PASSTHROUGH_SETTINGS)
 def compile_control_command(ctx: typer.Context) -> None:
     _run_passthrough("compile-control", ctx)

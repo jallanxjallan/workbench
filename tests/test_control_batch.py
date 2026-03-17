@@ -7,9 +7,12 @@ import pytest
 
 from workbench.control.batch import (
     BatchCommitError,
+    load_batch_manifest_from_tag,
     build_batch_from_commit_message,
     load_batch_from_git_commit,
     parse_batch_commit_message,
+    parse_batch_tag_annotation,
+    resolve_repo_slug_file,
     resolve_slug_file,
 )
 
@@ -115,7 +118,10 @@ def test_resolve_slug_file_requires_exactly_one_match(tmp_path: Path) -> None:
 
     assert resolve_slug_file("omaf.chapter-03.a83d1", roots=(studio_root,)) == first.resolve()
 
-    with pytest.raises(BatchCommitError, match="slug not found"):
+    with pytest.raises(
+        BatchCommitError,
+        match=r"Slug resolution error: omaf\.chapter-99\.missing matched 0 files",
+    ):
         resolve_slug_file("omaf.chapter-99.missing", roots=(studio_root,))
 
     _write(
@@ -123,8 +129,113 @@ def test_resolve_slug_file_requires_exactly_one_match(tmp_path: Path) -> None:
         "---\nslug: omaf.chapter-03.a83d1\n---\n\nDuplicate\n",
     )
 
-    with pytest.raises(BatchCommitError, match="slug resolved to multiple files"):
+    with pytest.raises(
+        BatchCommitError,
+        match=r"Slug resolution error: omaf\.chapter-03\.a83d1 matched multiple files:",
+    ):
         resolve_slug_file("omaf.chapter-03.a83d1", roots=(studio_root,))
+
+
+def test_parse_batch_tag_annotation_accepts_canonical_manifest() -> None:
+    manifest = parse_batch_tag_annotation(
+        (
+            "batch: omaf.ch3.rewrite.a1b2c3\n"
+            "order:\n"
+            "  - omaf.opening_scene.abc123\n"
+            "  - omaf.radio_call.def456\n"
+            "inline_instruction: ins.voice.tight\n"
+        ),
+        requested_slug="omaf.ch3.rewrite.a1b2c3",
+    )
+
+    assert manifest.batch == "omaf.ch3.rewrite.a1b2c3"
+    assert manifest.source_tag == "batch/omaf.ch3.rewrite.a1b2c3"
+    assert manifest.order == (
+        "omaf.opening_scene.abc123",
+        "omaf.radio_call.def456",
+    )
+    assert manifest.inline_instruction == "ins.voice.tight"
+
+
+@pytest.mark.parametrize(
+    ("annotation", "expected"),
+    [
+        ("batch: wrong\norder:\n  - one\n", "batch tag mismatch"),
+        ("batch: sample\n", "batch tag missing required field: order"),
+        ("batch: sample\norder: []\n", "batch tag missing required field: order"),
+        ("batch: sample\norder:\n  - one\n  - one\n", "duplicate batch slug"),
+    ],
+)
+def test_parse_batch_tag_annotation_rejects_invalid_payloads(
+    annotation: str,
+    expected: str,
+) -> None:
+    with pytest.raises(BatchCommitError, match=expected):
+        parse_batch_tag_annotation(annotation, requested_slug="sample")
+
+
+def test_resolve_repo_slug_file_uses_tracked_files_only(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    tracked = _write(
+        repo / "drafts" / "tracked.md",
+        "---\nslug: omaf.chapter-03.a83d1\n---\n\nTracked\n",
+    )
+    _git(repo, "add", "drafts/tracked.md")
+    _git(repo, "commit", "-m", "add tracked")
+    _write(
+        repo / "scratch" / "duplicate.md",
+        "---\nslug: omaf.chapter-03.a83d1\n---\n\nUntracked duplicate\n",
+    )
+
+    assert resolve_repo_slug_file("omaf.chapter-03.a83d1", repo=repo) == tracked.resolve()
+
+
+def test_resolve_repo_slug_file_errors_on_multiple_tracked_matches(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    _write(
+        repo / "drafts" / "tracked-a.md",
+        "---\nslug: omaf.chapter-03.a83d1\n---\n\nTracked A\n",
+    )
+    _write(
+        repo / "notes" / "tracked-b.md",
+        "---\nslug: omaf.chapter-03.a83d1\n---\n\nTracked B\n",
+    )
+    _git(repo, "add", "drafts/tracked-a.md", "notes/tracked-b.md")
+    _git(repo, "commit", "-m", "add duplicates")
+
+    with pytest.raises(BatchCommitError) as excinfo:
+        resolve_repo_slug_file("omaf.chapter-03.a83d1", repo=repo)
+
+    assert (
+        str(excinfo.value)
+        == "Slug resolution error: omaf.chapter-03.a83d1 matched multiple files:\n"
+        "  - drafts/tracked-a.md\n"
+        "  - notes/tracked-b.md"
+    )
+
+
+def test_load_batch_manifest_from_tag_reads_annotated_tag(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    tag_message = tmp_path / "batch-tag.yaml"
+    tag_message.write_text(
+        (
+            "batch: omaf.ch3.rewrite.a1b2c3\n"
+            "order:\n"
+            "  - omaf.opening_scene.abc123\n"
+            "  - omaf.radio_call.def456\n"
+        ),
+        encoding="utf-8",
+    )
+
+    _git(repo, "tag", "-a", "batch/omaf.ch3.rewrite.a1b2c3", "-F", str(tag_message))
+
+    manifest = load_batch_manifest_from_tag(repo, "omaf.ch3.rewrite.a1b2c3")
+
+    assert manifest.batch == "omaf.ch3.rewrite.a1b2c3"
+    assert manifest.order == (
+        "omaf.opening_scene.abc123",
+        "omaf.radio_call.def456",
+    )
 
 
 def test_build_batch_from_commit_message_reconstructs_ordered_files(tmp_path: Path) -> None:

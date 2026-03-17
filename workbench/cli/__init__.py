@@ -8,6 +8,7 @@ from types import ModuleType
 
 COMMAND_MODULES: dict[str, str] = {
     "commit": "workbench.cli.commit",
+    "compile-batch": "workbench.cli.compile_batch",
     "compile-assets": "workbench.cli.compile_assets",
     "compile-control": "workbench.cli.compile_control",
     "compile-registries": "workbench.cli.compile_registries",
