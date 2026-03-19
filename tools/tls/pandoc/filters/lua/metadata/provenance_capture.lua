@@ -1,14 +1,9 @@
 function Meta(meta)
   local origin = pandoc.MetaMap({})
-  local reserved = {
-    batch = true,
-  }
 
   for key, value in pairs(meta) do
-    if not reserved[key] then
-      origin[key] = value
-      meta[key] = nil
-    end
+    origin[key] = value
+    meta[key] = nil
   end
 
   meta.origin = origin

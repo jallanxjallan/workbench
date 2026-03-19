@@ -201,9 +201,6 @@ function Pandoc(doc)
     content = content,
     input_record = input_record,
   }
-  if type(input_record.batch) == "string" and input_record.batch:match("%S") then
-    payload.batch_slug = input_record.batch
-  end
 
   print(pandoc.json.encode(payload))
   os.exit()
