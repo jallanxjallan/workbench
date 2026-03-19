@@ -1,48 +1,68 @@
 # Workbench
 
-Workbench is the human control surface for writing operations.
+Workbench is a stateless CLI layer.
+
+It:
+- reads git
+- emits NDJSON
+- transforms records
+
+It does not:
+- orchestrate workflows
+- manage state
+- execute pipelines
+
+Shell composition is the execution model.
 
 ## Architecture
 
-- `Studio`: writing vaults only (outside this repository).
-- `Workbench`: operational CLI and tooling.
-- `Autoscribe`: processing engine.
-- `NDJSON`: strict boundary between Workbench and Autoscribe.
+Core boundary:
+
+- `Git` = intent, primarily annotated `batch/<id>` tags
+- `NDJSON` = transport, with one canonical record shape
+- `asc` = execution and ledgering
+- `Workbench` = deterministic CLI primitives
+- `Obsidian` = authoring only
 
 Workbench never imports Autoscribe modules. Integration is stdin/stdout NDJSON only.
 
-## Repository Layout
+## Canonical Record Contract
 
-Runtime and source roots:
+Every ingest-facing command accepts or emits this exact shape:
 
-- `workbench/`: Python package (`cli`, `lib`, `config`, `slug`, `write`, `assets`, `framing`, `interop`).
-- `~/Control`: authoritative control plane repository.
-- `~/Control/Registry/`: authoritative registry YAML (`editorial.yaml`, `pipeline.yaml`, `verbs.yaml`, `git_commit_messages.yaml`).
-- `~/Control/Regex/definitions/`: authoritative regex YAML definitions.
-- `_compiled/control/`: compiled control artifacts (`verbs.json`, `global_instructions.json`, `regex.json`).
-- `_compiled/registries/`: compiled registry JSON outputs.
-- `_compiled/regex/`: compiled regex JSON outputs.
-- `tools/tls/`: bundled Workbench tooling support.
-- `obsidian/common/`, `obsidian/templates/`: support assets only.
+```json
+{"content":"...","input_record":{...}}
+```
 
-## Workbench Architecture
+Rules:
 
-Code:
+- `content` must always exist and must be a string.
+- `input_record` must always exist and must be an object.
+- `input_record` may be extended, but not removed.
+- No additional top-level fields are allowed.
+- Invalid JSON or schema drift is a hard failure.
 
-- `~/Workbench`
+The record helpers live in [workbench/ingest/records.py](/home/jeremy/Workbench/workbench/ingest/records.py).
 
-Control plane:
+## Batch Model
 
-- `~/Control`
+Canonical source of batch truth:
 
-Compiled artifacts:
+- annotated git tag `batch/<id>`
 
-- `~/Workbench/_compiled`
+Canonical tag payload:
 
-Workbench reads compiled JSON artifacts from `_compiled/`.
-The Control repo stores the authoritative YAML sources used to build them.
+```yaml
+batch: <id>
+description: <optional human-readable text>
+order:
+  - <slug>
+  - <slug>
+```
 
-## CLI
+Batch ids are treated as opaque strings by Workbench. The target operator format is `YYYYMMDD-HHMMSS-xxxx`, but runtime code does not semantically parse the id.
+
+## Primary Commands
 
 Entry point:
 
@@ -50,69 +70,101 @@ Entry point:
 wkb
 ```
 
-Core commands:
+Batch and NDJSON primitives:
 
-- `wkb commit <TYPE> <BATCH_SLUG>`
+- `wkb batch-slugs <id>`
+- `wkb slugs-to-files`
+- `wkb show-batch <id>`
+- `wkb validate-batch <id>`
+- `wkb ingest-batch <id>`: compatibility emitter for batch slug records
+- `wkb confirm inflight <id>`
+
+Control and publishing commands:
+
 - `wkb compile-registries`
 - `wkb compile-regex`
 - `wkb compile-control`
 - `wkb compile-assets`
-- `wkb find-duplicates`
 - `wkb publish-control`
 - `wkb publish-context`
 - `wkb stream`
+
+Vault-authoring support commands:
+
 - `wkb writevault [--overwrite] [--folder <path>] [--template <name>]`
 - `wkb writestream`
 - `wkb create-vault <vault-name-or-path>`
-
-Vault template command:
-
 - `wkb vault template apply --template <template_name> --files file1.md file2.md`
 
-## Pipeline Discipline
+## Composition Model
 
-Commands are designed for pipelines:
-
-```bash
-rg ... | wkb stream | asc ingest
-```
-
-Writers consume NDJSON from stdin and emit diagnostics to stderr.
-
-`wkb writevault` accepts NDJSON records with required `content` and `input_record`, plus optional `slug`, `batch`, `filename_hint`, and `folder`.
-
-To migrate existing vault files from `batch_id:` to `batch:`, run `tools/migrate_batch_field.zsh <vault-root>` and verify the updated keys with `rg '^batch:' <vault-root>`.
-
-## Registry and Regex Compilation
-
-Compile registries:
+Workbench commands are designed to compose in the shell:
 
 ```bash
-wkb compile-registries
+wkb batch-slugs <id> | wkb slugs-to-files
 ```
 
-Compile regex definitions:
+Pandoc and ingest execution stay outside Workbench:
 
 ```bash
-wkb compile-regex
+wkb batch-slugs <id> \
+  | wkb slugs-to-files \
+  | <external markdown-to-ndjson step> \
+  | asc ingest --stdin
 ```
 
-Compile external control behavior:
+Workbench does not internally chain these steps for you.
+
+## Repository Layout
+
+Runtime and source roots:
+
+- `workbench/`: Python package for CLI, batch parsing, ingest helpers, control compilation, writing, and runtime utilities
+- `_compiled/control/`: compiled control artifacts
+- `_compiled/registries/`: compiled registry outputs
+- `_compiled/regex/`: compiled regex outputs
+- `tools/tls/`: bundled tooling support, including Pandoc defaults and filters
+- `obsidian/`: authoring-side shared assets and templates
+
+Control plane:
+
+- `~/Control`: authoritative YAML/control repository
+- `~/Control/Registry/`: registry YAML
+- `~/Control/Regex/definitions/`: regex YAML definitions
+
+Workbench reads compiled JSON artifacts from `_compiled/`. The Control repo stores the authoritative YAML sources used to build them.
+
+## Boundaries
+
+Workbench batch commands:
+
+- may read git tags
+- may read tracked markdown files
+- may emit NDJSON to stdout
+
+Workbench control logic:
+
+- compiles and publishes control/context artifacts
+- should remain pure logic at the control layer
+
+Obsidian:
+
+- is an authoring layer
+- may contain incomplete or pre-template notes
+- is not the source of ingest truth
+
+Frontmatter is a vault-side concern. Slugs are only required when a note is selected into a batch or otherwise resolved by slug-aware commands.
+
+## Notes
+
+To migrate existing vault files from `batch_id:` to `batch:`, run:
 
 ```bash
-wkb compile-control
+tools/migrate_batch_field.zsh <vault-root>
 ```
 
-Publish compiled global instructions:
+Then verify:
 
 ```bash
-wkb publish-control
+rg '^batch:' <vault-root>
 ```
-
-Set the control root explicitly in your shell environment:
-
-```bash
-export WORKBENCH_CONTROL_ROOT=~/Control
-```
-
-Only `_compiled/registries`, `_compiled/regex`, and `_compiled/control` contain compiled artifacts.

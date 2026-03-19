@@ -63,14 +63,14 @@ def compile_assets_command(ctx: typer.Context) -> None:
     _run_passthrough("compile-assets", ctx)
 
 
+@app.command("batch-slugs", context_settings=_PASSTHROUGH_SETTINGS)
+def batch_slugs_command(ctx: typer.Context) -> None:
+    _run_passthrough("batch-slugs", ctx)
+
+
 @app.command("commit", context_settings=_PASSTHROUGH_SETTINGS)
 def commit_command(ctx: typer.Context) -> None:
     _run_passthrough("commit", ctx)
-
-
-@app.command("compile-batch", context_settings=_PASSTHROUGH_SETTINGS)
-def compile_batch_command(ctx: typer.Context) -> None:
-    _run_passthrough("compile-batch", ctx)
 
 
 @app.command("compile-control", context_settings=_PASSTHROUGH_SETTINGS)
@@ -118,9 +118,14 @@ def publish_control_command(ctx: typer.Context) -> None:
     _run_passthrough("publish-control", ctx)
 
 
-@app.command("select-records", context_settings=_PASSTHROUGH_SETTINGS)
-def select_records_command(ctx: typer.Context) -> None:
-    _run_passthrough("select-records", ctx)
+@app.command("show-batch", context_settings=_PASSTHROUGH_SETTINGS)
+def show_batch_command(ctx: typer.Context) -> None:
+    _run_passthrough("show-batch", ctx)
+
+
+@app.command("slugs-to-files", context_settings=_PASSTHROUGH_SETTINGS)
+def slugs_to_files_command(ctx: typer.Context) -> None:
+    _run_passthrough("slugs-to-files", ctx)
 
 
 @app.command("stream", context_settings=_PASSTHROUGH_SETTINGS)
@@ -131,6 +136,11 @@ def stream_command(ctx: typer.Context) -> None:
 @app.command("upload-locals", context_settings=_PASSTHROUGH_SETTINGS)
 def upload_locals_command(ctx: typer.Context) -> None:
     _run_passthrough("upload-locals", ctx)
+
+
+@app.command("validate-batch", context_settings=_PASSTHROUGH_SETTINGS)
+def validate_batch_command(ctx: typer.Context) -> None:
+    _run_passthrough("validate-batch", ctx)
 
 
 @app.command("writevault", context_settings=_PASSTHROUGH_SETTINGS)

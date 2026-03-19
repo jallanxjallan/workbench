@@ -7,8 +7,8 @@ from types import ModuleType
 
 
 COMMAND_MODULES: dict[str, str] = {
+    "batch-slugs": "workbench.cli.batch_slugs",
     "commit": "workbench.cli.commit",
-    "compile-batch": "workbench.cli.compile_batch",
     "compile-assets": "workbench.cli.compile_assets",
     "compile-control": "workbench.cli.compile_control",
     "compile-registries": "workbench.cli.compile_registries",
@@ -20,9 +20,11 @@ COMMAND_MODULES: dict[str, str] = {
     "migrate": "workbench.cli.migrate",
     "publish-context": "workbench.cli.publish_context",
     "publish-control": "workbench.cli.publish_control",
-    "select-records": "workbench.cli.select_records",
+    "show-batch": "workbench.cli.show_batch",
+    "slugs-to-files": "workbench.cli.slugs_to_files",
     "stream": "workbench.cli.stream",
     "upload-locals": "workbench.cli.upload_locals",
+    "validate-batch": "workbench.cli.validate_batch",
     "vault-template": "workbench.cli.vault_template",
     "writevault": "workbench.cli.writevault",
     "writestream": "workbench.cli.writestream",

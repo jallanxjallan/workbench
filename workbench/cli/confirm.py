@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from workbench.control.ingest_batch import IngestBatchError, confirm_inflight
+from workbench.batch import InflightTagError, confirm_inflight
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
             push=bool(args.push),
             remote=str(args.remote),
         )
-    except IngestBatchError as exc:
+    except InflightTagError as exc:
         print(f"[confirm] error: {exc}", file=sys.stderr)
         return 1
 
