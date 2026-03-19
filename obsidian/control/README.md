@@ -2,6 +2,11 @@
 
 `_control` is the shared control and inspection layer for Studio vaults.
 
+It is paired with `../core/`:
+
+- `core/` is copied into each vault as the local Obsidian runtime skeleton
+- `control/` is symlinked into each vault as `_control`
+
 It contains:
 
 - templates

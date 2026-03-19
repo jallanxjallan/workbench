@@ -61,9 +61,11 @@ STUDIO_ROOT = _resolve_anchor(
 # Backward-compatible alias for modules that still reference WORKBENCH_ROOT.
 WORKBENCH_ROOT = WORKBENCH_HOME
 OBSIDIAN_ROOT = WORKBENCH_HOME / "obsidian"
-VAULT_TEMPLATE_ROOT = OBSIDIAN_ROOT / "templates"
+OBSIDIAN_CORE_ROOT = OBSIDIAN_ROOT / "core"
 OBSIDIAN_CONTROL_ROOT = OBSIDIAN_ROOT / "control"
 OBSIDIAN_COMMON_ROOT = OBSIDIAN_CONTROL_ROOT
+# Backward-compatible alias for older callers that still use the template name.
+VAULT_TEMPLATE_ROOT = OBSIDIAN_CORE_ROOT
 
 
 class RootResolutionError(RuntimeError):
