@@ -1,4 +1,4 @@
-"""Compatibility alias for the batch ingest pipeline."""
+"""Ingest an ordered batch tag through Pandoc and ASC, then confirm inflight."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from workbench.control.ingest_batch import DEFAULT_INGEST_COMMAND, run_and_confi
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="compile-batch",
+        prog="ingest-batch",
         description=__doc__,
     )
-    parser.add_argument("batch_slug", help="Batch slug to compile from batch/<slug>.")
+    parser.add_argument("batch_id", help="Batch id to ingest from batch/<batch-id>.")
     parser.add_argument(
         "--repo",
         default=".",
@@ -22,7 +22,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ingest-command",
         default=" ".join(DEFAULT_INGEST_COMMAND),
-        help="Command used for ASC ingest.",
+        help="ASC ingest command prefix (default: asc ingest).",
     )
     parser.add_argument(
         "--push-inflight",
@@ -41,11 +41,11 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     ingest_command = tuple(part for part in str(args.ingest_command).strip().split(" ") if part)
     if not ingest_command:
-        print("[compile-batch] error: ingest command cannot be empty")
+        print("[ingest-batch] error: ingest command cannot be empty")
         return 1
 
     return run_and_confirm(
-        batch_id=str(args.batch_slug),
+        batch_id=str(args.batch_id),
         repo=Path(args.repo),
         ingest_command=ingest_command,
         push_inflight=bool(args.push_inflight),

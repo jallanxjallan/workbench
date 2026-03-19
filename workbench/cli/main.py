@@ -24,6 +24,11 @@ vault_app = typer.Typer(
     no_args_is_help=True,
     pretty_exceptions_enable=False,
 )
+confirm_app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+)
 vault_template_app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
@@ -93,6 +98,11 @@ def find_duplicates_command(ctx: typer.Context) -> None:
     _run_passthrough("find-duplicates", ctx)
 
 
+@app.command("ingest-batch", context_settings=_PASSTHROUGH_SETTINGS)
+def ingest_batch_command(ctx: typer.Context) -> None:
+    _run_passthrough("ingest-batch", ctx)
+
+
 @app.command("migrate", context_settings=_PASSTHROUGH_SETTINGS)
 def migrate_command(ctx: typer.Context) -> None:
     _run_passthrough("migrate", ctx)
@@ -118,6 +128,11 @@ def stream_command(ctx: typer.Context) -> None:
     _run_passthrough("stream", ctx)
 
 
+@app.command("upload-locals", context_settings=_PASSTHROUGH_SETTINGS)
+def upload_locals_command(ctx: typer.Context) -> None:
+    _run_passthrough("upload-locals", ctx)
+
+
 @app.command("writevault", context_settings=_PASSTHROUGH_SETTINGS)
 def writevault_command(ctx: typer.Context) -> None:
     _run_passthrough("writevault", ctx)
@@ -133,6 +148,13 @@ def vault_template_command(ctx: typer.Context) -> None:
     _run_passthrough("vault-template", ctx)
 
 
+@confirm_app.command("inflight", context_settings=_PASSTHROUGH_SETTINGS)
+def confirm_inflight_command(ctx: typer.Context) -> None:
+    code = _dispatch("confirm", ["inflight", *list(ctx.args)])
+    if code != 0:
+        raise typer.Exit(code=code)
+
+
 @vault_template_app.command("apply", context_settings=_PASSTHROUGH_SETTINGS)
 def vault_template_apply_command(ctx: typer.Context) -> None:
     code = _dispatch("vault-template", ["apply", *list(ctx.args)])
@@ -140,6 +162,7 @@ def vault_template_apply_command(ctx: typer.Context) -> None:
         raise typer.Exit(code=code)
 
 
+app.add_typer(confirm_app, name="confirm")
 vault_app.add_typer(vault_template_app, name="template")
 app.add_typer(vault_app, name="vault")
 

@@ -12,7 +12,7 @@ from workbench.config.roots import WORKBENCH_ROOT
 
 DEFAULT_SOURCE = "hhp-import"
 PANDOC_DATA_DIR = WORKBENCH_ROOT / "tools" / "tls" / "pandoc"
-DEFAULTS_NAME = "external_ingest"
+DEFAULTS_NAME = "ingest"
 
 
 def _parser() -> argparse.ArgumentParser:
