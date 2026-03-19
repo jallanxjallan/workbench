@@ -48,7 +48,7 @@ def _parser() -> argparse.ArgumentParser:
     apply_parser.add_argument(
         "--template",
         required=True,
-        help="Template name/path under <vault>/_common/templates.",
+        help="Template name/path under <vault>/_control/templates.",
     )
     apply_parser.add_argument(
         "--files",
@@ -91,8 +91,8 @@ def _resolve_target_files(raw_paths: list[str]) -> list[Path]:
 def _find_vault_root_for_file(path: Path) -> Path:
     for parent in [path.parent, *path.parents]:
         obsidian_dir = parent / ".obsidian"
-        common_templates_dir = parent / "_common" / "templates"
-        if obsidian_dir.is_dir() and common_templates_dir.is_dir():
+        control_templates_dir = parent / "_control" / "templates"
+        if obsidian_dir.is_dir() and control_templates_dir.is_dir():
             return parent.resolve()
     raise VaultTemplateError(
         f"ERROR: Could not resolve vault root from file path: {path}"
@@ -100,10 +100,21 @@ def _find_vault_root_for_file(path: Path) -> Path:
 
 
 def _resolve_templates_root(vault_root: Path) -> Path:
-    templates_root = (vault_root / "_common" / "templates").resolve()
+    templates_root = (vault_root / "_control" / "templates").resolve()
     if templates_root.exists() and templates_root.is_dir():
         return templates_root
     raise VaultTemplateError(f"ERROR: Template directory is missing: {templates_root}")
+
+
+def _ensure_staging_dir(vault_root: Path) -> Path:
+    staging_root = (vault_root / "_staging").resolve()
+    if staging_root.exists():
+        if not staging_root.is_dir():
+            raise VaultTemplateError(f"ERROR: _staging path is not a directory: {staging_root}")
+        return staging_root
+
+    staging_root.mkdir(parents=True, exist_ok=False)
+    return staging_root
 
 
 def _resolve_template_path(template_name: str, vault_root: Path) -> Path:
@@ -113,8 +124,8 @@ def _resolve_template_path(template_name: str, vault_root: Path) -> Path:
 
     templates_root = _resolve_templates_root(vault_root)
 
-    if raw.startswith("_common/templates/"):
-        raw = raw[len("_common/templates/") :]
+    if raw.startswith("_control/templates/"):
+        raw = raw[len("_control/templates/") :]
 
     selected: Path | None = None
     raw_path = Path(raw)
@@ -286,6 +297,7 @@ def apply_template_to_files(
         )
 
     vault_root = next(iter(vault_roots))
+    _ensure_staging_dir(vault_root)
     template_path = _resolve_template_path(template_name, vault_root)
     changes = _build_change_plan(template_path, targets)
     _apply_changes_atomically(changes)

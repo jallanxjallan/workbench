@@ -59,11 +59,31 @@
           }
         ]
       }
+    },
+    {
+      "id": "d4f2869c-c4f7-4892-8f89-74bc6f5dd78f",
+      "name": "Create Note",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "Create Note",
+        "id": "cb3b2a5f-f47e-4ce4-b3c6-c431310bc76d",
+        "commands": [
+          {
+            "name": "create_note",
+            "type": "UserScript",
+            "id": "5b2fdfd3-b721-43e6-b5ce-ced3119e37d9",
+            "path": "_control/macros/create_note.js",
+            "settings": {}
+          }
+        ]
+      }
     }
   ],
   "inputPrompt": "single-line",
   "devMode": false,
-  "templateFolderPath": "_common/templates",
+  "templateFolderPath": "_control/templates",
   "announceUpdates": true,
   "version": "2.5.0",
   "globalVariables": {},

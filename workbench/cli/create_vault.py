@@ -1,9 +1,10 @@
-"""Provision or initialize a vault with per-vault `_vault_registry.json` metadata."""
+"""Provision or initialize a vault with `_control`, `_staging`, and registry metadata."""
 
 from __future__ import annotations
 
 import argparse
 import builtins
+import filecmp
 import json
 import os
 import re
@@ -20,7 +21,7 @@ import yaml
 
 from workbench.config.roots import (
     STUDIO_ROOT,
-    OBSIDIAN_COMMON_ROOT as DEFAULT_OBSIDIAN_COMMON_ROOT,
+    OBSIDIAN_CONTROL_ROOT as DEFAULT_OBSIDIAN_CONTROL_ROOT,
     OBSIDIAN_ROOT as DEFAULT_OBSIDIAN_ROOT,
     VAULT_TEMPLATE_ROOT as DEFAULT_VAULT_TEMPLATE_ROOT,
 )
@@ -30,7 +31,7 @@ from workbench.write.common import atomic_write_text
 
 OBSIDIAN_ROOT = DEFAULT_OBSIDIAN_ROOT
 VAULT_TEMPLATE_ROOT = DEFAULT_VAULT_TEMPLATE_ROOT
-OBSIDIAN_COMMON_ROOT = DEFAULT_OBSIDIAN_COMMON_ROOT
+OBSIDIAN_CONTROL_ROOT = DEFAULT_OBSIDIAN_CONTROL_ROOT
 
 ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
@@ -41,6 +42,18 @@ STATUS_ALREADY = "already_initialized"
 REGISTRY_JSON_FILENAME = "_vault_registry.json"
 _MNEMONIC_RE = re.compile(r"^[a-z0-9]{1,5}$")
 _MAX_VAULT_MNEMONIC_LENGTH = 5
+MANAGED_TEMPLATE_FILES = (
+    ".obsidian/.gitignore",
+    ".obsidian/app.json",
+    ".obsidian/appearance.json",
+    ".obsidian/community-plugins.json",
+    ".obsidian/core-plugins.json",
+    ".obsidian/hotkeys.json",
+    ".obsidian/plugins/dataview/data.json",
+    ".obsidian/plugins/obsidian-git/data.json",
+    ".obsidian/plugins/quickadd/data.json",
+    ".obsidian/plugins/templater/data.json",
+)
 VAULT_GITIGNORE_TEMPLATE = (
     textwrap.dedent(
         """\
@@ -91,6 +104,7 @@ VAULT_GITIGNORE_TEMPLATE = (
         # --------------------------------------------------
 
         _ingest/
+        _staging/
         _tmp/
 
 
@@ -130,14 +144,18 @@ class CreateVaultResult:
     vault_path: Path
     status: str
     template_installed: bool
-    common_link_created: bool
+    control_link_created: bool
     registry_created: bool
+    managed_files_synced: int
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="create-vault",
-        description="Create or initialize a vault with internal _vault_registry.json metadata.",
+        description=(
+            "Create or initialize a vault with shared _control, local _staging, "
+            "and internal _vault_registry.json metadata."
+        ),
     )
     parser.add_argument(
         "vault_path",
@@ -157,7 +175,7 @@ def _validate_required_directory(path: Path) -> None:
 
 def _validate_preconditions() -> None:
     _validate_required_directory(VAULT_TEMPLATE_ROOT)
-    _validate_required_directory(OBSIDIAN_COMMON_ROOT)
+    _validate_required_directory(OBSIDIAN_CONTROL_ROOT)
 
 
 def _resolve_vault_path(vault_path: str | None, *, cwd: Path | None = None) -> Path:
@@ -223,7 +241,7 @@ def _utc_now_iso() -> str:
 def _copy_template_without_overwrite(vault_path: Path) -> None:
     for source in sorted(VAULT_TEMPLATE_ROOT.rglob("*")):
         relative = source.relative_to(VAULT_TEMPLATE_ROOT)
-        if relative.parts and relative.parts[0] == "_common":
+        if relative.parts and relative.parts[0] == "_control":
             continue
         destination = vault_path / relative
 
@@ -251,6 +269,29 @@ def _install_template_if_missing(vault_path: Path) -> bool:
     return True
 
 
+def _sync_managed_template_files(vault_path: Path) -> int:
+    synced = 0
+    for relative in MANAGED_TEMPLATE_FILES:
+        source = VAULT_TEMPLATE_ROOT / relative
+        if not source.exists() or not source.is_file():
+            raise CreateVaultError(f"Managed template file is missing: {source}")
+
+        destination = vault_path / relative
+        if destination.exists() and destination.is_dir():
+            raise CreateVaultError(
+                f"Unsafe path exists and is a directory: {destination}"
+            )
+
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists() and filecmp.cmp(source, destination, shallow=False):
+            continue
+
+        shutil.copy2(source, destination)
+        synced += 1
+
+    return synced
+
+
 def _install_gitignore_if_missing(vault_path: Path) -> bool:
     gitignore_path = vault_path / ".gitignore"
     if gitignore_path.exists() and gitignore_path.is_dir():
@@ -263,24 +304,24 @@ def _install_gitignore_if_missing(vault_path: Path) -> bool:
     return True
 
 
-def _ensure_common_symlink(vault_path: Path) -> bool:
-    link_path = vault_path / "_common"
-    common_target = OBSIDIAN_COMMON_ROOT.resolve()
+def _ensure_control_symlink(vault_path: Path) -> bool:
+    link_path = vault_path / "_control"
+    control_target = OBSIDIAN_CONTROL_ROOT.resolve()
 
     if link_path.exists() or link_path.is_symlink():
         if not link_path.is_symlink():
             raise CreateVaultError(
-                f"Unsafe existing _common path (not symlink): {link_path}"
+                f"Unsafe existing _control path (not symlink): {link_path}"
             )
 
         resolved = link_path.resolve(strict=False)
-        if resolved != common_target:
+        if resolved != control_target:
             raise CreateVaultError(
-                f"Existing _common symlink points to {resolved}, expected {common_target}"
+                f"Existing _control symlink points to {resolved}, expected {control_target}"
             )
         return False
 
-    relative_target = os.path.relpath(common_target, start=link_path.parent.resolve())
+    relative_target = os.path.relpath(control_target, start=link_path.parent.resolve())
     link_path.symlink_to(relative_target, target_is_directory=True)
     return True
 
@@ -409,6 +450,17 @@ def _create_vault_registry(vault_path: Path, *, mnemonic: str) -> bool:
     return True
 
 
+def _ensure_staging_dir(vault_path: Path) -> bool:
+    staging_path = vault_path / "_staging"
+    if staging_path.exists():
+        if not staging_path.is_dir():
+            raise CreateVaultError(f"Unsafe existing _staging path (not directory): {staging_path}")
+        return False
+
+    staging_path.mkdir(parents=True, exist_ok=False)
+    return True
+
+
 def load_registry(path: Path) -> dict[str, object]:
     suffix = path.suffix.lower()
     raw = path.read_text(encoding="utf-8").strip()
@@ -441,14 +493,7 @@ def create_vault(
     if target.exists() and not target.is_dir():
         raise CreateVaultError(f"Vault path exists and is not a directory: {target}")
 
-    if target.exists() and is_vault(target):
-        return CreateVaultResult(
-            vault_path=target,
-            status=STATUS_ALREADY,
-            template_installed=False,
-            common_link_created=False,
-            registry_created=False,
-        )
+    existing_vault = target.exists() and is_vault(target)
 
     created_dir = False
     if not target.exists():
@@ -456,15 +501,23 @@ def create_vault(
         created_dir = True
 
     try:
-        selected_mnemonic = _project_mnemonic(target) if mnemonic is None else mnemonic
-        selected_mnemonic = _ensure_mnemonic_available(
-            selected_mnemonic,
-            exclude_vault=target,
-        )
+        selected_mnemonic = None
+        if not existing_vault:
+            selected_mnemonic = _project_mnemonic(target) if mnemonic is None else mnemonic
+            selected_mnemonic = _ensure_mnemonic_available(
+                selected_mnemonic,
+                exclude_vault=target,
+            )
         template_installed = _install_template_if_missing(target)
+        managed_files_synced = _sync_managed_template_files(target)
         _install_gitignore_if_missing(target)
-        common_link_created = _ensure_common_symlink(target)
-        registry_created = _create_vault_registry(target, mnemonic=selected_mnemonic)
+        control_link_created = _ensure_control_symlink(target)
+        registry_created = (
+            _create_vault_registry(target, mnemonic=selected_mnemonic)
+            if selected_mnemonic is not None
+            else False
+        )
+        _ensure_staging_dir(target)
     except Exception as exc:
         if created_dir and target.exists() and not is_vault(target):
             shutil.rmtree(target, ignore_errors=True)
@@ -472,13 +525,18 @@ def create_vault(
             raise
         raise CreateVaultError(f"Vault provisioning failed: {exc}") from exc
 
-    status = STATUS_CREATED if created_dir else STATUS_INITIALIZED
+    status = (
+        STATUS_CREATED
+        if created_dir
+        else (STATUS_ALREADY if existing_vault else STATUS_INITIALIZED)
+    )
     return CreateVaultResult(
         vault_path=target,
         status=status,
         template_installed=template_installed,
-        common_link_created=common_link_created,
+        control_link_created=control_link_created,
         registry_created=registry_created,
+        managed_files_synced=managed_files_synced,
     )
 
 
@@ -504,6 +562,8 @@ def main(argv: list[str] | None = None) -> int:
         print("Existing files preserved.")
     else:
         print(f"Vault already initialized: {display}")
+    if result.managed_files_synced > 0:
+        print(f"Synchronized {result.managed_files_synced} managed vault file(s).")
 
     return 0
 
