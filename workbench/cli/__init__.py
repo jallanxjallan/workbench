@@ -9,8 +9,8 @@ from types import ModuleType
 COMMAND_MODULES: dict[str, str] = {
     "slugs-to-files": "workbench.cli.slugs_to_files",
     "stream": "workbench.cli.stream",
-    "writevault": "workbench.cli.writevault",
-    "writestream": "workbench.cli.writestream",
+    "writeback": "workbench.cli.writeback",
+    "writenew": "workbench.cli.writenew",
 }
 
 

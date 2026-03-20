@@ -53,14 +53,14 @@ def stream_command(ctx: typer.Context) -> None:
     _run_passthrough("stream", ctx)
 
 
-@app.command("writevault", context_settings=_PASSTHROUGH_SETTINGS)
-def writevault_command(ctx: typer.Context) -> None:
-    _run_passthrough("writevault", ctx)
+@app.command("writeback", context_settings=_PASSTHROUGH_SETTINGS)
+def writeback_command(ctx: typer.Context) -> None:
+    _run_passthrough("writeback", ctx)
 
 
-@app.command("writestream", context_settings=_PASSTHROUGH_SETTINGS)
-def writestream_command(ctx: typer.Context) -> None:
-    _run_passthrough("writestream", ctx)
+@app.command("writenew", context_settings=_PASSTHROUGH_SETTINGS)
+def writenew_command(ctx: typer.Context) -> None:
+    _run_passthrough("writenew", ctx)
 
 
 def main(argv: list[str] | None = None) -> int:

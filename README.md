@@ -91,8 +91,8 @@ Control and publishing commands:
 
 Vault-authoring support commands:
 
-- `wkb writevault [--overwrite] [--folder <path>] [--template <name>]`
-- `wkb writestream`
+- `wkb writeback`
+- `wkb writenew [--target-dir <path>]`
 - `wkb create-vault <vault-name-or-path>`
 - `wkb vault template apply --template <template_name> --files file1.md file2.md`
 

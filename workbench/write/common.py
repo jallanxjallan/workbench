@@ -1,9 +1,8 @@
-"""Shared helpers for write command implementations."""
+"""Shared helpers for write sink implementations."""
 
 from __future__ import annotations
 
 import copy
-import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,7 +10,13 @@ import re
 from typing import Any, Iterable, Iterator
 import unicodedata
 
-from workbench.io.ndjson import iter_ndjson
+from workbench.io.files import ensure_directory
+from workbench.io.records import RecordContractError, iter_records
+from workbench.resolver import ResolverError, resolve_slugs
+from workbench.runtime.vaults import is_obsidian_vault
+
+
+INGEST_DIRNAME = "_ingest"
 
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 _MULTI_DASH_RE = re.compile(r"-{2,}")
@@ -23,13 +28,16 @@ class WriteError(RuntimeError):
 
 
 @dataclass(frozen=True)
-class WriteRecord:
+class WriteInputRecord:
     envelope: dict[str, Any]
-    content: str
     slug: str | None
     filename_hint: str | None
-    provenance: dict[str, Any] | None
-    origin: dict[str, Any] | None
+
+
+@dataclass(frozen=True)
+class WriteRecord:
+    content: str
+    input_record: WriteInputRecord
 
 
 def normalize_non_empty_string(value: Any, *, field: str) -> str:
@@ -43,31 +51,17 @@ def normalize_non_empty_string(value: Any, *, field: str) -> str:
 
 def iter_input_records(stream: Iterable[str]) -> Iterator[WriteRecord]:
     try:
-        for index, record in enumerate(iter_ndjson(stream), start=1):
+        for index, record in enumerate(iter_records(stream), start=1):
             yield _coerce_record(record=record, index=index)
-    except (ValueError, json.JSONDecodeError) as exc:
-        raise WriteError(f"invalid NDJSON input: {exc}") from exc
+    except RecordContractError as exc:
+        raise WriteError(str(exc)) from exc
 
 
 def preferred_filename_stem(record: WriteRecord) -> str:
-    hint = record.filename_hint
+    hint = record.input_record.filename_hint
     if hint:
         return normalize_semantic_base(hint)
-    return "unknown"
-
-
-def resolve_unique_markdown_path(directory: Path, stem: str) -> Path:
-    clean_stem = normalize_semantic_base(stem)
-    candidate = directory / f"{clean_stem}.md"
-    if not candidate.exists():
-        return candidate
-
-    suffix = 2
-    while True:
-        candidate = directory / f"{clean_stem}-{suffix}.md"
-        if not candidate.exists():
-            return candidate
-        suffix += 1
+    return "doc"
 
 
 def normalize_semantic_base(filename: str) -> str:
@@ -82,27 +76,69 @@ def normalize_semantic_base(filename: str) -> str:
     return clipped or "doc"
 
 
-def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:
-    content = record.get("content")
-    if not isinstance(content, str):
-        raise WriteError(f"record {index}: missing required record field: content")
+def normalize_markdown_filename(filename: str) -> str:
+    return f"{normalize_semantic_base(filename)}.md"
 
-    slug = _optional_string(record.get("slug"), index=index, field="slug")
+
+def discover_vault_root(start: Path) -> Path:
+    candidate = start.expanduser().resolve()
+    for path in (candidate, *candidate.parents):
+        if is_obsidian_vault(path):
+            return path
+    raise WriteError("write commands must be run inside an Obsidian vault")
+
+
+def resolve_writenew_directory(
+    *,
+    cwd: Path | None = None,
+    target_dir: str | Path | None = None,
+) -> Path:
+    if target_dir is not None:
+        return ensure_directory(str(target_dir))
+
+    working_dir = (cwd or Path.cwd()).expanduser().resolve()
+    vault_root = discover_vault_root(working_dir)
+    return ensure_directory(str(vault_root / INGEST_DIRNAME))
+
+
+def resolve_existing_path(record: WriteRecord) -> Path:
+    slug = record.input_record.slug
+    if slug is None:
+        raise WriteError("writeback requires input_record.slug")
+
+    try:
+        path = resolve_slugs([slug])[0]
+    except ResolverError as exc:
+        raise WriteError(str(exc)) from exc
+
+    resolved = path.expanduser().resolve()
+    if not resolved.exists():
+        raise WriteError(f"missing target file for slug: {slug}")
+    return resolved
+
+
+def derive_new_path(record: WriteRecord, directory: Path) -> Path:
+    return directory / normalize_markdown_filename(preferred_filename_stem(record))
+
+
+def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:
+    content = record["content"]
+    input_record = record["input_record"]
+
+    slug = _optional_string(input_record.get("slug"), index=index, field="input_record.slug")
     filename_hint = _optional_string(
-        record.get("filename_hint"), index=index, field="filename_hint"
+        input_record.get("filename_hint"),
+        index=index,
+        field="input_record.filename_hint",
     )
-    provenance = _optional_mapping(
-        record.get("provenance"), index=index, field="provenance"
-    )
-    origin = _optional_mapping(record.get("origin"), index=index, field="origin")
 
     return WriteRecord(
-        envelope=copy.deepcopy(record),
         content=content,
-        slug=slug,
-        filename_hint=filename_hint,
-        provenance=provenance,
-        origin=origin,
+        input_record=WriteInputRecord(
+            envelope=copy.deepcopy(input_record),
+            slug=slug,
+            filename_hint=filename_hint,
+        ),
     )
 
 
@@ -113,10 +149,3 @@ def _optional_string(value: Any, *, index: int, field: str) -> str | None:
         raise WriteError(f"record {index}: invalid record field: {field}")
     return value.strip()
 
-
-def _optional_mapping(value: Any, *, index: int, field: str) -> dict[str, Any] | None:
-    if value is None:
-        return None
-    if not isinstance(value, dict):
-        raise WriteError(f"record {index}: invalid record field: {field}")
-    return copy.deepcopy(value)
