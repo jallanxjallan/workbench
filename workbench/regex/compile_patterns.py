@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from workbench.cli.create_vault import load_registry
+import yaml
+
 from workbench.config.roots import CONTROL_REGEX_ROOT, WORKBENCH_ROOT
 
 
@@ -24,10 +25,16 @@ def _load_yaml_mapping(path: Path) -> dict[str, object]:
     if not path.is_file():
         raise PatternCompileError(f"pattern source not found: {path}")
 
-    try:
-        parsed = load_registry(path)
-    except Exception as exc:  # noqa: BLE001
-        raise PatternCompileError(f"invalid pattern source {path}: {exc}") from exc
+    raw = path.read_text(encoding="utf-8").strip()
+    if raw == "":
+        parsed = {}
+    else:
+        try:
+            parsed = yaml.safe_load(raw)
+        except yaml.YAMLError as exc:
+            raise PatternCompileError(f"invalid pattern source {path}: {exc}") from exc
+        if parsed is None:
+            parsed = {}
 
     if not isinstance(parsed, dict):
         raise PatternCompileError(f"pattern root must be a mapping: {path}")
@@ -40,7 +47,7 @@ def _validate_name(data: dict[str, object], path: Path) -> str:
         raise PatternCompileError(f"missing required 'name' in {path}")
 
     name = raw_name.strip()
-    if name != path.stem:
+    if not name == path.stem:
         raise PatternCompileError(
             f"pattern name must match filename stem: {path.stem} != {name}"
         )

@@ -8,7 +8,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from workbench.cli.create_vault import load_registry
+import yaml
+
 from workbench.config.roots import STUDIO_ROOT, WORKBENCH_CONTROL_ROOT, WORKBENCH_ROOT
 from workbench.interop.document import Document
 from workbench.regex.compile_patterns import PatternCompileError, compile_pattern_file
@@ -46,10 +47,18 @@ class GlobalInstruction:
 def _read_yaml_mapping(path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise ControlCompileError(f"control source not found: {path}")
-    try:
-        loaded = load_registry(path)
-    except Exception as exc:  # noqa: BLE001
-        raise ControlCompileError(f"invalid YAML source {path}: {exc}") from exc
+
+    raw = path.read_text(encoding="utf-8").strip()
+    if raw == "":
+        loaded = {}
+    else:
+        try:
+            loaded = yaml.safe_load(raw)
+        except yaml.YAMLError as exc:
+            raise ControlCompileError(f"invalid YAML source {path}: {exc}") from exc
+        if loaded is None:
+            loaded = {}
+
     if not isinstance(loaded, dict):
         raise ControlCompileError(f"YAML root must be a mapping: {path}")
     return loaded

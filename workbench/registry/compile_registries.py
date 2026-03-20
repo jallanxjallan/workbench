@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from workbench.cli.create_vault import load_registry
+import yaml
+
 from workbench.config.roots import CONTROL_REGISTRY_ROOT, WORKBENCH_ROOT
 
 
@@ -27,10 +28,18 @@ def _needs_recompile(src: Path, dst: Path) -> bool:
 def _load_yaml_mapping(path: Path) -> dict[str, object]:
     if not path.is_file():
         raise CompileRegistriesError(f"registry source not found: {path}")
-    try:
-        parsed = load_registry(path)
-    except Exception as exc:  # noqa: BLE001
-        raise CompileRegistriesError(f"invalid registry source {path}: {exc}") from exc
+
+    raw = path.read_text(encoding="utf-8").strip()
+    if raw == "":
+        parsed = {}
+    else:
+        try:
+            parsed = yaml.safe_load(raw)
+        except yaml.YAMLError as exc:
+            raise CompileRegistriesError(f"invalid registry source {path}: {exc}") from exc
+        if parsed is None:
+            parsed = {}
+
     if not isinstance(parsed, dict):
         raise CompileRegistriesError(f"registry root must be a mapping: {path}")
     return parsed

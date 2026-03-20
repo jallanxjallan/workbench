@@ -482,26 +482,6 @@ def _ensure_staging_dir(vault_path: Path) -> bool:
     return True
 
 
-def load_registry(path: Path) -> dict[str, object]:
-    suffix = path.suffix.lower()
-    raw = path.read_text(encoding="utf-8").strip()
-    if raw == "":
-        return {}
-
-    if suffix in {".yaml", ".yml"}:
-        parsed = yaml.safe_load(raw)
-    elif suffix == ".json":
-        parsed = json.loads(raw)
-    else:
-        raise CreateVaultError(f"Unsupported vault registry format: {path}")
-
-    if parsed is None:
-        return {}
-    if not isinstance(parsed, dict):
-        raise CreateVaultError(f"Vault registry root must be a mapping: {path}")
-    return parsed
-
-
 def create_vault(
     vault_path: str | None,
     *,
