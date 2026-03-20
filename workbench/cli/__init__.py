@@ -23,7 +23,7 @@ COMMAND_MODULES: dict[str, str] = {
     "show-batch": "workbench.cli.show_batch",
     "slugs-to-files": "workbench.cli.slugs_to_files",
     "stream": "workbench.cli.stream",
-    "upload-locals": "workbench.cli.upload_locals",
+    "upload-instructions": "workbench.cli.upload_instructions",
     "validate-batch": "workbench.cli.validate_batch",
     "vault-template": "workbench.cli.vault_template",
     "writevault": "workbench.cli.writevault",

@@ -133,9 +133,9 @@ def stream_command(ctx: typer.Context) -> None:
     _run_passthrough("stream", ctx)
 
 
-@app.command("upload-locals", context_settings=_PASSTHROUGH_SETTINGS)
-def upload_locals_command(ctx: typer.Context) -> None:
-    _run_passthrough("upload-locals", ctx)
+@app.command("upload-instructions", context_settings=_PASSTHROUGH_SETTINGS)
+def upload_instructions_command(ctx: typer.Context) -> None:
+    _run_passthrough("upload-instructions", ctx)
 
 
 @app.command("validate-batch", context_settings=_PASSTHROUGH_SETTINGS)
