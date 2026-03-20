@@ -344,7 +344,7 @@ Assumption:
 Location:
 - `workbench/cli/batch_slugs.py`
 - `workbench/cli/slugs_to_files.py`
-- `tools/tls/pandoc/filters/lua/output/emit_ndjson.lua`
+- `tools/pandoc/filters/lua/output/emit_ndjson.lua`
 Type:
 - mutability
 Current Behavior:
@@ -372,8 +372,8 @@ Reality Check:
 Assumption:
 - Frontmatter is preserved into Pandoc metadata and carried into NDJSON provenance.
 Location:
-- `tools/tls/pandoc/filters/lua/metadata/provenance_capture.lua`
-- `tools/tls/pandoc/filters/lua/output/emit_ndjson.lua`
+- `tools/pandoc/filters/lua/metadata/provenance_capture.lua`
+- `tools/pandoc/filters/lua/output/emit_ndjson.lua`
 Type:
 - frontmatter / provenance
 Current Behavior:
@@ -387,7 +387,7 @@ Reality Check:
 Assumption:
 - Empty metadata fields and empty nested structures can be dropped silently.
 Location:
-- `tools/tls/pandoc/filters/lua/output/emit_ndjson.lua`
+- `tools/pandoc/filters/lua/output/emit_ndjson.lua`
 Type:
 - metadata / fallback
 Current Behavior:
@@ -418,9 +418,9 @@ Reality Check:
 Assumption:
 - Pandoc itself may split documents, generate slugs, and write markdown files back into vault folders.
 Location:
-- `tools/tls/pandoc/filters/python/panflute/ingest_notes.py`
-- `tools/tls/pandoc/defaults/ingest_notes_broken.yaml`
-- `tools/tls/pandoc/defaults/label_notes_broken.yaml`
+- `tools/pandoc/filters/python/panflute/ingest_notes.py`
+- `tools/pandoc/defaults/ingest_notes_broken.yaml`
+- `tools/pandoc/defaults/label_notes_broken.yaml`
 Type:
 - mutability / lifecycle
 Current Behavior:

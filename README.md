@@ -123,7 +123,7 @@ Runtime and source roots:
 - `_compiled/control/`: compiled control artifacts
 - `_compiled/registries/`: compiled registry outputs
 - `_compiled/regex/`: compiled regex outputs
-- `tools/tls/`: bundled tooling support, including Pandoc defaults and filters
+- `tools/pandoc/`: bundled tooling support, including Pandoc defaults and filters
 - `obsidian/`: authoring-side shared assets and templates
 
 Control plane:

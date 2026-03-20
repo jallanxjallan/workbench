@@ -2,7 +2,7 @@
 
 Audit note:
 - The requested path `workbench/obsidian/` does not exist in this repo.
-- The live Obsidian-facing surface is split across `obsidian/`, `workbench/control/`, `workbench/ingest/`, `workbench/cli/`, `workbench/lib/`, and `tools/tls/pandoc/`.
+- The live Obsidian-facing surface is split across `obsidian/`, `workbench/control/`, `workbench/ingest/`, `workbench/cli/`, `workbench/lib/`, and `tools/pandoc/`.
 - Grouped components below list every relevant file path explicitly. Grouping is only used when the files have the same behavior class.
 
 ## Live Shared Vault Layer
@@ -692,14 +692,14 @@ Assumptions:
 
 ### Component Name: Active Pandoc Ingest Chain
 Path:
-- `tools/tls/pandoc/README.md`
-- `tools/tls/pandoc/defaults/ingest.yaml`
-- `tools/tls/pandoc/defaults/external_ingest.yaml`
-- `tools/tls/pandoc/filters/provenance_capture.lua`
-- `tools/tls/pandoc/filters/emit_ndjson.lua`
-- `tools/tls/pandoc/filters/lua/metadata/provenance_capture.lua`
-- `tools/tls/pandoc/filters/lua/output/emit_ndjson.lua`
-- `tools/tls/pandoc/filters/README.md`
+- `tools/pandoc/README.md`
+- `tools/pandoc/defaults/ingest.yaml`
+- `tools/pandoc/defaults/external_ingest.yaml`
+- `tools/pandoc/filters/provenance_capture.lua`
+- `tools/pandoc/filters/emit_ndjson.lua`
+- `tools/pandoc/filters/lua/metadata/provenance_capture.lua`
+- `tools/pandoc/filters/lua/output/emit_ndjson.lua`
+- `tools/pandoc/filters/README.md`
 
 Purpose:
 - Normalize markdown through Pandoc and emit NDJSON payloads for downstream ingest.
@@ -726,9 +726,9 @@ Assumptions:
 
 ### Component Name: Deprecated Direct-Write Pandoc Branch
 Path:
-- `tools/tls/pandoc/filters/python/panflute/ingest_notes.py`
-- `tools/tls/pandoc/defaults/ingest_notes_broken.yaml`
-- `tools/tls/pandoc/defaults/label_notes_broken.yaml`
+- `tools/pandoc/filters/python/panflute/ingest_notes.py`
+- `tools/pandoc/defaults/ingest_notes_broken.yaml`
+- `tools/pandoc/defaults/label_notes_broken.yaml`
 
 Purpose:
 - Legacy branch that split documents, generated slugs and UIDs, and wrote markdown files directly to vault folders.

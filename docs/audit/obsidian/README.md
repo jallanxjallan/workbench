@@ -76,7 +76,7 @@ Static searches run:
 Verification results:
 - No hidden authored-note mutation was found in the active ingest path.
   - `workbench/cli/batch_slugs.py` and `workbench/cli/slugs_to_files.py` read tags and files, then emit NDJSON only.
-  - `tools/tls/pandoc/filters/lua/output/emit_ndjson.lua` emits NDJSON and stderr diagnostics, but does not write vault notes.
+  - `tools/pandoc/filters/lua/output/emit_ndjson.lua` emits NDJSON and stderr diagnostics, but does not write vault notes.
 
 - Active mutation surfaces are separate and explicit.
   - `workbench/cli/vault_template.py` rewrites notes.

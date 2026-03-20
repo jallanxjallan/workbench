@@ -22,6 +22,8 @@ export STUDIO_ROOT
 
 # Backward compatibility for existing references.
 export WORKBENCH_ROOT="$WORKBENCH_HOME"
+export PANDOC_DATA_DIR="${PANDOC_DATA_DIR:-$WORKBENCH_HOME/tools/pandoc}"
+export PANDOC_DATA_DIR="${PANDOC_DATA_DIR:-$WORKBENCH_HOME/tools/pandoc}"
 
 export EDITOR=${EDITOR:-micro}
 export PAGER=${PAGER:-less}
