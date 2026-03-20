@@ -1,32 +1,20 @@
 # Vaults
 
-## Vault Mnemonics
+## Vault Slug Mnemonic
 
-Workbench vaults store a human-readable mnemonic in `_vault_registry.json`.
+Each vault keeps its local slug mnemonic in `_vault_registry.json` at the vault root.
 
 Rules:
 
-- Mnemonics use lowercase letters and digits only.
-- Maximum length is `5` characters.
-- Every mnemonic must be globally unique across Studio vaults.
-- Uniqueness is verified with ripgrep at create time; no persistent index is used.
-
-Mnemonic generation:
-
-- Start from the normalized vault name.
-- Remove dashes and other separators.
-- Truncate to 5 characters.
+- Obsidian reads this file locally when building slugs.
+- Slug construction stays inside Obsidian JavaScript.
+- Workbench does not inject, parse, or reconstruct slug segments.
+- Mnemonics used in slugs should normalize to lowercase letters.
 
 Example:
 
 ```json
 {
-  "mnemonic": "batav"
+  "mnemonic": "hhp"
 }
-```
-
-Example query:
-
-```bash
-rg '"mnemonic"\s*:\s*"batav"' ~/Studio
 ```

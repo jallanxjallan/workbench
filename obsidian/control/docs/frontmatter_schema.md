@@ -13,7 +13,7 @@
 
 ## Guidance
 
-- `slug`: stable note identity in the form `<domain>.<topic>.<identity>`.
+- `slug`: prefix-only in a global template, then a full opaque slug in the form `<prefix>.<project>.<hint>.<identity>` after Obsidian creates the note.
 - `project`: optional grouping key for editorial work.
 - `stage`: optional editorial stage such as `draft`, `revise`, or `final`.
 - `class`: optional note type such as `passage`, `topic`, or `note`.
@@ -21,4 +21,4 @@
 
 ## Principle
 
-Slugless notes are valid in pre-template state. Frontmatter is a vault-side concern and `batch` is not a canonical Obsidian field.
+Global templates provide only the slug prefix. Obsidian JS finalizes the slug using the vault-local mnemonic and filename, and Workbench treats the result as an opaque string.

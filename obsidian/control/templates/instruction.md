@@ -7,4 +7,4 @@ version: 1
 
 # Instruction
 
-<% tp.file.cursor() %>
+__CURSOR__

@@ -1,9 +1,8 @@
 ---
-slug:
-project:
-class: note
+slug: tpc
+class: topic
 stage: draft
 status: active
 ---
 
-# Note
+# Topic

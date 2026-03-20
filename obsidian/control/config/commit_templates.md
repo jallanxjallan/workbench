@@ -15,7 +15,7 @@ Selection macros may only return:
 ```json
 {
   "files": ["path/to/file.md"],
-  "slugs": ["domain.topic.identity"],
+  "slugs": ["prefix.project.hint.identity"],
   "ordered": true
 }
 ```

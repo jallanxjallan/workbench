@@ -1,6 +1,5 @@
 ---
-slug:
-project:
+slug: pss
 class: passage
 stage: draft
 status: active

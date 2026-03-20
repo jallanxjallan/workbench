@@ -7,9 +7,9 @@ instructions:
   - 
 
 pipeline:
-  - step: 
+  - step:
 ---
 
 # Notes
 
-<% tp.file.cursor() %>
+__CURSOR__

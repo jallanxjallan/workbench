@@ -23,7 +23,7 @@
 ## Related Vault Files
 
 - authored notes may live anywhere outside `_control/`
-- `_vault_registry.json` stores vault identity metadata
+- `_vault_registry.json` is a vault-local config file and may store the mnemonic used by Obsidian slug construction
 
 ## Archive Rule
 

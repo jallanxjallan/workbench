@@ -1,9 +1,8 @@
 ---
-slug:
-project:
-class: topic
+slug: nte
+class: note
 stage: draft
 status: active
 ---
 
-# Topic
+# Note

@@ -8,6 +8,7 @@ module.exports = async function createNote(params = {}) {
     throw new Error("Obsidian context not available.");
   }
 
+  const slugHelper = loadSlugHelper(app);
   const template = await pickTemplate(app, qa, params);
   const rawTitle = await promptTitle(qa, params);
   const title = normalizeTitle(rawTitle);
@@ -22,9 +23,8 @@ module.exports = async function createNote(params = {}) {
   }
 
   const templateText = await app.vault.cachedRead(template.file);
-  const slug = buildSlug(app, title);
-  const rendered = injectSlug(templateText, slug);
-  const file = await app.vault.create(notePath, rendered);
+  const file = await app.vault.create(notePath, templateText);
+  const slug = await slugHelper.finalize_file_slug({ app, file, sourceText: templateText });
 
   const leaf = app.workspace.getLeaf?.(true) || app.workspace.activeLeaf;
   if (leaf && typeof leaf.openFile === "function") {
@@ -50,6 +50,24 @@ function resolveApp(candidateApp) {
   }
 
   return candidateApp;
+}
+
+function getVaultBasePath(app) {
+  const adapter = app?.vault?.adapter;
+  const basePath =
+    (adapter && typeof adapter.getBasePath === "function" && adapter.getBasePath()) ||
+    adapter?.basePath ||
+    "";
+
+  if (!basePath) {
+    throw new Error("Vault base path is unavailable.");
+  }
+
+  return String(basePath);
+}
+
+function loadSlugHelper(app) {
+  return require(path.join(getVaultBasePath(app), "_control", "scripts", "slug.js"));
 }
 
 function notice(message, timeout = 8000) {
@@ -131,7 +149,15 @@ async function promptTitle(qa, params = {}) {
 function normalizeTitle(value) {
   const text = normalizeString(value).replace(/\.md$/i, "");
   if (!text) return "";
-  return text.replace(/[\\/]/g, "-").trim();
+
+  return text
+    .replace(/[\\/]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 function normalizeFolder(value) {
@@ -140,102 +166,4 @@ function normalizeFolder(value) {
 
 function normalizeString(value) {
   return String(value || "").trim();
-}
-
-function getVaultBasePath(app) {
-  const adapter = app?.vault?.adapter;
-  const basePath =
-    (adapter && typeof adapter.getBasePath === "function" && adapter.getBasePath()) ||
-    adapter?.basePath ||
-    "";
-
-  if (!basePath) {
-    throw new Error("vault base path is unavailable");
-  }
-
-  return String(basePath);
-}
-
-function readVaultRegistry(app) {
-  const fs = require("fs");
-  const registryPath = path.join(getVaultBasePath(app), "_vault_registry.json");
-  if (!fs.existsSync(registryPath)) {
-    throw new Error("Vault registry is missing: _vault_registry.json");
-  }
-  return JSON.parse(fs.readFileSync(registryPath, "utf8"));
-}
-
-function resolveVaultMnemonic(app) {
-  const registry = readVaultRegistry(app);
-  const mnemonic = normalizeString(registry?.mnemonic || registry?.project_mnemonic || "");
-  if (!mnemonic) {
-    throw new Error("Vault mnemonic is missing from _vault_registry.json");
-  }
-  return mnemonic.toLowerCase();
-}
-
-function normalizeTopic(value) {
-  return normalizeString(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-}
-
-function buildIdentity() {
-  const alphabet = "abcdefghijklmnopqrstuvwxyz";
-  let out = "";
-  for (let index = 0; index < 8; index += 1) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return out;
-}
-
-function buildSlug(app, title) {
-  const domain = resolveVaultMnemonic(app);
-  const topic = normalizeTopic(title);
-  if (!topic) {
-    throw new Error("Could not derive slug topic from note title.");
-  }
-  return `${domain}.${topic}.${buildIdentity()}`;
-}
-
-function injectSlug(sourceText, slug) {
-  const normalized = String(sourceText || "");
-  if (!normalized.startsWith("---\n")) {
-    return `---\nslug: ${slug}\n---\n\n${normalized}`;
-  }
-
-  const end = normalized.indexOf("\n---\n", 4);
-  if (end === -1) {
-    return `---\nslug: ${slug}\n---\n\n${normalized}`;
-  }
-
-  const block = normalized.slice(4, end);
-  const body = normalized.slice(end + 5);
-  const lines = block.split("\n");
-  let sawSlug = false;
-
-  for (let index = 0; index < lines.length; index += 1) {
-    if (!/^slug\s*:/.test(lines[index])) {
-      continue;
-    }
-
-    const existing = normalizeString(lines[index].slice(lines[index].indexOf(":") + 1)).replace(
-      /^['"]|['"]$/g,
-      "",
-    );
-    if (existing) {
-      throw new Error("Template already defines a concrete slug.");
-    }
-    lines[index] = `slug: ${slug}`;
-    sawSlug = true;
-    break;
-  }
-
-  if (!sawSlug) {
-    lines.unshift(`slug: ${slug}`);
-  }
-
-  return `---\n${lines.join("\n")}\n---\n${body}`;
 }
