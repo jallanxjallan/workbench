@@ -6,7 +6,7 @@ import copy
 import json
 from typing import Any, Iterable, Iterator
 
-from workbench.ingest.ndjson import iter_ndjson
+from workbench.io.ndjson import iter_ndjson
 
 
 CANONICAL_TOP_LEVEL_KEYS = frozenset({"content", "input_record"})
@@ -33,7 +33,7 @@ def validate_record(record: dict[str, Any], *, index: int | None = None) -> dict
         raise RecordContractError(f"{label}: NDJSON record must be an object")
 
     keys = set(record)
-    if keys != CANONICAL_TOP_LEVEL_KEYS:
+    if not keys == CANONICAL_TOP_LEVEL_KEYS:
         expected = ", ".join(sorted(CANONICAL_TOP_LEVEL_KEYS))
         found = ", ".join(sorted(keys))
         raise RecordContractError(

@@ -33,8 +33,6 @@ def _resolve_control_root() -> Path:
         resolved = _CONTROL_ROOT_DEFAULT.expanduser().resolve()
     else:
         resolved = Path(selected).expanduser().resolve()
-    # Migrate legacy default path to the new Control location when the old
-    # location no longer exists.
     if resolved == _CONTROL_ROOT_LEGACY and not resolved.exists() and _CONTROL_ROOT_DEFAULT.exists():
         return _CONTROL_ROOT_DEFAULT
     return resolved
@@ -51,21 +49,11 @@ AUTOSCRIBE_HOME = _resolve_anchor(
 WORKBENCH_CONTROL_ROOT = _resolve_control_root()
 AUTOSCRIBE_CONTROL_ROOT = WORKBENCH_CONTROL_ROOT
 CONTROL_ROOT = WORKBENCH_CONTROL_ROOT
-CONTROL_REGISTRY_ROOT = WORKBENCH_CONTROL_ROOT / "Registry"
-CONTROL_REGEX_ROOT = WORKBENCH_CONTROL_ROOT / "Regex" / "definitions"
 STUDIO_ROOT = _resolve_anchor(
     STUDIO_ROOT_ENV,
     Path.home().resolve() / "Studio",
 )
-
-# Backward-compatible alias for modules that still reference WORKBENCH_ROOT.
 WORKBENCH_ROOT = WORKBENCH_HOME
-OBSIDIAN_ROOT = WORKBENCH_HOME / "obsidian"
-OBSIDIAN_CORE_ROOT = OBSIDIAN_ROOT / "core"
-OBSIDIAN_CONTROL_ROOT = OBSIDIAN_ROOT / "control"
-OBSIDIAN_COMMON_ROOT = OBSIDIAN_CONTROL_ROOT
-# Backward-compatible alias for older callers that still use the template name.
-VAULT_TEMPLATE_ROOT = OBSIDIAN_CORE_ROOT
 
 
 class RootResolutionError(RuntimeError):

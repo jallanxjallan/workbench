@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from workbench.runtime.vaults import is_obsidian_vault
-from workbench.write.common import WriteError, atomic_write_text
+from workbench.io.files import atomic_write_text
+from workbench.write.common import WriteError
 
 
 INGEST_DIRNAME = "_ingest"

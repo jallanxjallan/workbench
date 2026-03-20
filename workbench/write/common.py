@@ -5,13 +5,17 @@ from __future__ import annotations
 import copy
 import json
 import os
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Any, Iterable, Iterator
+import unicodedata
 
-from workbench.interop.identity import normalize_semantic_base
-from workbench.ingest.ndjson import iter_ndjson
+from workbench.io.ndjson import iter_ndjson
+
+_NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
+_MULTI_DASH_RE = re.compile(r"-{2,}")
+_MAX_SEMANTIC_BASE_LENGTH = 48
 
 
 class WriteError(RuntimeError):
@@ -26,23 +30,6 @@ class WriteRecord:
     filename_hint: str | None
     provenance: dict[str, Any] | None
     origin: dict[str, Any] | None
-
-
-def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding=encoding,
-        delete=False,
-        dir=str(path.parent),
-        prefix=path.name + ".",
-        suffix=".tmp",
-    ) as tmp:
-        tmp.write(content)
-        tmp.flush()
-        os.fsync(tmp.fileno())
-        tmp_name = tmp.name
-    os.replace(tmp_name, path)
 
 
 def normalize_non_empty_string(value: Any, *, field: str) -> str:
@@ -60,24 +47,6 @@ def iter_input_records(stream: Iterable[str]) -> Iterator[WriteRecord]:
             yield _coerce_record(record=record, index=index)
     except (ValueError, json.JSONDecodeError) as exc:
         raise WriteError(f"invalid NDJSON input: {exc}") from exc
-
-
-def has_piped_stdin(stream: Any) -> bool:
-    isatty = getattr(stream, "isatty", None)
-    if not callable(isatty):
-        return True
-    try:
-        return not bool(isatty())
-    except OSError:
-        return True
-
-
-def ensure_directory(path_value: str) -> Path:
-    target = Path(path_value).expanduser().resolve()
-    target.mkdir(parents=True, exist_ok=True)
-    if not target.is_dir():
-        raise WriteError(f"path is not a directory: {target}")
-    return target
 
 
 def preferred_filename_stem(record: WriteRecord) -> str:
@@ -99,6 +68,18 @@ def resolve_unique_markdown_path(directory: Path, stem: str) -> Path:
         if not candidate.exists():
             return candidate
         suffix += 1
+
+
+def normalize_semantic_base(filename: str) -> str:
+    base_name = os.path.basename(str(filename))
+    stem, _ = os.path.splitext(base_name)
+    normalized = unicodedata.normalize("NFKD", stem)
+    no_diacritics = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    lowered = no_diacritics.lower()
+    dashed = _NON_ALNUM_RE.sub("-", lowered)
+    collapsed = _MULTI_DASH_RE.sub("-", dashed).strip("-")
+    clipped = collapsed[:_MAX_SEMANTIC_BASE_LENGTH].strip("-")
+    return clipped or "doc"
 
 
 def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:

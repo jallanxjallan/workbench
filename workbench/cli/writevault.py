@@ -6,8 +6,9 @@ import argparse
 from pathlib import Path
 import sys
 
+from workbench.io.files import has_piped_stdin
 from workbench.lib.vault_writer import write_ingest_records
-from workbench.write.common import WriteError, has_piped_stdin
+from workbench.write.common import WriteError
 
 
 def parser() -> argparse.ArgumentParser:
@@ -31,7 +32,7 @@ def run(
 
 def main(argv: list[str] | None = None) -> int:
     command_parser = parser()
-    args = command_parser.parse_args(argv)
+    command_parser.parse_args(argv)
     if not has_piped_stdin(sys.stdin):
         command_parser.print_usage(sys.stderr)
         print("ERROR: expected NDJSON input from stdin (pipe or < file)", file=sys.stderr)

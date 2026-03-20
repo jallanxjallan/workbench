@@ -6,7 +6,7 @@ import argparse
 import sys
 from typing import TextIO
 
-from workbench.ingest.ndjson import iter_ndjson
+from workbench.io.ndjson import iter_ndjson
 
 
 def _parser() -> argparse.ArgumentParser:

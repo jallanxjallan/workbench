@@ -1,4 +1,4 @@
-"""Workbench CLI command registry."""
+"""Workbench CLI command map."""
 
 from __future__ import annotations
 
@@ -7,20 +7,8 @@ from types import ModuleType
 
 
 COMMAND_MODULES: dict[str, str] = {
-    "commit": "workbench.cli.commit",
-    "compile-assets": "workbench.cli.compile_assets",
-    "compile-control": "workbench.cli.compile_control",
-    "compile-registries": "workbench.cli.compile_registries",
-    "compile-regex": "workbench.cli.compile_regex",
-    "create-vault": "workbench.cli.create_vault",
-    "find-duplicates": "workbench.cli.find_duplicates",
-    "migrate": "workbench.cli.migrate",
-    "publish-context": "workbench.cli.publish_context",
-    "publish-control": "workbench.cli.publish_control",
     "slugs-to-files": "workbench.cli.slugs_to_files",
     "stream": "workbench.cli.stream",
-    "upload-instructions": "workbench.cli.upload_instructions",
-    "vault-template": "workbench.cli.vault_template",
     "writevault": "workbench.cli.writevault",
     "writestream": "workbench.cli.writestream",
 }

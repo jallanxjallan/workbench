@@ -6,9 +6,9 @@ import argparse
 import sys
 from typing import Any
 
-from workbench.ingest.records import RecordContractError, dump_record, iter_records, make_record
+from workbench.io.files import has_piped_stdin
+from workbench.io.records import RecordContractError, dump_record, iter_records, make_record
 from workbench.resolver import ResolverError, resolve_slugs
-from workbench.write.common import has_piped_stdin
 
 
 def _parser() -> argparse.ArgumentParser:
