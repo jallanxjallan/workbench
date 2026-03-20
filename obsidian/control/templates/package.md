@@ -1,15 +1,1 @@
----
-slug: pkg
-type: package
-version: 1
-
-instructions:
-  - 
-
-pipeline:
-  - step:
----
-
-# Notes
-
-__CURSOR__
+../../../../Control/_control/templates/package.md

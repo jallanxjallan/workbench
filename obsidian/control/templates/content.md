@@ -1,0 +1,1 @@
+../../../../Control/templates/content.md

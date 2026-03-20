@@ -1,10 +1,1 @@
----
-slug: ins
-type: instruction
-scope: global
-version: 1
----
-
-# Instruction
-
-__CURSOR__
+../../../../Control/_control/templates/instruction.md
