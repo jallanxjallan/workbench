@@ -20,10 +20,10 @@ No project content should ever live here.
 
 ## Template Ownership
 
-- The canonical Control note templates now live in the sibling `~/Control/templates/` directory.
-- This `_control/templates/` surface re-exposes those files through symlinks so Studio vaults still see the expected runtime paths.
+- The canonical Control note templates now live directly in this `templates/` directory.
+- `~/Control/_control/templates/` mirrors those files through symlinks so Control-facing paths still resolve.
 - `~/Control/_control/templater/` remains the source for the Templater creation templates exposed here.
-- This is a one-way dependency from Workbench to Control. Control does not depend on Workbench.
+- Workbench owns note templates, while Control owns the Templater creation templates exposed here.
 - Vault macros should continue to resolve `_control/templates/...` without needing to know where the source files live.
 
 ## Directory Map

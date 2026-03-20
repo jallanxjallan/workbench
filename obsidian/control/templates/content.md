@@ -1,1 +1,8 @@
-../../../../Control/templates/content.md
+---
+slug: nte
+class: note
+stage: draft
+status: active
+---
+
+# Note
