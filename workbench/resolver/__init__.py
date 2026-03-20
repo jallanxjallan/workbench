@@ -6,6 +6,7 @@ from pathlib import Path
 
 from workbench.config.roots import CONTROL_ROOT, STUDIO_ROOT
 from workbench.control.compile import discover_slug_occurrences
+from workbench.runtime.vaults import studio_vault_roots
 
 
 class ResolverError(RuntimeError):
@@ -13,9 +14,8 @@ class ResolverError(RuntimeError):
 
 
 def collect_slug_map() -> dict[str, Path]:
-    slug_occurrences = discover_slug_occurrences(
-        roots=(Path(CONTROL_ROOT), Path(STUDIO_ROOT))
-    )
+    roots = [Path(CONTROL_ROOT), *studio_vault_roots(Path(STUDIO_ROOT))]
+    slug_occurrences = discover_slug_occurrences(roots=tuple(roots))
     slug_map: dict[str, Path] = {}
     for slug, paths in slug_occurrences.items():
         resolved_paths = sorted(path.resolve() for path in paths)

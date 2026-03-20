@@ -15,6 +15,7 @@ from workbench.assets.handlers import (
     handle_http_source,
 )
 from workbench.interop.document import Document
+from workbench.runtime.vaults import studio_vault_roots
 
 
 class CompileAssetsError(RuntimeError):
@@ -38,8 +39,10 @@ def compile_assets(studio_root: Path) -> CompileAssetsResult:
     if not root.is_dir():
         raise CompileAssetsError(f"studio root is not a directory: {root}")
 
+    links: list[SourceLink] = []
     try:
-        links = discover_uri_links(root)
+        for vault_root in studio_vault_roots(root):
+            links.extend(discover_uri_links(vault_root))
     except AssetDiscoveryError as exc:
         raise CompileAssetsError(str(exc)) from exc
 
@@ -121,7 +124,7 @@ def _handle_source(
 ) -> AssetResult:
     if scheme in {"http", "https"}:
         return handle_http_source(uri=source_link.uri)
-    if scheme != "file":
+    if not scheme == "file":
         return AssetResult(asset_reference=None)
 
     try:
@@ -148,7 +151,7 @@ def _remove_inline_uri_link_once(content: str, markdown_link: str) -> tuple[str,
         return content, False
 
     start = idx
-    if idx > 0 and content[idx - 1] == "!":
+    if idx > 0 and ord(content[idx - 1]) == 33:
         start = idx - 1
     end = idx + len(markdown_link)
 

@@ -7,7 +7,6 @@ from typing import Iterable
 
 from workbench.lib.vault_writer import (
     INGEST_DIRNAME,
-    VAULT_REGISTRY_FILENAME,
     discover_vault_root,
     write_ingest_records,
 )
@@ -28,7 +27,6 @@ def write_vault_records(
 
 __all__ = [
     "INGEST_DIRNAME",
-    "VAULT_REGISTRY_FILENAME",
     "discover_vault_root",
     "write_vault_records",
 ]

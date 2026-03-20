@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from workbench.runtime.vaults import is_obsidian_vault
 from workbench.write.common import WriteError, atomic_write_text
 
 
-VAULT_REGISTRY_FILENAME = "_vault_registry.json"
 INGEST_DIRNAME = "_ingest"
 WRITEVAULT_LOG_FILENAME = "writevault.log"
 
@@ -28,9 +28,9 @@ class WritevaultSummary:
 def discover_vault_root(start: Path) -> Path:
     candidate = start.expanduser().resolve()
     for path in (candidate, *candidate.parents):
-        if (path / VAULT_REGISTRY_FILENAME).is_file():
+        if is_obsidian_vault(path):
             return path
-    raise WriteError("writevault must be run inside a registered Studio vault")
+    raise WriteError("writevault must be run inside an Obsidian vault")
 
 
 def write_ingest_records(
@@ -150,7 +150,7 @@ def _extract_filename_hint(record: dict[str, Any]) -> str | None:
     if not hint:
         return None
     candidate = Path(hint)
-    if candidate.name != hint:
+    if not candidate.name == hint:
         return None
     suffix = candidate.suffix.lower()
     if suffix in {"", ".md", ".markdown"}:
@@ -216,9 +216,7 @@ def _append_log(log_path: Path | None, message: str) -> None:
 
 __all__ = [
     "INGEST_DIRNAME",
-    "VAULT_REGISTRY_FILENAME",
     "WRITEVAULT_LOG_FILENAME",
-    "WritevaultSummary",
     "default_log_path",
     "discover_vault_root",
     "write_ingest_records",

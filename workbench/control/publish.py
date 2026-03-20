@@ -13,6 +13,7 @@ from typing import Any
 from workbench.config.roots import STUDIO_ROOT, WORKBENCH_ROOT
 from workbench.control.compile import DEFAULT_COMPILED_CONTROL_ROOT
 from workbench.interop.document import Document
+from workbench.runtime.vaults import studio_vault_roots
 
 ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 DEFAULT_INGEST_COMMAND = ("asc-ingest",)
@@ -177,9 +178,7 @@ def _iter_markdown_files(root: Path) -> list[Path]:
 def _compile_context_payload(studio_root: Path) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     contexts: list[dict[str, str]] = []
     specifics: list[dict[str, str]] = []
-    for vault_root in sorted(path for path in studio_root.iterdir() if path.is_dir()):
-        if vault_root.name.startswith(".") or vault_root.name in _SKIP_DIR_NAMES:
-            continue
+    for vault_root in studio_vault_roots(Path(studio_root)):
         for source in _iter_markdown_files(vault_root):
             extracted = _extract_instruction(source)
             if extracted is None:

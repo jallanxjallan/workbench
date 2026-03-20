@@ -11,12 +11,12 @@ from typing import TextIO
 
 from workbench.config.roots import CONTROL_ROOT, STUDIO_ROOT
 from workbench.ingest.records import RecordContractError, dump_record, make_record
+from workbench.runtime.vaults import studio_vault_roots
 from workbench.scan.rg import RipgrepError, rg_search
 from workbench.scan.rg_collect_unique_slugs import rg_collect_unique_slugs
 
-TYPE_PATTERN = r"^type:\s*(instruction|package)\s*$"
+TYPE_PATTERN = "^type:\\s*(instruction|package)\\s*$"
 _MARKDOWN_EXTENSIONS = ["md", "markdown"]
-_VAULT_REGISTRY_FILENAME = "_vault_registry.json"
 
 
 class UploadInstructionsError(RuntimeError):
@@ -41,24 +41,11 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _iter_active_studio_vault_roots(studio_root: Path) -> tuple[Path, ...]:
-    root = Path(studio_root).expanduser().resolve()
-    if not root.exists():
-        return ()
-    if not root.is_dir():
-        raise UploadInstructionsError(f"studio root is not a directory: {root}")
-
-    vaults: list[Path] = []
-    for candidate in sorted(path for path in root.iterdir() if path.is_dir()):
-        if candidate.name.startswith("."):
-            continue
-        if (candidate / _VAULT_REGISTRY_FILENAME).is_file():
-            vaults.append(candidate.resolve())
-    return tuple(vaults)
-
-
 def _instruction_roots() -> tuple[Path, ...]:
-    roots = [Path(CONTROL_ROOT).expanduser().resolve(), *_iter_active_studio_vault_roots(STUDIO_ROOT)]
+    roots = [
+        Path(CONTROL_ROOT).expanduser().resolve(),
+        *studio_vault_roots(Path(STUDIO_ROOT)),
+    ]
     unique_roots: list[Path] = []
     for root in roots:
         if root not in unique_roots:

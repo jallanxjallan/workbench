@@ -4,17 +4,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 from workbench.cli.create_vault import load_registry
 from workbench.config.roots import STUDIO_ROOT, WORKBENCH_CONTROL_ROOT, WORKBENCH_ROOT
 from workbench.interop.document import Document
-from workbench.scan.rg import RipgrepError, rg_search
 from workbench.regex.compile_patterns import PatternCompileError, compile_pattern_file
+from workbench.runtime.vaults import studio_vault_roots
 
 _MARKDOWN_SUFFIXES = {".md", ".markdown"}
-_SLUG_LINE_PATTERN = r"^\s*slug:\s*([a-z0-9._-]+)\s*$"
+_SKIP_DIR_NAMES = frozenset({
+    ".git",
+    ".obsidian",
+    "__pycache__",
+    "_compiled",
+    "_control",
+    "_staging",
+    "archive",
+    "node_modules",
+    "venv",
+    ".venv",
+})
 
 DEFAULT_CONTROL_ROOT = WORKBENCH_CONTROL_ROOT
 DEFAULT_COMPILED_CONTROL_ROOT = WORKBENCH_ROOT / "_compiled" / "control"
@@ -49,8 +61,23 @@ def _iter_yaml_files(directory: Path) -> list[Path]:
     return sorted(path for path in directory.glob("*.yaml") if path.is_file())
 
 
+def _iter_markdown_files(root: Path) -> list[Path]:
+    paths: list[Path] = []
+    for current_root, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(name for name in dirnames if name not in _SKIP_DIR_NAMES)
+        current_path = Path(current_root)
+        for filename in sorted(filenames):
+            candidate = current_path / filename
+            if candidate.suffix.lower() not in _MARKDOWN_SUFFIXES:
+                continue
+            paths.append(candidate.resolve())
+    return paths
+
+
 def _compile_verbs(control_root: Path) -> dict[str, dict[str, Any]]:
     verbs_dir = control_root / "verbs"
+    if not verbs_dir.is_dir():
+        return {}
     compiled: dict[str, dict[str, Any]] = {}
     for source in _iter_yaml_files(verbs_dir):
         compiled[source.stem] = _read_yaml_mapping(source)
@@ -74,31 +101,23 @@ def _compile_regex(control_root: Path) -> dict[str, dict[str, Any]]:
     return compiled
 
 
-def _validate_global_instruction(path: Path) -> GlobalInstruction:
+def _validate_global_instruction(path: Path) -> GlobalInstruction | None:
     inspected = Document.inspect_file(path)
     if inspected.error:
         raise ControlCompileError(f"invalid instruction markdown {path}: {inspected.error}")
     if not inspected.has_frontmatter or not isinstance(inspected.metadata, dict):
-        raise ControlCompileError(f"instruction requires frontmatter: {path}")
+        return None
 
     metadata = inspected.metadata
+    if not (metadata.get("type") == "instruction" and metadata.get("scope") == "global"):
+        return None
+
     raw_slug = metadata.get("slug")
     if not isinstance(raw_slug, str) or not raw_slug.strip():
         raise ControlCompileError(f"instruction missing non-empty slug: {path}")
     slug = raw_slug.strip()
-
-    if slug != path.stem:
-        raise ControlCompileError(f"instruction slug must match filename stem: {path}")
     if not slug.startswith("gbl."):
         raise ControlCompileError(f"global instruction slug must start with gbl.: {path}")
-
-    raw_type = metadata.get("type")
-    if raw_type != "instruction":
-        raise ControlCompileError(f"global instruction type must be 'instruction': {path}")
-
-    raw_scope = metadata.get("scope")
-    if raw_scope != "global":
-        raise ControlCompileError(f"global instruction scope must be 'global': {path}")
 
     body = inspected.body.strip()
     if not body:
@@ -117,48 +136,31 @@ def discover_slug_occurrences(*, roots: tuple[Path, ...]) -> dict[str, set[Path]
         root_path = Path(root).expanduser().resolve()
         if not root_path.exists() or not root_path.is_dir():
             continue
-
-        try:
-            matches = rg_search(
-                pattern=_SLUG_LINE_PATTERN,
-                root=root_path,
-                extensions=["md", "markdown"],
-            )
-            for match in matches:
-                groups = match["groups"]
-                file_path = match["path"]
-                if (
-                    not isinstance(groups, list)
-                    or not groups
-                    or not isinstance(groups[0], str)
-                    or not isinstance(file_path, Path)
-                ):
-                    continue
-                slug = groups[0]
-                slug_map.setdefault(slug, set()).add(file_path.resolve())
-        except RipgrepError as exc:
-            raise ControlCompileError(str(exc)) from exc
+        for path in _iter_markdown_files(root_path):
+            inspected = Document.inspect_file(path)
+            if not (inspected.error is None and inspected.has_frontmatter and isinstance(inspected.metadata, dict)):
+                continue
+            raw_slug = inspected.metadata.get("slug")
+            if not isinstance(raw_slug, str) or not raw_slug.strip():
+                continue
+            slug_map.setdefault(raw_slug.strip(), set()).add(path.resolve())
     return slug_map
 
 
 def _compile_global_instructions(control_root: Path) -> dict[str, dict[str, str]]:
-    directory = control_root / "instructions" / "global"
-    if not directory.is_dir():
-        raise ControlCompileError(f"required directory missing: {directory}")
-
-    roots = (control_root, STUDIO_ROOT)
-    slug_occurrences = discover_slug_occurrences(roots=roots)
+    roots = [Path(control_root).expanduser().resolve(), *studio_vault_roots(Path(STUDIO_ROOT))]
+    slug_occurrences = discover_slug_occurrences(roots=tuple(roots))
     compiled: dict[str, dict[str, str]] = {}
 
-    for source in sorted(directory.iterdir()):
-        if not source.is_file() or source.suffix.lower() not in _MARKDOWN_SUFFIXES:
-            continue
+    for source in _iter_markdown_files(control_root):
         instruction = _validate_global_instruction(source)
+        if instruction is None:
+            continue
         if instruction.slug in compiled:
             raise ControlCompileError(f"duplicate global instruction slug: {instruction.slug}")
 
         owners = slug_occurrences.get(instruction.slug, set())
-        foreign = sorted(path for path in owners if path.resolve() != instruction.source.resolve())
+        foreign = sorted(path for path in owners if not path.resolve() == instruction.source.resolve())
         if foreign:
             preview = ", ".join(str(path) for path in foreign[:3])
             raise ControlCompileError(
