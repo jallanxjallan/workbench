@@ -145,12 +145,12 @@ def read_annotated_tag_message(repo: Path, tag_name: str) -> str:
     repo_root = get_repo_root(repo)
     ref = f"refs/tags/{tag_name}"
     object_type = git(repo_root, "cat-file", "-t", ref).strip()
-    if object_type != "tag":
-        raise GitRepoError(f"tag is not annotated: {tag_name}")
-    message = git(repo_root, "tag", "-l", tag_name, "--format=%(contents)")
-    if message.strip() == "":
-        raise GitRepoError(f"tag annotation unreadable: {tag_name}")
-    return message
+    if object_type == "tag":
+        message = git(repo_root, "tag", "-l", tag_name, "--format=%(contents)")
+        if message.strip() == "":
+            raise GitRepoError(f"tag annotation unreadable: {tag_name}")
+        return message
+    raise GitRepoError(f"tag is not annotated: {tag_name}")
 
 
 def create_annotated_tag(
@@ -204,16 +204,16 @@ def _load_templates(path: Path | None = None) -> dict[str, str]:
 def _render_message(
     *,
     commit_type: str,
-    batch_slug: str,
+    slug: str,
     file_count: int | None = None,
 ) -> str:
     templates = _load_templates()
     key = commit_type.strip().upper()
     template = templates.get(key)
     if template is None:
-        raise GitRepoError(f"missing commit template for type '{key}'")
+        raise GitRepoError(f"missing commit template for type {repr(key)}")
 
-    fields: dict[str, object] = {"batch_slug": batch_slug}
+    fields: dict[str, object] = {"slug": slug}
     if file_count is not None:
         fields["file_count"] = file_count
     try:
@@ -221,7 +221,7 @@ def _render_message(
     except ValueError as exc:
         raise GitRepoError(str(exc)) from exc
     if message == "":
-        raise GitRepoError(f"rendered commit message is empty for type '{key}'")
+        raise GitRepoError(f"rendered commit message is empty for type {repr(key)}")
     return message
 
 
@@ -260,7 +260,7 @@ def _staged_file_count(repo: Path) -> int:
     return len([line for line in status.splitlines() if line.strip()])
 
 
-def commit_new_files(repo: Path, files: list[Path], batch_slug: str) -> str:
+def commit_new_files(repo: Path, files: list[Path], slug: str) -> str:
     repo_root = get_repo_root(repo)
     if not files:
         raise GitRepoError("no files provided")
@@ -270,14 +270,14 @@ def commit_new_files(repo: Path, files: list[Path], batch_slug: str) -> str:
     git(repo_root, "add", *stage_paths)
     message = _render_message(
         commit_type="INIT",
-        batch_slug=batch_slug,
+        slug=slug,
         file_count=len(stage_paths),
     )
     git(repo_root, "commit", "-m", message)
     return get_head_commit(repo_root)
 
 
-def commit_batch(repo: Path, batch_slug: str, commit_type: str) -> str:
+def commit_changes(repo: Path, slug: str, commit_type: str) -> str:
     repo_root = get_repo_root(repo)
     assert_repo_safe(repo_root, require_clean=False)
     git(repo_root, "add", "-A")
@@ -288,25 +288,19 @@ def commit_batch(repo: Path, batch_slug: str, commit_type: str) -> str:
 
     message = _render_message(
         commit_type=commit_type,
-        batch_slug=batch_slug,
+        slug=slug,
         file_count=changed_count,
     )
     git(repo_root, "commit", "-m", message)
     return get_head_commit(repo_root)
 
 
-def create_batch_tag(repo: Path, batch_slug: str, commit: str) -> None:
-    repo_root = get_repo_root(repo)
-    git(repo_root, "tag", "-a", f"batch/{batch_slug}", commit, "-m", f"batch {batch_slug}")
-
-
 __all__ = [
     "DEFAULT_COMMIT_TEMPLATE_REGISTRY",
     "GitRepoError",
     "assert_repo_safe",
-    "commit_batch",
+    "commit_changes",
     "commit_new_files",
-    "create_batch_tag",
     "create_annotated_tag",
     "get_changed_files",
     "get_current_branch",

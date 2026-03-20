@@ -1,4 +1,4 @@
-"""Text stream helpers for full-batch CLI wrappers."""
+"""Text stream helpers for full-stream CLI wrappers."""
 
 from __future__ import annotations
 

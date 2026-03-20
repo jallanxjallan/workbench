@@ -22,7 +22,6 @@ class WriteError(RuntimeError):
 class WriteRecord:
     envelope: dict[str, Any]
     content: str
-    batch_slug: str
     slug: str | None
     filename_hint: str | None
     provenance: dict[str, Any] | None
@@ -107,10 +106,6 @@ def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:
     if not isinstance(content, str):
         raise WriteError(f"record {index}: missing required record field: content")
 
-    batch_slug = normalize_non_empty_string(
-        record.get("batch_slug"), field=f"record {index} batch_slug"
-    )
-
     slug = _optional_string(record.get("slug"), index=index, field="slug")
     filename_hint = _optional_string(
         record.get("filename_hint"), index=index, field="filename_hint"
@@ -123,7 +118,6 @@ def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:
     return WriteRecord(
         envelope=copy.deepcopy(record),
         content=content,
-        batch_slug=batch_slug,
         slug=slug,
         filename_hint=filename_hint,
         provenance=provenance,

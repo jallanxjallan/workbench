@@ -24,11 +24,6 @@ vault_app = typer.Typer(
     no_args_is_help=True,
     pretty_exceptions_enable=False,
 )
-confirm_app = typer.Typer(
-    add_completion=False,
-    no_args_is_help=True,
-    pretty_exceptions_enable=False,
-)
 vault_template_app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
@@ -63,11 +58,6 @@ def compile_assets_command(ctx: typer.Context) -> None:
     _run_passthrough("compile-assets", ctx)
 
 
-@app.command("batch-slugs", context_settings=_PASSTHROUGH_SETTINGS)
-def batch_slugs_command(ctx: typer.Context) -> None:
-    _run_passthrough("batch-slugs", ctx)
-
-
 @app.command("commit", context_settings=_PASSTHROUGH_SETTINGS)
 def commit_command(ctx: typer.Context) -> None:
     _run_passthrough("commit", ctx)
@@ -98,11 +88,6 @@ def find_duplicates_command(ctx: typer.Context) -> None:
     _run_passthrough("find-duplicates", ctx)
 
 
-@app.command("ingest-batch", context_settings=_PASSTHROUGH_SETTINGS)
-def ingest_batch_command(ctx: typer.Context) -> None:
-    _run_passthrough("ingest-batch", ctx)
-
-
 @app.command("migrate", context_settings=_PASSTHROUGH_SETTINGS)
 def migrate_command(ctx: typer.Context) -> None:
     _run_passthrough("migrate", ctx)
@@ -116,11 +101,6 @@ def publish_context_command(ctx: typer.Context) -> None:
 @app.command("publish-control", context_settings=_PASSTHROUGH_SETTINGS)
 def publish_control_command(ctx: typer.Context) -> None:
     _run_passthrough("publish-control", ctx)
-
-
-@app.command("show-batch", context_settings=_PASSTHROUGH_SETTINGS)
-def show_batch_command(ctx: typer.Context) -> None:
-    _run_passthrough("show-batch", ctx)
 
 
 @app.command("slugs-to-files", context_settings=_PASSTHROUGH_SETTINGS)
@@ -138,11 +118,6 @@ def upload_instructions_command(ctx: typer.Context) -> None:
     _run_passthrough("upload-instructions", ctx)
 
 
-@app.command("validate-batch", context_settings=_PASSTHROUGH_SETTINGS)
-def validate_batch_command(ctx: typer.Context) -> None:
-    _run_passthrough("validate-batch", ctx)
-
-
 @app.command("writevault", context_settings=_PASSTHROUGH_SETTINGS)
 def writevault_command(ctx: typer.Context) -> None:
     _run_passthrough("writevault", ctx)
@@ -158,13 +133,6 @@ def vault_template_command(ctx: typer.Context) -> None:
     _run_passthrough("vault-template", ctx)
 
 
-@confirm_app.command("inflight", context_settings=_PASSTHROUGH_SETTINGS)
-def confirm_inflight_command(ctx: typer.Context) -> None:
-    code = _dispatch("confirm", ["inflight", *list(ctx.args)])
-    if code != 0:
-        raise typer.Exit(code=code)
-
-
 @vault_template_app.command("apply", context_settings=_PASSTHROUGH_SETTINGS)
 def vault_template_apply_command(ctx: typer.Context) -> None:
     code = _dispatch("vault-template", ["apply", *list(ctx.args)])
@@ -172,7 +140,6 @@ def vault_template_apply_command(ctx: typer.Context) -> None:
         raise typer.Exit(code=code)
 
 
-app.add_typer(confirm_app, name="confirm")
 vault_app.add_typer(vault_template_app, name="template")
 app.add_typer(vault_app, name="vault")
 

@@ -22,7 +22,7 @@ def _has_additional_document(text: str) -> bool:
     return False
 
 
-def parse_markdown_batch(text: str) -> list[Document]:
+def parse_markdown_stream(text: str) -> list[Document]:
     if text.strip() == "":
         return []
     if _has_additional_document(text):
@@ -30,7 +30,7 @@ def parse_markdown_batch(text: str) -> list[Document]:
     return [Document.read_text(text)]
 
 
-def emit_markdown_batch(docs: list[Document]) -> str:
+def emit_markdown_stream(docs: list[Document]) -> str:
     if not docs:
         return ""
     if len(docs) > 1:

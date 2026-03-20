@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from workbench.runtime.git_repo import GitRepoError, commit_batch, get_repo_root
+from workbench.runtime.git_repo import GitRepoError, commit_changes, get_repo_root
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -15,7 +15,7 @@ def _parser() -> argparse.ArgumentParser:
         description=__doc__,
     )
     parser.add_argument("commit_type", help="Commit template key (for example INIT or STYLE).")
-    parser.add_argument("batch_slug", help="Batch slug used for template rendering.")
+    parser.add_argument("slug", help="Slug used for template rendering.")
     parser.add_argument(
         "--repo",
         default=".",
@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         repo = get_repo_root(Path(args.repo))
-        commit_hash = commit_batch(repo, args.batch_slug, args.commit_type)
+        commit_hash = commit_changes(repo, args.slug, args.commit_type)
     except GitRepoError as exc:
         print(f"[commit] error: {exc}", file=sys.stderr)
         return 1

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import secrets
 import subprocess
@@ -17,6 +18,18 @@ ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 DEFAULT_INGEST_COMMAND = ("asc-ingest",)
 DEFAULT_COMPILED_CONTEXT_ROOT = WORKBENCH_ROOT / "_compiled" / "context"
 _MARKDOWN_SUFFIXES = {".md", ".markdown"}
+_SKIP_DIR_NAMES = frozenset({
+    ".git",
+    ".obsidian",
+    "__pycache__",
+    "_compiled",
+    "_control",
+    "_staging",
+    "archive",
+    "node_modules",
+    "venv",
+    ".venv",
+})
 
 
 class ControlPublishError(RuntimeError):
@@ -66,7 +79,7 @@ def _build_control_records(compiled_root: Path) -> list[dict[str, str]]:
         if not isinstance(slug, str) or not slug.strip():
             raise ControlPublishError("global_instructions entry missing slug")
         if not isinstance(sysmessage, str) or not sysmessage.strip():
-            raise ControlPublishError(f"global instruction {slug!r} missing sysmessage")
+            raise ControlPublishError(f"global instruction {repr(slug)} missing sysmessage")
         records.append(
             {
                 "ulid": _generate_ulid(),
@@ -94,7 +107,7 @@ def _run_ingest(
     except FileNotFoundError as exc:
         raise ControlPublishError(f"ingest command not found: {command[0]}") from exc
 
-    if process.returncode != 0:
+    if not process.returncode == 0:
         detail = process.stderr.strip() or process.stdout.strip() or "ingest command failed"
         raise ControlPublishError(detail)
 
@@ -120,38 +133,64 @@ def publish_control(
     return records
 
 
-def _extract_instruction(path: Path) -> dict[str, str]:
+def _extract_instruction(path: Path) -> tuple[str, str, str] | None:
     inspected = Document.inspect_file(path)
     if inspected.error:
         raise ControlPublishError(f"invalid instruction markdown {path}: {inspected.error}")
     if not inspected.has_frontmatter or not isinstance(inspected.metadata, dict):
-        raise ControlPublishError(f"instruction requires frontmatter: {path}")
+        return None
 
     metadata = inspected.metadata
+    if not metadata.get("type") == "instruction":
+        return None
+
     raw_slug = metadata.get("slug")
+    raw_scope = metadata.get("scope")
     if not isinstance(raw_slug, str) or not raw_slug.strip():
         raise ControlPublishError(f"instruction missing slug: {path}")
+    if not isinstance(raw_scope, str) or not raw_scope.strip():
+        prefix = raw_slug.strip().split(".", 1)[0]
+        raw_scope = {"cxt": "context", "spc": "specific", "ins": "specific"}.get(prefix)
+    if raw_scope not in {"context", "specific"}:
+        return None
 
     body = inspected.body.strip()
     if not body:
         raise ControlPublishError(f"instruction body is empty: {path}")
 
-    return {
-        "slug": raw_slug.strip(),
-        "sysmessage": body,
-    }
+    return raw_slug.strip(), body, raw_scope
+
+
+def _iter_markdown_files(root: Path) -> list[Path]:
+    paths: list[Path] = []
+    for current_root, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(name for name in dirnames if name not in _SKIP_DIR_NAMES)
+        current_path = Path(current_root)
+        for filename in sorted(filenames):
+            candidate = current_path / filename
+            if candidate.suffix.lower() not in _MARKDOWN_SUFFIXES:
+                continue
+            paths.append(candidate.resolve())
+    return paths
 
 
 def _compile_context_payload(studio_root: Path) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     contexts: list[dict[str, str]] = []
-    batches: list[dict[str, str]] = []
-    for source in sorted(studio_root.glob("*/instructions/context/*")):
-        if source.is_file() and source.suffix.lower() in _MARKDOWN_SUFFIXES:
-            contexts.append(_extract_instruction(source))
-    for source in sorted(studio_root.glob("*/instructions/batch/*")):
-        if source.is_file() and source.suffix.lower() in _MARKDOWN_SUFFIXES:
-            batches.append(_extract_instruction(source))
-    return contexts, batches
+    specifics: list[dict[str, str]] = []
+    for vault_root in sorted(path for path in studio_root.iterdir() if path.is_dir()):
+        if vault_root.name.startswith(".") or vault_root.name in _SKIP_DIR_NAMES:
+            continue
+        for source in _iter_markdown_files(vault_root):
+            extracted = _extract_instruction(source)
+            if extracted is None:
+                continue
+            slug, sysmessage, scope = extracted
+            record = {"slug": slug, "sysmessage": sysmessage}
+            if scope == "context":
+                contexts.append(record)
+            else:
+                specifics.append(record)
+    return contexts, specifics
 
 
 def publish_context(
@@ -165,15 +204,15 @@ def publish_context(
     if not root.exists() or not root.is_dir():
         raise ControlPublishError(f"studio root not found: {root}")
 
-    context_records, batch_records = _compile_context_payload(root)
+    context_records, specific_records = _compile_context_payload(root)
     output_root = Path(compiled_root).expanduser().resolve()
     output_root.mkdir(parents=True, exist_ok=True)
     (output_root / "context_instructions.json").write_text(
         json.dumps({"context_instructions": context_records}, indent=2) + "\n",
         encoding="utf-8",
     )
-    (output_root / "batch_instructions.json").write_text(
-        json.dumps({"batch_instructions": batch_records}, indent=2) + "\n",
+    (output_root / "specific_instructions.json").write_text(
+        json.dumps({"specific_instructions": specific_records}, indent=2) + "\n",
         encoding="utf-8",
     )
 
@@ -181,17 +220,18 @@ def publish_context(
         {"ulid": _generate_ulid(), **record, "scope": "context"}
         for record in context_records
     ] + [
-        {"ulid": _generate_ulid(), **record, "scope": "batch"} for record in batch_records
+        {"ulid": _generate_ulid(), **record, "scope": "specific"}
+        for record in specific_records
     ]
 
     if not dry_run and publish_records:
         _run_ingest(records=publish_records, command=ingest_command)
     print(
         "published context "
-        f"context={len(context_records)} batch={len(batch_records)} "
+        f"context={len(context_records)} specific={len(specific_records)} "
         f"dry_run={str(dry_run).lower()}"
     )
-    return context_records, batch_records
+    return context_records, specific_records
 
 
 __all__ = [

@@ -1,4 +1,4 @@
-"""Publish Studio context and batch instructions as a separate flow."""
+"""Publish Studio context and specific instructions as a separate flow."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Compile context/batch instructions without invoking ingest.",
+        help="Compile context/specific instructions without invoking ingest.",
     )
     return parser
 
