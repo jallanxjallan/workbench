@@ -10,7 +10,7 @@ import sys
 from typing import Iterable
 
 from workbench.interop.document import Document
-from workbench.io.files import atomic_write_text
+from workbench.io.files import overwrite_text, write_new_text
 from workbench.runtime.subprocess import CommandError, run_text
 from workbench.write.common import (
     WriteError,
@@ -31,14 +31,7 @@ class WriteMode(StrEnum):
 class WritebackPlan:
     path: Path
     slug: str
-    original_text: str
     replacement_text: str
-
-
-@dataclass(frozen=True)
-class WritenewPlan:
-    path: Path
-    content: str
 
 
 def write_records(
@@ -93,22 +86,30 @@ def _writeback_records(records: list[WriteRecord]) -> list[Path]:
 
 
 def _writenew_records(records: list[WriteRecord], directory: Path) -> list[Path]:
-    plans: list[WritenewPlan] = []
-    seen_paths: set[Path] = set()
+    written_paths: list[Path] = []
 
     for index, record in enumerate(records, start=1):
         path = derive_new_path(record, directory).resolve()
-        if path.exists():
-            raise WriteError(f"record {index}: file exists: {path}")
-        if path in seen_paths:
-            raise WriteError(f"record {index}: duplicate target path: {path}")
-        seen_paths.add(path)
-        plans.append(WritenewPlan(path=path, content=record.content))
+        try:
+            write_new_text(path, record.content)
+        except FileExistsError as exc:
+            raise WriteError(
+                _format_writenew_error(index=index, record=record, path=path, reason="file exists")
+            ) from exc
+        except OSError as exc:
+            raise WriteError(
+                _format_writenew_error(index=index, record=record, path=path, reason=str(exc))
+            ) from exc
+        written_paths.append(path)
 
-    for plan in plans:
-        atomic_write_text(plan.path, plan.content)
+    return written_paths
 
-    return [plan.path for plan in plans]
+
+def _format_writenew_error(*, index: int, record: WriteRecord, path: Path, reason: str) -> str:
+    slug = record.input_record.slug
+    if slug:
+        return f"writenew failed: record {index}: slug {slug}: {path}: {reason}"
+    return f"writenew failed: record {index}: {path}: {reason}"
 
 
 def _build_writeback_plans(records: list[WriteRecord]) -> list[WritebackPlan]:
@@ -147,7 +148,6 @@ def _build_writeback_plans(records: list[WriteRecord]) -> list[WritebackPlan]:
             WritebackPlan(
                 path=path,
                 slug=slug,
-                original_text=original_text,
                 replacement_text=replacement_text,
             )
         )
@@ -156,26 +156,11 @@ def _build_writeback_plans(records: list[WriteRecord]) -> list[WritebackPlan]:
 
 
 def _apply_writeback_plans(plans: list[WritebackPlan]) -> None:
-    applied: list[WritebackPlan] = []
-    current_path: Path | None = None
-    try:
-        for plan in plans:
-            current_path = plan.path
-            atomic_write_text(plan.path, plan.replacement_text)
-            applied.append(plan)
-    except OSError as exc:
-        rollback_errors: list[str] = []
-        for applied_plan in reversed(applied):
-            try:
-                atomic_write_text(applied_plan.path, applied_plan.original_text)
-            except OSError as rollback_exc:
-                rollback_errors.append(f"{applied_plan.path}: {rollback_exc}")
-
-        message = f"writeback failed: {current_path}: {exc}"
-        if rollback_errors:
-            detail = "; ".join(rollback_errors)
-            message = f"{message}; rollback failed for {detail}"
-        raise WriteError(message) from exc
+    for plan in plans:
+        try:
+            overwrite_text(plan.path, plan.replacement_text)
+        except OSError as exc:
+            raise WriteError(f"writeback failed: {plan.slug} -> {plan.path}: {exc}") from exc
 
 
 def _build_writeback_content(
