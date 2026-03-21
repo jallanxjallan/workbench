@@ -76,6 +76,39 @@ function resolveProjectMnemonic(app) {
   return mnemonic;
 }
 
+function normalizeContext(value) {
+  const context = normalizeString(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+
+  if (!context) {
+    throw new Error("Context normalized to an empty value.");
+  }
+
+  return context;
+}
+
+function resolveContext(app, fallback = "") {
+  const registry = readVaultRegistry(app);
+  const candidates = ["context", "default_context", "slug_context", "project_context"];
+
+  for (const key of candidates) {
+    const value = registry?.[key];
+    if (typeof value !== "string" || !value.trim()) {
+      continue;
+    }
+    return normalizeContext(value);
+  }
+
+  if (normalizeString(fallback)) {
+    return normalizeContext(fallback);
+  }
+
+  return "";
+}
+
 function normalizeHint(value) {
   const hint = normalizeString(value)
     .replace(/\.md$/i, "")
@@ -203,12 +236,12 @@ async function buildUniqueSlug({ app, sourceText, filePath, excludePath = "" }) 
     return null;
   }
 
-  const project = resolveProjectMnemonic(app);
+  const context = resolveProjectMnemonic(app);
   const hint = normalizeHint(path.basename(String(filePath || ""), path.extname(String(filePath || ""))));
   const existing = await listExistingSlugs(app, excludePath);
 
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const slug = `${prefix}.${project}.${hint}.${randomAlpha(8)}`;
+    const slug = `${prefix}.${context}.${hint}.${randomAlpha(8)}`;
     if (!existing.has(slug)) {
       return slug;
     }
@@ -270,5 +303,6 @@ module.exports = {
   normalize_hint: normalizeHint,
   read_slug_prefix: readSlugPrefix,
   replace_frontmatter_field: replaceFrontmatterField,
+  resolve_context: resolveContext,
   resolve_project_mnemonic: resolveProjectMnemonic,
 };

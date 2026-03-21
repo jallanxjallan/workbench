@@ -55,7 +55,7 @@ class TemplateScaffold:
 class VaultContext:
     vault_root: Path
     registry: dict[str, Any]
-    project: str
+    mnemonic: str
     default_context: str | None
 
 
@@ -63,12 +63,12 @@ def discover_writenew_vault_context(cwd: Path | None = None) -> VaultContext:
     working_dir = (cwd or Path.cwd()).expanduser().resolve()
     vault_root = discover_registered_vault_root(working_dir)
     registry = read_vault_registry(vault_root)
-    project = _resolve_project_mnemonic(registry)
+    mnemonic = _resolve_registry_mnemonic(registry)
     default_context = _resolve_registry_context(registry)
     return VaultContext(
         vault_root=vault_root,
         registry=registry,
-        project=project,
+        mnemonic=mnemonic,
         default_context=default_context,
     )
 
@@ -168,6 +168,33 @@ def resolve_slug_prefix(
         if mapped:
             return _validate_prefix(mapped, slug_schema_path=slug_schema_path)
 
+        mapped = _lookup_mapping(prefix_registry.get("classes"), normalized_class)
+        if mapped:
+            return _validate_prefix(mapped, slug_schema_path=slug_schema_path)
+
+        matched_prefixes: list[str] = []
+        prefixes = prefix_registry.get("prefixes")
+        if isinstance(prefixes, dict):
+            for prefix, entry in prefixes.items():
+                if _prefix_entry_matches(
+                    entry,
+                    template_id=normalized_template,
+                    class_name=normalized_class,
+                ):
+                    matched_prefixes.append(str(prefix))
+
+        if len(matched_prefixes) == 1:
+            return _validate_prefix(matched_prefixes[0], slug_schema_path=slug_schema_path)
+        if len(matched_prefixes) > 1:
+            joined = ", ".join(sorted(matched_prefixes))
+            raise FrontmatterBuildError(
+                f"multiple slug prefixes match template={normalized_template} class={normalized_class}: {joined}"
+            )
+
+        raise FrontmatterBuildError(
+            f"slug prefix mapping missing for template={normalized_template} class={normalized_class}"
+        )
+
     mapped = _lookup_mapping(prefix_registry.get("classes"), normalized_class)
     if mapped:
         return _validate_prefix(mapped, slug_schema_path=slug_schema_path)
@@ -212,17 +239,16 @@ def _build_frontmatter_metadata(
 
     if scaffold.template_id == "content":
         metadata["class"] = "content"
-        metadata["content_kind"] = class_name
     else:
         metadata["class"] = class_name
 
-    metadata["project"] = slug_parts["project"]
-    metadata["context"] = slug_parts["context"]
     metadata["slug"] = build_slug(slug_parts, path=slug_schema_path)
 
     for key, value in overrides.items():
-        if key in {"slug", "type", "hint", "identity"}:
+        if key in {"slug", "type", "hint", "identity", "seq"}:
             raise FrontmatterBuildError(f"override not permitted for reserved field: {key}")
+        if scaffold.template_id == "content" and key in {"content_kind", "project", "context"}:
+            continue
         metadata[key] = value
 
     return metadata
@@ -245,17 +271,23 @@ def _resolve_slug_parts(
         prefix_registry=prefix_registry,
         slug_schema_path=slug_schema_path,
     )
-    project = _resolve_project_override(overrides, fallback=vault_context.project)
-    context = _resolve_context_override(
-        overrides,
-        vault_default=vault_context.default_context,
-        scaffold_default=scaffold.metadata.get("context"),
-        project_default=vault_context.project,
-    )
+    if scaffold.template_id == "content":
+        context = _resolve_context_override(
+            {},
+            vault_default=vault_context.mnemonic,
+            scaffold_default=None,
+            mnemonic_default=vault_context.mnemonic,
+        )
+    else:
+        context = _resolve_context_override(
+            overrides,
+            vault_default=vault_context.default_context,
+            scaffold_default=scaffold.metadata.get("context"),
+            mnemonic_default=vault_context.mnemonic,
+        )
     hint = _resolve_hint_override(overrides, target_path=target_path)
     parts = {
         "type": prefix,
-        "project": project,
         "context": context,
         "hint": hint,
     }
@@ -285,17 +317,17 @@ def _resolve_effective_class(class_name: str | None, scaffold: TemplateScaffold)
     return scaffold.template_id
 
 
-def _resolve_project_mnemonic(registry: dict[str, Any]) -> str:
+def _resolve_registry_mnemonic(registry: dict[str, Any]) -> str:
     raw = str(registry.get("project_mnemonic") or registry.get("mnemonic") or "").strip().lower()
     normalized = re.sub(r"[^a-z]+", "", raw)
     if not normalized:
         raise FrontmatterBuildError(
-            "required project mnemonic is missing from the local vault registry"
+            "required vault mnemonic is missing from the local vault registry"
         )
-    field = _slug_field("project")
+    field = _slug_field("context")
     if not re.fullmatch(field["pattern"], normalized):
         raise FrontmatterBuildError(
-            f"vault registry project mnemonic does not satisfy slug schema: {normalized}"
+            f"vault registry mnemonic does not satisfy slug schema context field: {normalized}"
         )
     return normalized
 
@@ -321,25 +353,12 @@ def _resolve_registry_context(registry: dict[str, Any]) -> str | None:
     return None
 
 
-def _resolve_project_override(overrides: dict[str, Any], *, fallback: str) -> str:
-    value = overrides.get("project")
-    if value is None:
-        return fallback
-    normalized = re.sub(r"[^a-z]+", "", str(value).strip().lower())
-    if not normalized:
-        raise FrontmatterBuildError("project override normalized to an empty value")
-    field = _slug_field("project")
-    if not re.fullmatch(field["pattern"], normalized):
-        raise FrontmatterBuildError(f"project override does not satisfy slug schema: {normalized}")
-    return normalized
-
-
 def _resolve_context_override(
     overrides: dict[str, Any],
     *,
     vault_default: str | None,
     scaffold_default: Any,
-    project_default: str,
+    mnemonic_default: str,
 ) -> str:
     raw = overrides.get("context")
     if raw is None:
@@ -347,7 +366,7 @@ def _resolve_context_override(
     if raw is None:
         raw = scaffold_default
     if raw is None or not str(raw).strip():
-        raw = project_default
+        raw = mnemonic_default
     normalized = normalize_slug_component(str(raw))
     field = _slug_field("context")
     if not re.fullmatch(field["pattern"], normalized):

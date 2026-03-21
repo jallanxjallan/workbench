@@ -2,19 +2,20 @@
 
 ## Minimum For Canonical Note Creation
 
-- `slug`
-
-## Common Optional Fields
-
 - `class`
+
+## Common Optional Fields In Created Notes
+
+- `context`
 - `content_kind`
 - `project`
 - `stage`
 - `status`
+- `slug`
 
 ## Guidance
 
-- `slug`: prefix-only in a global template, then a full opaque slug in the form `<prefix>.<project>.<hint>.<identity>` after the template create hook calls shared Obsidian JS initialization.
+- `slug`: leave blank in slugged note templates and let the embedded runtime fill it; topic notes do not use a slug.
 - `project`: optional grouping key for editorial work.
 - `stage`: optional editorial stage such as `draft`, `revise`, or `final`.
 - `class`: optional authored note class such as `content`, `instruction`, or `topic`.
@@ -23,4 +24,4 @@
 
 ## Principle
 
-Global templates provide only the slug prefix. Active template hooks call shared JS to finalize the slug using the vault-local mnemonic and filename, and Workbench treats the result as an opaque string.
+Active templates should not hardcode frontmatter values. The active `content` template keeps a minimal scaffold and the embedded create-note runtime or `wkb writenew` fills additional metadata such as `project`, `context`, and `content_kind` at creation time.

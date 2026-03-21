@@ -1,0 +1,40 @@
+{
+  "slug": {
+    "fields": [
+      {
+        "name": "type",
+        "pattern": "[a-z]{3}",
+        "required": true
+      },
+      {
+        "name": "context",
+        "pattern": "[a-z0-9\\-]+",
+        "required": true
+      },
+      {
+        "name": "hint",
+        "pattern": "[a-z0-9\\-]+",
+        "required": true
+      },
+      {
+        "name": "identity",
+        "pattern": "[a-z]{6,10}",
+        "required": true,
+        "strategy": "deterministic"
+      },
+      {
+        "name": "seq",
+        "pattern": "\\d{3}",
+        "required": false,
+        "role": "assembly_order"
+      }
+    ],
+    "optional_seq": true,
+    "regex": {
+      "full": "^(?P<type>[a-z]{3})\\. (?P<context>[a-z0-9\\-]+)\\. (?P<hint>[a-z0-9\\-]+)\\. (?P<identity>[a-z]{6,10}) (?:\\.(?P<seq>\\d{3}))?$\n",
+      "normalized": "^(?P<type>[a-z]{3})\\.(?P<context>[a-z0-9\\-]+)\\.(?P<hint>[a-z0-9\\-]+)\\.(?P<identity>[a-z]{6,10})(?:\\.(?P<seq>\\d{3}))?$"
+    },
+    "separator": "."
+  },
+  "version": 1
+}

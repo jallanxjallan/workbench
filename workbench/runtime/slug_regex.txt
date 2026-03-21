@@ -1,0 +1,1 @@
+^(?P<type>[a-z]{3})\.(?P<context>[a-z0-9\-]+)\.(?P<hint>[a-z0-9\-]+)\.(?P<identity>[a-z]{6,10})(?:\.(?P<seq>\d{3}))?$
