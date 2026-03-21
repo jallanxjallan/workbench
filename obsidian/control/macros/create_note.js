@@ -1,6 +1,8 @@
 const path = require("path");
 
-module.exports = async function createNote(params = {}) {
+const DEFAULT_TEMPLATES_FOLDER = "_control/templates";
+
+async function createNote(params = {}) {
   const app = resolveApp(params.app);
   const qa = params.quickAddApi || params.quickAdd || null;
 
@@ -8,45 +10,75 @@ module.exports = async function createNote(params = {}) {
     throw new Error("Obsidian context not available.");
   }
 
-  const slugHelper = loadSlugHelper(app);
-  const template = await pickTemplate(app, qa, params);
-  const rawTitle = await promptTitle(qa, params);
-  const title = normalizeTitle(rawTitle);
+  const runtime = loadCreateNoteRuntime(app, params.runtimeHelper);
+  const anchorFile = app.workspace.getActiveFile?.();
+  const folder = getDestinationFolderFromActiveFile(app);
+  const templates = await listTemplates(app, {
+    runtime,
+    templatesFolder: params.templatesFolder || params.templateFolder,
+  });
+  const template = await chooseTemplate(app, templates, qa, params);
+  if (!template?.file?.path) {
+    throw new Error("Template selection was cancelled.");
+  }
+
+  const rawTitle = await promptNoteTitle(qa, params);
+  const title = normalizeNoteTitle(rawTitle);
   if (!title) {
-    throw new Error("Title is required.");
+    throw new Error("Note title is required.");
   }
 
-  const folder = normalizeFolder(params.folder || params.targetFolder || "");
-  const notePath = folder ? `${folder}/${title}.md` : `${title}.md`;
-  if (await app.vault.adapter.exists(notePath)) {
-    throw new Error(`File already exists: ${notePath}`);
+  let createdFile = null;
+  let leaf = null;
+
+  try {
+    createdFile = await createNoteFromTemplate({
+      app,
+      folder,
+      templateFile: template.file,
+      title,
+    });
+    leaf = await openCreatedNote({ app, file: createdFile });
+    await runEmbeddedTemplateMacro({ app, file: createdFile, params, runtime });
+    const validation = await validateCreatedNote({ app, file: createdFile, runtime });
+
+    return {
+      path: validation.path,
+      slug: validation.slug,
+      template: template.file.path,
+    };
+  } catch (error) {
+    if (createdFile) {
+      await rollbackCreatedNote({
+        app,
+        anchorFile,
+        file: createdFile,
+        leaf,
+        reason: error?.message || String(error),
+      });
+    }
+    throw error;
   }
+}
 
-  const templateText = await app.vault.cachedRead(template.file);
-  const file = await app.vault.create(notePath, templateText);
-  const slug = await slugHelper.finalize_file_slug({ app, file, sourceText: templateText });
-
-  const leaf = app.workspace.getLeaf?.(true) || app.workspace.activeLeaf;
-  if (leaf && typeof leaf.openFile === "function") {
-    await leaf.openFile(file);
-  }
-
-  notice(`Created note: ${notePath}`, 8000);
-  return {
-    path: file.path,
-    slug,
-    template: template.file.path,
-  };
+module.exports = createNote;
+module.exports._test = {
+  chooseTemplate,
+  createNoteFromTemplate,
+  getDestinationFolderFromActiveFile,
+  listTemplates,
+  normalizeNoteTitle,
+  rollbackCreatedNote,
+  validateCreatedNote,
 };
 
 function resolveApp(candidateApp) {
-  if (candidateApp && candidateApp.vault && candidateApp.workspace) {
+  if (candidateApp?.vault?.adapter && candidateApp?.workspace) {
     return candidateApp;
   }
 
-  const globalApp = typeof window !== "undefined" ? window.app : null;
-  if (globalApp && globalApp.vault && globalApp.workspace) {
-    return globalApp;
+  if (typeof window !== "undefined" && window?.app?.vault?.adapter && window?.app?.workspace) {
+    return window.app;
   }
 
   return candidateApp;
@@ -66,54 +98,89 @@ function getVaultBasePath(app) {
   return String(basePath);
 }
 
-function loadSlugHelper(app) {
-  return require(path.join(getVaultBasePath(app), "_control", "scripts", "slug.js"));
+function loadCreateNoteRuntime(app, overrideRuntime) {
+  if (overrideRuntime) {
+    return overrideRuntime;
+  }
+
+  return require(path.join(getVaultBasePath(app), "_control", "scripts", "create_note_runtime.js"));
 }
 
 function notice(message, timeout = 8000) {
-  if (typeof Notice === "function") new Notice(message, timeout);
+  if (typeof Notice === "function") {
+    new Notice(message, timeout);
+  }
   console.log(message);
 }
 
-async function pickTemplate(app, qa, params = {}) {
-  const requested = String(params.template || "").trim();
+async function listTemplates(app, options = {}) {
+  const runtime = options.runtime || loadCreateNoteRuntime(app);
+  const templatesFolder = normalizeFolder(
+    options.templatesFolder || options.templateFolder || DEFAULT_TEMPLATES_FOLDER,
+  );
+  const prefix = templatesFolder ? `${templatesFolder}/` : "";
+
+  const candidates = app.vault
+    .getMarkdownFiles()
+    .filter((file) => file?.extension === "md")
+    .filter((file) => String(file.path || "").startsWith(prefix))
+    .filter((file) => !String(file.basename || "").startsWith("."))
+    .filter((file) => !String(file.basename || "").startsWith("_"))
+    .sort((left, right) => left.path.localeCompare(right.path));
+
+  const runnable = [];
+  for (const file of candidates) {
+    const text = await app.vault.cachedRead(file);
+    if (runtime.countEmbeddedRuntimeBlocks(text) !== 1) {
+      continue;
+    }
+
+    runnable.push({
+      file,
+      label: formatTemplateLabel(file.basename),
+    });
+  }
+
+  if (runnable.length === 0) {
+    throw new Error(`No runnable templates found in ${templatesFolder}.`);
+  }
+
+  return runnable;
+}
+
+async function chooseTemplate(app, templates, qa, params = {}) {
+  const requested = normalizeString(params.template || "");
   if (requested) {
-    const direct = app.vault.getAbstractFileByPath(requested);
-    if (direct && direct.extension === "md") {
-      return { file: direct, label: direct.basename };
-    }
+    const requestedKeys = new Set(
+      [
+        requested,
+        requested.replace(/\.md$/i, ""),
+        requested.endsWith(".md") ? requested : `${requested}.md`,
+      ]
+        .map((value) => normalizeString(value).toLowerCase())
+        .filter(Boolean),
+    );
 
-    const directControl = app.vault.getAbstractFileByPath(`_control/templates/${requested}`);
-    if (directControl && directControl.extension === "md") {
-      return { file: directControl, label: directControl.basename };
-    }
+    for (const template of templates) {
+      const templatePath = normalizeString(template?.file?.path);
+      const templateBase = normalizeString(template?.file?.basename);
+      const templateLabel = normalizeString(template?.label);
+      const candidates = [
+        templatePath,
+        templatePath.replace(/\.md$/i, ""),
+        templateBase,
+        templateBase.replace(/\.md$/i, ""),
+        templateLabel,
+      ]
+        .map((value) => value.toLowerCase())
+        .filter(Boolean);
 
-    if (!requested.endsWith(".md")) {
-      const withSuffix = app.vault.getAbstractFileByPath(`_control/templates/${requested}.md`);
-      if (withSuffix && withSuffix.extension === "md") {
-        return { file: withSuffix, label: withSuffix.basename };
+      if (candidates.some((value) => requestedKeys.has(value))) {
+        return template;
       }
     }
 
     throw new Error(`Template not found: ${requested}`);
-  }
-
-  const templates = app.vault
-    .getMarkdownFiles()
-    .filter((file) => String(file.path || "").startsWith("_control/templates/"))
-    .filter((file) => !String(file.basename || "").startsWith("_"))
-    .sort((left, right) => left.path.localeCompare(right.path))
-    .map((file) => {
-      const cache = app.metadataCache.getFileCache(file);
-      const cls = normalizeString(cache?.frontmatter?.class);
-      return {
-        file,
-        label: cls ? `[${cls}] ${file.basename}` : file.basename,
-      };
-    });
-
-  if (templates.length === 0) {
-    throw new Error("No templates found in _control/templates.");
   }
 
   if (qa && typeof qa.suggester === "function") {
@@ -131,33 +198,116 @@ async function pickTemplate(app, qa, params = {}) {
   throw new Error("Template selection requires QuickAdd suggester support.");
 }
 
-async function promptTitle(qa, params = {}) {
-  const preset = normalizeString(params.title);
-  if (preset) return preset;
+async function promptNoteTitle(qa, params = {}) {
+  const preset = normalizeString(params.title || params.name || "");
+  if (preset) {
+    return preset;
+  }
+
+  if (qa && typeof qa.requestInputs === "function") {
+    const values = await qa.requestInputs([
+      {
+        id: "note_title",
+        label: "Note title",
+        type: "text",
+        defaultValue: preset,
+      },
+    ]);
+    return values.note_title || "";
+  }
 
   if (qa && typeof qa.inputPrompt === "function") {
-    return qa.inputPrompt("Note name");
+    return qa.inputPrompt("Note title", preset, preset);
   }
 
   if (typeof window !== "undefined" && typeof window.prompt === "function") {
-    return window.prompt("Note name", "");
+    return window.prompt("Note title", preset);
   }
 
   return "";
 }
 
-function normalizeTitle(value) {
-  const text = normalizeString(value).replace(/\.md$/i, "");
-  if (!text) return "";
+function getDestinationFolderFromActiveFile(app) {
+  const activeFile = app?.workspace?.getActiveFile?.();
+  if (!activeFile?.path) {
+    throw new Error("An active note is required to choose the destination folder.");
+  }
 
-  return text
-    .replace(/[\\/]/g, " ")
+  const parentPath = normalizeFolder(path.posix.dirname(String(activeFile.path || "")));
+  return parentPath === "." ? "" : parentPath;
+}
+
+async function createNoteFromTemplate({ app, templateFile, folder, title }) {
+  const safeTitle = normalizeNoteTitle(title);
+  if (!safeTitle) {
+    throw new Error("Note title is required.");
+  }
+
+  if (!templateFile?.path) {
+    throw new Error("Template file is required.");
+  }
+
+  const templateText = await app.vault.cachedRead(templateFile);
+  const normalizedFolder = normalizeFolder(folder);
+  const notePath = normalizedFolder ? `${normalizedFolder}/${safeTitle}.md` : `${safeTitle}.md`;
+
+  if (await app.vault.adapter.exists(notePath)) {
+    throw new Error(`File already exists: ${notePath}`);
+  }
+
+  return app.vault.create(notePath, templateText);
+}
+
+async function openCreatedNote({ app, file }) {
+  const leaf = app.workspace.getLeaf?.(true) || app.workspace.activeLeaf || null;
+  if (leaf && typeof leaf.openFile === "function") {
+    await leaf.openFile(file);
+  }
+  return leaf;
+}
+
+async function runEmbeddedTemplateMacro({ app, file, params = {}, runtime }) {
+  const helper = runtime || loadCreateNoteRuntime(app);
+  return helper.executeEmbeddedTemplateMacro({ app, file, params });
+}
+
+async function validateCreatedNote({ app, file, runtime }) {
+  const helper = runtime || loadCreateNoteRuntime(app);
+  return helper.validateCreatedNote({ app, file });
+}
+
+async function rollbackCreatedNote({ app, anchorFile, file, leaf, reason }) {
+  const helper = loadCreateNoteRuntime(app);
+
+  try {
+    const openLeaf = leaf || app.workspace.activeLeaf || null;
+    if (anchorFile && openLeaf && typeof openLeaf.openFile === "function") {
+      await openLeaf.openFile(anchorFile);
+    }
+  } catch (_error) {
+    // Best effort: deleting the malformed file is more important than leaf restoration.
+  }
+
+  try {
+    await helper.deleteFile({ app, file });
+    notice(`Create note aborted: ${reason}. Deleted ${file.path}.`, 10000);
+  } catch (rollbackError) {
+    const rollbackReason = rollbackError?.message || String(rollbackError);
+    notice(
+      `Create note aborted: ${reason}. Rollback also failed for ${file.path}: ${rollbackReason}`,
+      12000,
+    );
+    throw rollbackError;
+  }
+}
+
+function normalizeNoteTitle(value) {
+  return normalizeString(value)
+    .replace(/\.md$/i, "")
+    .replace(/[\/:*?"<>|#[\]^]/g, " ")
     .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
+    .replace(/\.+$/g, "")
+    .trim();
 }
 
 function normalizeFolder(value) {
@@ -166,4 +316,12 @@ function normalizeFolder(value) {
 
 function normalizeString(value) {
   return String(value || "").trim();
+}
+
+function formatTemplateLabel(filename) {
+  return normalizeString(filename)
+    .replace(/\.md$/i, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }

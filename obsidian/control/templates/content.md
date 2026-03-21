@@ -1,8 +1,14 @@
 ---
-slug: nte
-class: note
+slug: cnt
+context: general
+class: content
+content_kind:
 stage: draft
 status: active
 ---
 
-# Note
+```create-note-runtime
+await helpers.initializeCreatedNote({ file, noteType: "content" });
+```
+
+# Content

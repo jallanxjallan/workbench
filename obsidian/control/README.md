@@ -20,25 +20,24 @@ No project content should ever live here.
 
 ## Template Ownership
 
-- The canonical Control note templates now live directly in this `templates/` directory.
-- `~/Control/_control/templates/` mirrors those files through symlinks so Control-facing paths still resolve.
-- `~/Control/_control/templater/` remains the source for the Templater creation templates exposed here.
-- Workbench owns note templates, while Control owns the Templater creation templates exposed here.
-- Vault macros should continue to resolve `_control/templates/...` without needing to know where the source files live.
+- The canonical authored note templates live directly in this `templates/` directory.
+- `templates/` contains only active authored note classes.
+- Each active template contains its own create-time runtime hook.
+- Shared JS in `scripts/create_note_runtime.js` remains the single slug-initialization path and emits the generic created-note confirmation.
+- Vault macros resolve `_control/templates/...` and must not rely on retired template aliases or compatibility shims.
 
 ## Directory Map
 
 - `queries/`: inspection queries for authored notes.
 - `scripts/`: shared DataviewJS query logic.
 - `templates/`: reusable note templates exposed to Studio vaults.
-- `templater/`: Templater-facing creation templates exposed to Studio vaults.
 - `macros/`: create-only and selection-only command palette or QuickAdd actions.
 - `docs/`: shared editorial and metadata conventions.
 - `config/`: stable settings references.
-- `_archive/`: legacy or uncertain material preserved during cleanup.
 
 ## Rules
 
 - Keep `_control` deterministic and reusable across Studio vaults.
 - Do not store project notes, scratch notes, pipeline output, or experiments here.
-- Archive uncertain legacy material under `_control/_archive/` instead of deleting it immediately.
+- Keep the active `_control/` surface aligned with the live ontology only.
+- If legacy material must be retained, store it outside this tree instead of under `_control/`.
