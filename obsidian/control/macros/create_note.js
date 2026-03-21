@@ -1,6 +1,11 @@
 const path = require("path");
 
 const DEFAULT_TEMPLATES_FOLDER = "_control/templates";
+const DESTINATION_FOLDER_BY_TEMPLATE = {
+  content: "contents",
+  instruction: "instructions",
+  topic: "topics",
+};
 
 async function createNote(params = {}) {
   const app = resolveApp(params.app);
@@ -12,7 +17,6 @@ async function createNote(params = {}) {
 
   const runtime = loadCreateNoteRuntime(app, params.runtimeHelper);
   const anchorFile = app.workspace.getActiveFile?.();
-  const folder = getDestinationFolderFromActiveFile(app);
   const templates = await listTemplates(app, {
     runtime,
     templatesFolder: params.templatesFolder || params.templateFolder,
@@ -28,12 +32,15 @@ async function createNote(params = {}) {
     throw new Error("Note title is required.");
   }
 
+  const folder = getDestinationFolderFromTemplate(template.file, params);
+
   let createdFile = null;
   let leaf = null;
 
   try {
     createdFile = await createNoteFromTemplate({
       app,
+      qa,
       folder,
       templateFile: template.file,
       title,
@@ -64,10 +71,13 @@ async function createNote(params = {}) {
 module.exports = createNote;
 module.exports._test = {
   chooseTemplate,
+  confirmAction,
   createNoteFromTemplate,
-  getDestinationFolderFromActiveFile,
+  ensureDestinationFolder,
+  getDestinationFolderFromTemplate,
   listTemplates,
   normalizeNoteTitle,
+  promptNoteTitle,
   rollbackCreatedNote,
   validateCreatedNote,
 };
@@ -204,6 +214,10 @@ async function promptNoteTitle(qa, params = {}) {
     return preset;
   }
 
+  if (qa && typeof qa.inputPrompt === "function") {
+    return qa.inputPrompt("Note title", preset, preset);
+  }
+
   if (qa && typeof qa.requestInputs === "function") {
     const values = await qa.requestInputs([
       {
@@ -216,10 +230,6 @@ async function promptNoteTitle(qa, params = {}) {
     return values.note_title || "";
   }
 
-  if (qa && typeof qa.inputPrompt === "function") {
-    return qa.inputPrompt("Note title", preset, preset);
-  }
-
   if (typeof window !== "undefined" && typeof window.prompt === "function") {
     return window.prompt("Note title", preset);
   }
@@ -227,17 +237,34 @@ async function promptNoteTitle(qa, params = {}) {
   return "";
 }
 
-function getDestinationFolderFromActiveFile(app) {
-  const activeFile = app?.workspace?.getActiveFile?.();
-  if (!activeFile?.path) {
-    throw new Error("An active note is required to choose the destination folder.");
+function getDestinationFolderFromTemplate(templateFile, params = {}) {
+  const requestedFolder = normalizeFolder(params.destinationFolder || params.folder || "");
+  if (requestedFolder) {
+    return requestedFolder;
   }
 
-  const parentPath = normalizeFolder(path.posix.dirname(String(activeFile.path || "")));
-  return parentPath === "." ? "" : parentPath;
+  const templateName = normalizeString(templateFile?.basename || "").toLowerCase();
+  if (!templateName) {
+    throw new Error("Template file is required to choose the destination folder.");
+  }
+
+  return normalizeFolder(
+    DESTINATION_FOLDER_BY_TEMPLATE[templateName] || pluralizeFolderName(templateName),
+  );
 }
 
-async function createNoteFromTemplate({ app, templateFile, folder, title }) {
+function pluralizeFolderName(value) {
+  const normalized = normalizeString(value).toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.endsWith("s")) {
+    return normalized;
+  }
+  return `${normalized}s`;
+}
+
+async function createNoteFromTemplate({ app, qa, templateFile, folder, title }) {
   const safeTitle = normalizeNoteTitle(title);
   if (!safeTitle) {
     throw new Error("Note title is required.");
@@ -249,13 +276,86 @@ async function createNoteFromTemplate({ app, templateFile, folder, title }) {
 
   const templateText = await app.vault.cachedRead(templateFile);
   const normalizedFolder = normalizeFolder(folder);
+  await ensureDestinationFolder({ app, qa, folder: normalizedFolder, templateFile });
   const notePath = normalizedFolder ? `${normalizedFolder}/${safeTitle}.md` : `${safeTitle}.md`;
 
-  if (await app.vault.adapter.exists(notePath)) {
+  if (await pathExists(app, notePath)) {
     throw new Error(`File already exists: ${notePath}`);
   }
 
   return app.vault.create(notePath, templateText);
+}
+
+async function ensureDestinationFolder({ app, qa, folder, templateFile } = {}) {
+  const normalizedFolder = normalizeFolder(folder);
+  if (!normalizedFolder) {
+    return "";
+  }
+
+  if (await pathExists(app, normalizedFolder)) {
+    return normalizedFolder;
+  }
+
+  const templateLabel = formatTemplateLabel(templateFile?.basename || normalizedFolder);
+  const confirmed = await confirmAction(
+    qa,
+    "Create destination folder?",
+    `Template ${templateLabel} writes new notes to ${normalizedFolder}. Create that folder now?`,
+  );
+  if (!confirmed) {
+    throw new Error(`Destination folder does not exist: ${normalizedFolder}`);
+  }
+
+  await createFolder(app, normalizedFolder);
+  return normalizedFolder;
+}
+
+async function pathExists(app, targetPath) {
+  const normalizedPath = normalizeFolder(targetPath);
+  if (!normalizedPath) {
+    return true;
+  }
+
+  const existing = app.vault.getAbstractFileByPath?.(normalizedPath);
+  if (existing) {
+    return true;
+  }
+
+  if (typeof app.vault.adapter?.exists === "function") {
+    return Boolean(await app.vault.adapter.exists(normalizedPath));
+  }
+
+  return false;
+}
+
+async function createFolder(app, folder) {
+  if (typeof app.vault.createFolder === "function") {
+    await app.vault.createFolder(folder);
+    return;
+  }
+
+  if (typeof app.vault.adapter?.mkdir === "function") {
+    await app.vault.adapter.mkdir(folder);
+    return;
+  }
+
+  throw new Error(`Could not create folder: ${folder}`);
+}
+
+async function confirmAction(qa, title, message) {
+  if (qa && typeof qa.yesNoPrompt === "function") {
+    try {
+      return await qa.yesNoPrompt(title, message);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  if (typeof window !== "undefined" && typeof window.confirm === "function") {
+    return window.confirm(`${title}\n\n${message}`);
+  }
+
+  return false;
 }
 
 async function openCreatedNote({ app, file }) {
@@ -304,14 +404,15 @@ async function rollbackCreatedNote({ app, anchorFile, file, leaf, reason }) {
 function normalizeNoteTitle(value) {
   return normalizeString(value)
     .replace(/\.md$/i, "")
-    .replace(/[\/:*?"<>|#[\]^]/g, " ")
+    .replace(/[\\/:*?"<>|#[\]^]/g, " ")
     .replace(/\s+/g, " ")
     .replace(/\.+$/g, "")
     .trim();
 }
 
 function normalizeFolder(value) {
-  return normalizeString(value).replace(/^\/+|\/+$/g, "");
+  const normalized = normalizeString(value).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  return normalized === "." ? "" : normalized;
 }
 
 function normalizeString(value) {
