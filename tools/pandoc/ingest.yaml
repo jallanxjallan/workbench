@@ -1,3 +1,0 @@
-filters:
-  - provenance_capture.lua
-  - emit_ndjson.lua

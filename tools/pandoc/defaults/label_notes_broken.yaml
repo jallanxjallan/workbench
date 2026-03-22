@@ -1,5 +1,0 @@
-from: markdown
-to: markdown
-standalone: false
-filters:
-  - /home/jeremy/Tools/tls/pandoc/filters/lua/metadata/meta_fill.lua

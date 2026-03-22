@@ -13,17 +13,4 @@ dist/
 .ruff_cache/
 .mypy_cache/
 
-# Deterministic generated Workbench artifacts
-/_compiled/
 
-# Local development scratch space
-dev/experiments/root_pytest_cache/
-dev/experiments/tmp_artifacts/
-
-# Local Pandoc data-dir editing symlink (not owned by Workbench)
-pandoc-data
-
-# Noisy obsidian files
-obsidian/templates/.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/cache

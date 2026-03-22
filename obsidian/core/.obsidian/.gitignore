@@ -1,7 +1,0 @@
-workspace.json
-cache/
-
-plugins/*
-!plugins/*/
-plugins/*/*
-!plugins/*/data.json
