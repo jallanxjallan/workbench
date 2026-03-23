@@ -1,5 +1,7 @@
-"""Scanning subsystem exports."""
+"""Generic ripgrep discovery engine."""
 
-from workbench.scan.rg import RipgrepError, rg_run, rg_search
+from .api import rg_search
+from .command import rg_build_command
+from .errors import RipgrepError
 
-__all__ = ["RipgrepError", "rg_run", "rg_search"]
+__all__ = ["rg_search", "rg_build_command", "RipgrepError"]
