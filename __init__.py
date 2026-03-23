@@ -1,2 +1,1 @@
-"""Workbench Python package."""
 
