@@ -5,15 +5,15 @@ from __future__ import annotations
 import argparse
 import sys
 
-from io.files import has_piped_stdin
+from records.files import has_piped_stdin
 from write.common import WriteError
-from write.sink import writeback
+from write.overwrite import writeback
 
 
 def parser() -> argparse.ArgumentParser:
     return argparse.ArgumentParser(
         prog="writeback",
-        description="Overwrite existing markdown files resolved from input_record.slug.",
+        description="Overwrite existing markdown files resolved from input_record.metadata.slug.",
     )
 
 

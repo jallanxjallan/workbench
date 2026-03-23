@@ -1,4 +1,4 @@
-"""Shared helpers for write sink implementations."""
+"""Shared helpers for write execution modules."""
 
 from __future__ import annotations
 
@@ -10,10 +10,9 @@ import re
 from typing import Any, Iterable, Iterator
 import unicodedata
 
-from io.files import ensure_directory
-from io.records import RecordContractError, iter_records
-from resolver import ResolverError, resolve_slugs
-from runtime.vaults import VaultRuntimeError, discover_registered_vault_root
+from records.files import ensure_directory
+from records.records import RecordContractError, iter_records
+from vault.discover import VaultRuntimeError, discover_registered_vault_root
 
 
 INGEST_DIRNAME = "_ingest"
@@ -38,15 +37,6 @@ class WriteInputRecord:
 class WriteRecord:
     content: str
     input_record: WriteInputRecord
-
-
-def normalize_non_empty_string(value: Any, *, field: str) -> str:
-    if not isinstance(value, str):
-        raise WriteError(f"{field} must be a non-empty string")
-    normalized = value.strip()
-    if not normalized:
-        raise WriteError(f"{field} must be a non-empty string")
-    return normalized
 
 
 def iter_input_records(stream: Iterable[str]) -> Iterator[WriteRecord]:
@@ -80,13 +70,6 @@ def normalize_markdown_filename(filename: str) -> str:
     return f"{normalize_semantic_base(filename)}.md"
 
 
-def discover_vault_root(start: Path) -> Path:
-    try:
-        return discover_registered_vault_root(start)
-    except VaultRuntimeError as exc:
-        raise WriteError(str(exc)) from exc
-
-
 def resolve_writenew_directory(
     *,
     cwd: Path | None = None,
@@ -96,24 +79,11 @@ def resolve_writenew_directory(
         return ensure_directory(str(target_dir))
 
     working_dir = (cwd or Path.cwd()).expanduser().resolve()
-    vault_root = discover_vault_root(working_dir)
-    return ensure_directory(str(vault_root / INGEST_DIRNAME))
-
-
-def resolve_existing_path(record: WriteRecord) -> Path:
-    slug = record.input_record.slug
-    if slug is None:
-        raise WriteError("writeback requires input_record.slug")
-
     try:
-        path = resolve_slugs([slug])[0]
-    except ResolverError as exc:
+        vault_root = discover_registered_vault_root(working_dir)
+    except VaultRuntimeError as exc:
         raise WriteError(str(exc)) from exc
-
-    resolved = path.expanduser().resolve()
-    if not resolved.exists():
-        raise WriteError(f"missing target file for slug: {slug}")
-    return resolved
+    return ensure_directory(str(vault_root / INGEST_DIRNAME))
 
 
 def derive_new_path(record: WriteRecord, directory: Path) -> Path:
@@ -123,8 +93,17 @@ def derive_new_path(record: WriteRecord, directory: Path) -> Path:
 def _coerce_record(*, record: dict[str, Any], index: int) -> WriteRecord:
     content = record["content"]
     input_record = record["input_record"]
+    metadata = input_record.get("metadata")
+    if metadata is None:
+        metadata = {}
+    if not isinstance(metadata, dict):
+        raise WriteError(f"record {index}: invalid record field: input_record.metadata")
 
-    slug = _optional_string(input_record.get("slug"), index=index, field="input_record.slug")
+    slug = _optional_string(
+        metadata.get("slug"),
+        index=index,
+        field="input_record.metadata.slug",
+    )
     filename_hint = _optional_string(
         input_record.get("filename_hint"),
         index=index,

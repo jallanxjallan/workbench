@@ -8,9 +8,9 @@ import sys
 
 import yaml
 
-from io.files import has_piped_stdin
+from records.files import has_piped_stdin
 from write.common import WriteError
-from write.sink import writenew
+from write.create import run
 
 DEFAULT_TARGET_SUBDIR = "_ingest"
 DEFAULT_TEMPLATE_ID = "content"
@@ -20,11 +20,11 @@ DEFAULT_KIND = "passage"
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(
         prog="writenew",
-        description="Create new markdown files in _ingest from canonical NDJSON without overwriting.",
+        description="Create new markdown files in the current vault _ingest directory from canonical NDJSON without overwriting.",
     )
     command_parser.add_argument(
         "--target-dir",
-        help="Optional output directory. Defaults to <cwd>/_ingest.",
+        help="Optional output directory. Defaults to <current-vault>/_ingest.",
     )
     command_parser.add_argument(
         "--set",
@@ -40,24 +40,6 @@ def parser() -> argparse.ArgumentParser:
 def default_target_dir(cwd: Path | None = None) -> Path:
     base = cwd or Path.cwd()
     return base / DEFAULT_TARGET_SUBDIR
-
-
-def run(
-    *,
-    input_stream,
-    cwd: Path | None = None,
-    target_dir: str | None = None,
-    overrides: dict[str, object] | None = None,
-) -> None:
-    resolved_target_dir = Path(target_dir) if target_dir else default_target_dir(cwd)
-    writenew(
-        input_stream=input_stream,
-        cwd=cwd,
-        target_dir=str(resolved_target_dir),
-        template_id=DEFAULT_TEMPLATE_ID,
-        class_name=DEFAULT_KIND,
-        overrides=overrides,
-    )
 
 
 def parse_overrides(items: list[str]) -> dict[str, object]:
