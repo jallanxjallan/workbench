@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from records.files import has_piped_stdin
+from _depreciated.document_files import has_piped_stdin
 from write.common import WriteError
 from write.overwrite import writeback
 

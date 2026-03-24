@@ -8,7 +8,7 @@ import sys
 
 import yaml
 
-from records.files import has_piped_stdin
+from _depreciated.document_files import has_piped_stdin
 from write.common import WriteError
 from write.create import run
 

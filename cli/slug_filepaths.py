@@ -6,8 +6,8 @@ import argparse
 import sys
 from typing import Any
 
-from records.files import has_piped_stdin
-from records.records import RecordContractError, dump_record, iter_records, make_record
+from _depreciated.document_files import has_piped_stdin
+from _depreciated.records import RecordContractError, dump_record, iter_records, make_record
 
 
 def _parser() -> argparse.ArgumentParser:

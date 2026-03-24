@@ -6,7 +6,7 @@ import argparse
 import sys
 from typing import TextIO
 
-from records.ndjson import iter_ndjson
+from _depreciated.ndjson import iter_ndjson
 
 
 def _parser() -> argparse.ArgumentParser:

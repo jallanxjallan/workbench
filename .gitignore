@@ -13,4 +13,6 @@ dist/
 .ruff_cache/
 .mypy_cache/
 
+_depreciated
+
 
