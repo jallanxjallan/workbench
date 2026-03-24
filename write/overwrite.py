@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
-import re
-import subprocess
 import sys
 from typing import Iterable
 
-from git.git import GitRepo, NotAGitRepositoryError
+from git import GitRepo, NotAGitRepositoryError
 from records.files import overwrite_text
 from vault.discover import VaultRuntimeError, discover_registered_vault_root
 from write.common import WriteError, WriteRecord, iter_input_records
 
-_SLUG_LINE_RE = re.compile(r"^slug:\s*(?P<slug>.+?)\s*$")
+# Adjust this import to the actual rg wrapper location/name in Workbench.
+from scan.rg import 
 
 
 @dataclass(frozen=True)
@@ -136,67 +134,20 @@ def _discover_current_vault_root(*, cwd: Path | None) -> Path:
 
 
 def _build_local_slug_map(vault_root: Path) -> dict[str, Path]:
-    slug_map: dict[str, Path] = {}
+    try:
+        slug_map = slugs_to_filepaths(cwd=vault_root)
+    except Exception as exc:
+        raise WriteError(f"local slug scan failed: {exc}") from exc
 
-    for entry in _scan_local_slug_entries(vault_root):
-        slug = entry["slug"]
-        path = Path(entry["path"]).expanduser().resolve()
-        existing = slug_map.get(slug)
-        if existing is not None and existing != path:
-            raise WriteError(f"duplicate slug in current vault: {slug}: {existing} and {path}")
-        slug_map[slug] = path
+    normalized: dict[str, Path] = {}
+    for slug, path in slug_map.items():
+        resolved = path.expanduser().resolve()
+        existing = normalized.get(slug)
+        if existing is not None and existing != resolved:
+            raise WriteError(f"duplicate slug in current vault: {slug}: {existing} and {resolved}")
+        normalized[slug] = resolved
 
-    return slug_map
-
-
-def _scan_local_slug_entries(vault_root: Path) -> list[dict[str, str]]:
-    proc = subprocess.run(
-        [
-            "rg",
-            "--json",
-            "--glob",
-            "*.md",
-            r"^slug:\s*.+\s*$",
-            ".",
-        ],
-        cwd=str(vault_root),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode not in {0, 1}:
-        detail = proc.stderr.strip() or proc.stdout.strip() or "rg failed"
-        raise WriteError(f"local slug scan failed: {detail}")
-
-    results: list[dict[str, str]] = []
-    for line in proc.stdout.splitlines():
-        if not line.strip():
-            continue
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise WriteError(f"local slug scan failed: invalid rg json: {exc}") from exc
-        if event.get("type") != "match":
-            continue
-
-        data = event.get("data") or {}
-        path_text = (data.get("path") or {}).get("text")
-        line_text = (data.get("lines") or {}).get("text")
-        if not isinstance(path_text, str) or not isinstance(line_text, str):
-            continue
-
-        match = _SLUG_LINE_RE.match(line_text.rstrip("\r\n"))
-        if match is None:
-            continue
-
-        results.append(
-            {
-                "slug": match.group("slug").strip(),
-                "path": str((vault_root / path_text).expanduser().resolve()),
-            }
-        )
-
-    return results
+    return normalized
 
 
 def _dirty_paths_by_repo(paths: list[Path]) -> dict[Path, set[Path]]:

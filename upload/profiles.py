@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Iterator
-import json
+
 
 import yaml
 
-from record import compile_file_record, emit_ndjson
+from records import compile_file_record, emit_ndjson
 
 
 PROFILES_ROOT = Path("/home/jeremy/Workspace/Control/profiles").expanduser().resolve()

@@ -7,11 +7,13 @@ from types import ModuleType
 
 
 COMMAND_MODULES: dict[str, str] = {
-    "compile-slug-schema": "workbench.cli.compile_slug_schema",
-    "slugs-to-files": "workbench.cli.slugs_to_files",
-    "stream": "workbench.cli.stream",
-    "writeback": "workbench.cli.writeback",
-    "writenew": "workbench.cli.writenew",
+    "create-vault": "cli.create_vault",
+    "slug_filepaths": "cli.slug_filepaths",
+    "stream": "cli.stream",
+    "upload-package": "cli.upload_package",
+    "upload-profiles": "cli.upload_profiles",
+    "writeback": "cli.writeback",
+    "writenew": "cli.writenew",
 }
 
 

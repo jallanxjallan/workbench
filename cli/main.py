@@ -42,15 +42,14 @@ def _run_passthrough(command_name: str, ctx: typer.Context) -> None:
     if code != 0:
         raise typer.Exit(code=code)
 
+@app.command("create-vault", context_settings=_PASSTHROUGH_SETTINGS)
+def create_vault_command(ctx: typer.Context) -> None:
+    _run_passthrough("create-vault", ctx)
 
-@app.command("compile-slug-schema", context_settings=_PASSTHROUGH_SETTINGS)
-def compile_slug_schema_command(ctx: typer.Context) -> None:
-    _run_passthrough("compile-slug-schema", ctx)
 
-
-@app.command("slugs-to-files", context_settings=_PASSTHROUGH_SETTINGS)
+@app.command("slug_filepaths", context_settings=_PASSTHROUGH_SETTINGS)
 def slugs_to_files_command(ctx: typer.Context) -> None:
-    _run_passthrough("slugs-to-files", ctx)
+    _run_passthrough("slug_filepaths", ctx)
 
 
 @app.command("stream", context_settings=_PASSTHROUGH_SETTINGS)
