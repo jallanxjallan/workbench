@@ -1,19 +1,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterator
-
+import sys
+from typing import Any
 
 import yaml
 
-from records import compile_file_record, emit_ndjson
+from workbench.git import (
+    find_repo_root,
+    find_latest_tag,
+    list_paths_changed_since_tag,
+    list_tracked_paths,
+    list_untracked_paths,
+)
+from workbench.records import dump_record
 
 
 PROFILES_ROOT = Path("/home/jeremy/Workspace/Control/profiles").expanduser().resolve()
+PROFILE_TAG_GLOB = "successful_upload/profiles/*"
+YAML_SUFFIXES = {".yaml", ".yml"}
 
 
 class UploadProfilesError(RuntimeError):
-    """Raised when profile upload compilation fails."""
+    """Raised when upload-profiles cannot compile profile records."""
 
 
 def discover_profile_files(root: Path = PROFILES_ROOT) -> list[Path]:
@@ -34,12 +43,9 @@ def load_profile_yaml(path: Path) -> dict[str, Any]:
     file_path = Path(path).expanduser().resolve()
 
     try:
-        raw_text = file_path.read_text(encoding="utf-8")
+        payload = yaml.safe_load(file_path.read_text(encoding="utf-8"))
     except OSError as exc:
         raise UploadProfilesError(f"unable to read profile YAML: {file_path}: {exc}") from exc
-
-    try:
-        payload = yaml.safe_load(raw_text)
     except yaml.YAMLError as exc:
         raise UploadProfilesError(f"invalid YAML in {file_path}: {exc}") from exc
 
@@ -56,54 +62,98 @@ def profile_slug(profile_yaml: dict[str, Any], path: Path) -> str:
     return slug.strip()
 
 
-def build_profile_record(path: Path) -> dict[str, Any]:
+def is_profile_file(path: Path) -> bool:
+    return path.is_file() and path.suffix.lower() in YAML_SUFFIXES
+
+
+def compile_profile_record(path: Path) -> dict[str, Any]:
     file_path = Path(path).expanduser().resolve()
     payload = load_profile_yaml(file_path)
     slug = profile_slug(payload, file_path)
 
-    return compile_file_record(
-        slug=slug,
-        path=file_path,
-        origin="profile",
-        kind="profile",
+    return {
+        "content": payload,
+        "input_record": {
+            "slug": slug,
+            "filename_hint": file_path.name,
+            "origin": {
+                "source_type": "file",
+                "source_path": str(file_path),
+                "record_kind": "profile",
+            },
+        },
+    }
+
+
+def discover_candidate_paths(root: Path = PROFILES_ROOT) -> list[Path]:
+    profiles_root = Path(root).expanduser().resolve()
+    repo_root = find_repo_root(profiles_root)
+    last_tag = find_latest_tag(repo_root=repo_root, pattern=PROFILE_TAG_GLOB)
+
+    if last_tag is None:
+        candidates = list_tracked_paths(repo_root=repo_root, scope=profiles_root)
+    else:
+        candidates = list_paths_changed_since_tag(
+            repo_root=repo_root,
+            tag=last_tag,
+            scope=profiles_root,
+            include_staged=True,
+            include_unstaged=True,
+        )
+
+    candidates.extend(
+        list_untracked_paths(repo_root=repo_root, scope=profiles_root)
     )
 
+    resolved: list[Path] = []
+    seen: set[Path] = set()
 
-def compile_profile_records(root: Path = PROFILES_ROOT) -> list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
-    seen: dict[str, Path] = {}
+    for raw_path in candidates:
+        path = Path(raw_path).expanduser().resolve()
+        if path in seen:
+            continue
+        seen.add(path)
 
-    for path in discover_profile_files(root):
-        record = build_profile_record(path)
-        slug = record["slug"]
+        if is_profile_file(path):
+            resolved.append(path)
 
-        if slug in seen:
-            other = seen[slug]
+    return sorted(resolved)
+
+
+def iter_upload_profile_records(root: Path = PROFILES_ROOT) -> list[str]:
+    candidate_paths = discover_candidate_paths(root=root)
+    if not candidate_paths:
+        return []
+
+    records: list[str] = []
+    seen_slugs: dict[str, Path] = {}
+
+    for path in candidate_paths:
+        record = compile_profile_record(path)
+        slug = record["input_record"]["slug"]
+
+        if slug in seen_slugs:
+            other = seen_slugs[slug]
             raise UploadProfilesError(f"duplicate profile slug {slug}: {other} and {path}")
 
-        seen[slug] = path
-        records.append(record)
+        seen_slugs[slug] = path
+        records.append(dump_record(record))
 
     return records
 
 
-def upload_profiles(root: Path = PROFILES_ROOT) -> Iterator[str]:
-    records = compile_profile_records(root)
-    yield from emit_ndjson(records)
+def main() -> int:
+    try:
+        records = iter_upload_profile_records()
+    except Exception as exc:
+        print(f"upload-profiles: {exc}", file=sys.stderr)
+        return 1
+
+    for record in records:
+        sys.stdout.write(record)
+
+    return 0
 
 
-def upload_profiles_jsonl(root: Path = PROFILES_ROOT) -> str:
-    return "".join(upload_profiles(root))
-
-
-__all__ = [
-    "PROFILES_ROOT",
-    "UploadProfilesError",
-    "build_profile_record",
-    "compile_profile_records",
-    "discover_profile_files",
-    "load_profile_yaml",
-    "profile_slug",
-    "upload_profiles",
-    "upload_profiles_jsonl",
-]
+if __name__ == "__main__":
+    raise SystemExit(main())
