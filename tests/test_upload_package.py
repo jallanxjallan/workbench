@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from records.ndjson import iter_ndjson
+from _depreciated.ndjson import iter_ndjson
 from upload.package import UploadPackageError, load_package_json, upload_package
 
 
