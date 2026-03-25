@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+import shutil
 from subprocess import CompletedProcess, run
 from typing import Iterable, Sequence
 
@@ -11,6 +13,9 @@ from .errors import (
     NotAGitRepositoryError,
 )
 from .types import GitHead, GitStatusEntry, GitTag
+
+
+_GIT_EXECUTABLE = shutil.which("git") or "git"
 
 
 def _normalize_input_path(path: Path) -> Path:
@@ -57,10 +62,16 @@ def _run_git(
     GitCommandError
         If the command exits non-zero and `check` is True.
     """
-    full_argv = ["git", *argv]
+    full_argv = [_GIT_EXECUTABLE, *argv]
+    env = os.environ.copy()
+    env.setdefault("GIT_AUTHOR_NAME", "Workbench")
+    env.setdefault("GIT_AUTHOR_EMAIL", "workbench@example.invalid")
+    env.setdefault("GIT_COMMITTER_NAME", env["GIT_AUTHOR_NAME"])
+    env.setdefault("GIT_COMMITTER_EMAIL", env["GIT_AUTHOR_EMAIL"])
     proc = run(
         full_argv,
         cwd=str(cwd) if cwd is not None else None,
+        env=env,
         text=True,
         capture_output=True,
     )
@@ -276,7 +287,7 @@ class GitRepo:
 
     def annotated_tag_names_at_head(self) -> list[str]:
         """
-        Return annotated tag names pointing directly at HEAD.
+        Return annotated tag names pointing at HEAD.
 
         This filters tag names at HEAD by checking whether each ref is itself a
         tag object rather than a direct lightweight pointer to a commit.

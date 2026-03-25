@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any
 
 # Placeholder imports for Codex to reconcile against the real tree.
-from workbench.git import file_is_dirty
-from workbench.resolve import resolve_slug_to_filepath
+from repo import file_is_dirty
+from resolve import resolve_slug_to_filepath
 
 
 class WriteBackError(Exception):

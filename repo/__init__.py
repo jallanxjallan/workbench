@@ -34,24 +34,45 @@ and workflow safety:
 - tag lookup at HEAD
 - changed-file listing
 - basic revision parsing
-
-Conventions
------------
-- All public path arguments accept file or directory paths.
-- Paths returned by this package are normalized to absolute resolved Paths.
-- Methods that answer path-state questions are repo-relative internally, but
-  they accept absolute or relative input paths.
-- "Dirty" means any staged, unstaged, or untracked change affecting the path,
-  depending on the method and options.
 """
 
+from .authoring import (
+    DEFAULT_GITIGNORE_TEXT,
+    FailedReceipt,
+    InflightReceipt,
+    LandedReceipt,
+    SubmitReceipt,
+    UploadReceipt,
+    UploadReceiptFile,
+    ensure_snapshot_commit,
+    file_content_hash,
+    find_latest_commit_touching_file,
+    find_latest_inflight_tag,
+    find_latest_landed_tag,
+    find_latest_upload_tag,
+    find_matching_submit_tag,
+    init_repo,
+    is_dirty,
+    is_file_dirty,
+    needs_upload,
+    read_tag,
+    read_upload_tag,
+    write_failed_tag,
+    write_gitignore,
+    write_inflight_tag,
+    write_landed_tag,
+    write_submit_tag,
+    write_upload_tag,
+)
 from .errors import (
     GitCommandError,
     GitError,
     GitReferenceError,
     NotAGitRepositoryError,
+    ReceiptError,
+    ReceiptMatchError,
+    TagCollisionError,
 )
-
 from .repo import GitRepo, discover_repo, repo_root
 from .types import GitHead, GitStatusEntry, GitTag
 
@@ -60,10 +81,39 @@ __all__ = [
     "GitCommandError",
     "NotAGitRepositoryError",
     "GitReferenceError",
+    "ReceiptError",
+    "ReceiptMatchError",
+    "TagCollisionError",
     "GitRepo",
     "discover_repo",
     "repo_root",
     "GitHead",
     "GitStatusEntry",
     "GitTag",
+    "DEFAULT_GITIGNORE_TEXT",
+    "SubmitReceipt",
+    "InflightReceipt",
+    "LandedReceipt",
+    "FailedReceipt",
+    "UploadReceiptFile",
+    "UploadReceipt",
+    "init_repo",
+    "write_gitignore",
+    "is_dirty",
+    "is_file_dirty",
+    "ensure_snapshot_commit",
+    "write_submit_tag",
+    "write_inflight_tag",
+    "write_landed_tag",
+    "write_failed_tag",
+    "read_tag",
+    "find_matching_submit_tag",
+    "find_latest_inflight_tag",
+    "find_latest_landed_tag",
+    "write_upload_tag",
+    "find_latest_upload_tag",
+    "read_upload_tag",
+    "file_content_hash",
+    "needs_upload",
+    "find_latest_commit_touching_file",
 ]

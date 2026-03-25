@@ -14,5 +14,6 @@ dist/
 .mypy_cache/
 
 _depreciated
+*.md
 
 

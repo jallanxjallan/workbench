@@ -72,7 +72,7 @@ def _ensure_gitignore(vault_path: Path) -> None:
         )
 
     try:
-        repo.make_gitignore(vault_path, templates=("common", "vault"))
+        repo.write_gitignore(vault_path, repo.DEFAULT_GITIGNORE_TEXT)
     except Exception as exc:
         raise CreateVaultError(f"Failed to create .gitignore: {exc}") from exc
 

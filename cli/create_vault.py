@@ -1,5 +1,4 @@
 """Provision or initialize a vault from Obsidian core plus shared control."""
-
 from __future__ import annotations
 
 import argparse

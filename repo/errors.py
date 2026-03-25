@@ -68,3 +68,15 @@ class GitReferenceError(GitError):
     - an invalid revision string
     - a missing tag or commit-ish
     """
+
+
+class ReceiptError(GitError):
+    """Raised when a repo receipt cannot be parsed or validated."""
+
+
+class ReceiptMatchError(ReceiptError):
+    """Raised when receipt lookup is ambiguous or yields no match."""
+
+
+class TagCollisionError(ReceiptError):
+    """Raised when a receipt tag already exists and overwrite is disallowed."""
