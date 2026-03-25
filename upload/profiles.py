@@ -6,14 +6,9 @@ from typing import Any
 
 import yaml
 
-from workbench.git import (
-    find_repo_root,
-    find_latest_tag,
-    list_paths_changed_since_tag,
-    list_tracked_paths,
-    list_untracked_paths,
-)
-from workbench.records import dump_record
+import repo
+from repo.repo import _run_git
+from transport import dumps_record
 
 
 PROFILES_ROOT = Path("/home/jeremy/Workspace/Control/profiles").expanduser().resolve()
@@ -25,18 +20,22 @@ class UploadProfilesError(RuntimeError):
     """Raised when upload-profiles cannot compile profile records."""
 
 
+
 def discover_profile_files(root: Path = PROFILES_ROOT) -> list[Path]:
-    root = Path(root).expanduser().resolve()
-    if not root.is_dir():
-        raise UploadProfilesError(f"profiles root does not exist: {root}")
+    profiles_root = Path(root).expanduser().resolve()
+    if not profiles_root.is_dir():
+        raise UploadProfilesError(f"profiles root does not exist: {profiles_root}")
 
     discovered: set[Path] = set()
-    for pattern in ("*.yaml", "*.yml"):
-        for path in root.rglob(pattern):
-            if path.is_file():
-                discovered.add(path.resolve())
-
+    for raw_path in _tracked_paths(profiles_root):
+        path = Path(raw_path).expanduser().resolve()
+        if is_profile_file(path):
+            discovered.add(path)
+    for raw_path in _untracked_paths(repo.discover_repo(profiles_root), profiles_root):
+        if is_profile_file(raw_path):
+            discovered.add(raw_path)
     return sorted(discovered)
+
 
 
 def load_profile_yaml(path: Path) -> dict[str, Any]:
@@ -55,6 +54,7 @@ def load_profile_yaml(path: Path) -> dict[str, Any]:
     return payload
 
 
+
 def profile_slug(profile_yaml: dict[str, Any], path: Path) -> str:
     slug = profile_yaml.get("slug")
     if not isinstance(slug, str) or not slug.strip():
@@ -62,8 +62,10 @@ def profile_slug(profile_yaml: dict[str, Any], path: Path) -> str:
     return slug.strip()
 
 
+
 def is_profile_file(path: Path) -> bool:
     return path.is_file() and path.suffix.lower() in YAML_SUFFIXES
+
 
 
 def compile_profile_record(path: Path) -> dict[str, Any]:
@@ -85,39 +87,26 @@ def compile_profile_record(path: Path) -> dict[str, Any]:
     }
 
 
+
 def discover_candidate_paths(root: Path = PROFILES_ROOT) -> list[Path]:
     profiles_root = Path(root).expanduser().resolve()
-    repo_root = find_repo_root(profiles_root)
-    last_tag = find_latest_tag(repo_root=repo_root, pattern=PROFILE_TAG_GLOB)
+    git_repo = repo.discover_repo(profiles_root)
+    last_tag = _find_latest_tag(repo_root=git_repo.root, pattern=PROFILE_TAG_GLOB)
 
     if last_tag is None:
-        candidates = list_tracked_paths(repo_root=repo_root, scope=profiles_root)
-    else:
-        candidates = list_paths_changed_since_tag(
-            repo_root=repo_root,
-            tag=last_tag,
-            scope=profiles_root,
-            include_staged=True,
-            include_unstaged=True,
-        )
+        return discover_profile_files(profiles_root)
 
-    candidates.extend(
-        list_untracked_paths(repo_root=repo_root, scope=profiles_root)
-    )
+    changed_paths: set[Path] = set()
+    tag_commit = _tag_commit(repo_root=git_repo.root, tag_name=last_tag)
+    head_commit = git_repo.head().oid
+    if tag_commit != head_commit:
+        changed_paths.update(_paths_within_scope(git_repo.changed_paths_between(tag_commit, head_commit), profiles_root))
 
-    resolved: list[Path] = []
-    seen: set[Path] = set()
+    changed_paths.update(_dirty_paths(git_repo, profiles_root, include_untracked=False))
+    changed_paths.update(_untracked_paths(git_repo, profiles_root))
 
-    for raw_path in candidates:
-        path = Path(raw_path).expanduser().resolve()
-        if path in seen:
-            continue
-        seen.add(path)
+    return sorted(path for path in changed_paths if is_profile_file(path))
 
-        if is_profile_file(path):
-            resolved.append(path)
-
-    return sorted(resolved)
 
 
 def iter_upload_profile_records(root: Path = PROFILES_ROOT) -> list[str]:
@@ -137,22 +126,116 @@ def iter_upload_profile_records(root: Path = PROFILES_ROOT) -> list[str]:
             raise UploadProfilesError(f"duplicate profile slug {slug}: {other} and {path}")
 
         seen_slugs[slug] = path
-        records.append(dump_record(record))
+        records.append(f"{dumps_record(record)}\n")
 
     return records
 
 
+
+def upload_profiles(root: Path = PROFILES_ROOT) -> int:
+    for record in iter_upload_profile_records(root=root):
+        sys.stdout.write(record)
+    return 0
+
+
+
 def main() -> int:
     try:
-        records = iter_upload_profile_records()
+        return upload_profiles()
     except Exception as exc:
         print(f"upload-profiles: {exc}", file=sys.stderr)
         return 1
 
-    for record in records:
-        sys.stdout.write(record)
 
-    return 0
+
+def _find_latest_tag(*, repo_root: Path, pattern: str) -> str | None:
+    prefix = _prefix_from_glob(pattern)
+    proc = _run_git(
+        [
+            "for-each-ref",
+            "--sort=-taggerdate",
+            "--format=%(refname:strip=2)",
+            f"refs/tags/{prefix}",
+        ],
+        cwd=repo_root,
+    )
+    for line in proc.stdout.splitlines():
+        tag_name = line.strip()
+        if tag_name:
+            return tag_name
+    return None
+
+
+
+def _tag_commit(*, repo_root: Path, tag_name: str) -> str:
+    proc = _run_git(["rev-list", "-n", "1", tag_name], cwd=repo_root)
+    commit = proc.stdout.strip()
+    if not commit:
+        raise UploadProfilesError(f"tag does not resolve to a commit: {tag_name}")
+    return commit
+
+
+
+def _prefix_from_glob(pattern: str) -> str:
+    if not pattern.endswith("*") or "*" in pattern[:-1]:
+        raise UploadProfilesError(f"unsupported tag glob: {pattern}")
+    return pattern[:-1]
+
+
+
+def _tracked_paths(scope: Path) -> list[Path]:
+    profiles_root = Path(scope).expanduser().resolve()
+    git_repo = repo.discover_repo(profiles_root)
+    proc = _run_git(["ls-files", "--", str(git_repo.relpath(profiles_root))], cwd=git_repo.root)
+    return [
+        (git_repo.root / line.strip()).resolve()
+        for line in proc.stdout.splitlines()
+        if line.strip()
+    ]
+
+
+
+def _paths_within_scope(paths: list[Path], scope: Path) -> set[Path]:
+    resolved_scope = Path(scope).expanduser().resolve()
+    selected: set[Path] = set()
+    for raw_path in paths:
+        path = Path(raw_path).expanduser().resolve()
+        try:
+            path.relative_to(resolved_scope)
+        except ValueError:
+            continue
+        selected.add(path)
+    return selected
+
+
+
+def _dirty_paths(git_repo: repo.GitRepo, scope: Path, *, include_untracked: bool) -> set[Path]:
+    selected: set[Path] = set()
+    for entry in git_repo.status_for_paths([scope], include_untracked=include_untracked):
+        if entry.is_ignored or not entry.is_dirty:
+            continue
+        if not include_untracked and entry.is_untracked:
+            continue
+        try:
+            entry.path.relative_to(scope)
+        except ValueError:
+            continue
+        selected.add(entry.path)
+    return selected
+
+
+
+def _untracked_paths(git_repo: repo.GitRepo, scope: Path) -> set[Path]:
+    selected: set[Path] = set()
+    for entry in git_repo.status_for_paths([scope], include_untracked=True):
+        if entry.is_ignored or not entry.is_untracked:
+            continue
+        try:
+            entry.path.relative_to(scope)
+        except ValueError:
+            continue
+        selected.add(entry.path)
+    return selected
 
 
 if __name__ == "__main__":

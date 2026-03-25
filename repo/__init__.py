@@ -37,6 +37,7 @@ and workflow safety:
 """
 
 from .authoring import (
+    BatchReceipt,
     DEFAULT_GITIGNORE_TEXT,
     FailedReceipt,
     InflightReceipt,
@@ -55,8 +56,10 @@ from .authoring import (
     is_dirty,
     is_file_dirty,
     needs_upload,
+    read_batch_tag,
     read_tag,
     read_upload_tag,
+    write_batch_tag,
     write_failed_tag,
     write_gitignore,
     write_inflight_tag,
@@ -90,6 +93,7 @@ __all__ = [
     "GitHead",
     "GitStatusEntry",
     "GitTag",
+    "BatchReceipt",
     "DEFAULT_GITIGNORE_TEXT",
     "SubmitReceipt",
     "InflightReceipt",
@@ -105,7 +109,9 @@ __all__ = [
     "write_submit_tag",
     "write_inflight_tag",
     "write_landed_tag",
+    "write_batch_tag",
     "write_failed_tag",
+    "read_batch_tag",
     "read_tag",
     "find_matching_submit_tag",
     "find_latest_inflight_tag",

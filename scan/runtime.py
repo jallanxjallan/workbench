@@ -125,6 +125,8 @@ def _iter_rg_records(
         if process.poll() is None:
             process.kill()
         process.wait()
+        process.stdout.close()
+        process.stderr.close()
 
     if states:
         raise RipgrepError("incomplete ripgrep output: missing end event")

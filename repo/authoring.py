@@ -32,6 +32,10 @@ class SubmitReceipt:
     paths_rel: list[str]
     vault_root: str | None = None
     vault_id: str | None = None
+    paths_abs: list[str] | None = None
+    cwd: str | None = None
+    manifest_path: str | None = None
+    manifest_hash: str | None = None
     tag_name: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
@@ -48,6 +52,14 @@ class SubmitReceipt:
             payload["vault_root"] = self.vault_root
         if self.vault_id is not None:
             payload["vault_id"] = self.vault_id
+        if self.paths_abs is not None:
+            payload["paths_abs"] = list(self.paths_abs)
+        if self.cwd is not None:
+            payload["cwd"] = self.cwd
+        if self.manifest_path is not None:
+            payload["manifest_path"] = self.manifest_path
+        if self.manifest_hash is not None:
+            payload["manifest_hash"] = self.manifest_hash
         return payload
 
     @classmethod
@@ -67,6 +79,10 @@ class SubmitReceipt:
             paths_rel=_require_str_list(payload, "paths_rel"),
             vault_root=_optional_str(payload, "vault_root"),
             vault_id=_optional_str(payload, "vault_id"),
+            paths_abs=_optional_str_list(payload, "paths_abs"),
+            cwd=_optional_str(payload, "cwd"),
+            manifest_path=_optional_str(payload, "manifest_path"),
+            manifest_hash=_optional_str(payload, "manifest_hash"),
             tag_name=tag_name,
         )
 
@@ -177,6 +193,9 @@ class FailedReceipt:
     paths_rel: list[str]
     vault_root: str | None = None
     vault_id: str | None = None
+    failed_at: str | None = None
+    paths_abs: list[str] | None = None
+    submit_receipt: str | None = None
     tag_name: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
@@ -194,6 +213,12 @@ class FailedReceipt:
             payload["vault_root"] = self.vault_root
         if self.vault_id is not None:
             payload["vault_id"] = self.vault_id
+        if self.failed_at is not None:
+            payload["failed_at"] = self.failed_at
+        if self.paths_abs is not None:
+            payload["paths_abs"] = list(self.paths_abs)
+        if self.submit_receipt is not None:
+            payload["submit_receipt"] = self.submit_receipt
         return payload
 
     @classmethod
@@ -204,9 +229,13 @@ class FailedReceipt:
         tag_name: str | None = None,
     ) -> "FailedReceipt":
         _require_type(payload, "failed")
+        created_at = _optional_str(payload, "created_at")
+        failed_at = _optional_str(payload, "failed_at")
+        if created_at is None and failed_at is None:
+            raise ReceiptError("failed receipt must include created_at or failed_at")
         return cls(
             receipt_id=_require_str(payload, "receipt_id"),
-            created_at=_require_str(payload, "created_at"),
+            created_at=created_at or failed_at,
             commit=_require_str(payload, "commit"),
             error=_require_str(payload, "error"),
             record_count=_require_int(payload, "record_count"),
@@ -214,6 +243,61 @@ class FailedReceipt:
             paths_rel=_require_str_list(payload, "paths_rel"),
             vault_root=_optional_str(payload, "vault_root"),
             vault_id=_optional_str(payload, "vault_id"),
+            failed_at=failed_at,
+            paths_abs=_optional_str_list(payload, "paths_abs"),
+            submit_receipt=_optional_str(payload, "submit_receipt"),
+            tag_name=tag_name,
+        )
+
+
+@dataclass(frozen=True)
+class BatchReceipt:
+    batch_id: str
+    confirmed_at: str
+    submit_receipt: str
+    commit: str
+    record_count: int
+    slugs: list[str]
+    paths_rel: list[str]
+    paths_abs: list[str] | None = None
+    vault_root: str | None = None
+    tag_name: str | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "type": "batch",
+            "batch_id": self.batch_id,
+            "confirmed_at": self.confirmed_at,
+            "submit_receipt": self.submit_receipt,
+            "commit": self.commit,
+            "record_count": self.record_count,
+            "slugs": list(self.slugs),
+            "paths_rel": list(self.paths_rel),
+        }
+        if self.paths_abs is not None:
+            payload["paths_abs"] = list(self.paths_abs)
+        if self.vault_root is not None:
+            payload["vault_root"] = self.vault_root
+        return payload
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: dict[str, Any],
+        *,
+        tag_name: str | None = None,
+    ) -> "BatchReceipt":
+        _require_type(payload, "batch")
+        return cls(
+            batch_id=_require_str(payload, "batch_id"),
+            confirmed_at=_require_str(payload, "confirmed_at"),
+            submit_receipt=_require_str(payload, "submit_receipt"),
+            commit=_require_str(payload, "commit"),
+            record_count=_require_int(payload, "record_count"),
+            slugs=_require_str_list(payload, "slugs"),
+            paths_rel=_require_str_list(payload, "paths_rel"),
+            paths_abs=_optional_str_list(payload, "paths_abs"),
+            vault_root=_optional_str(payload, "vault_root"),
             tag_name=tag_name,
         )
 
@@ -393,6 +477,16 @@ def write_failed_tag(repo_root: Path, receipt: FailedReceipt) -> str:
     )
 
 
+def write_batch_tag(repo_root: Path, receipt: BatchReceipt) -> str:
+    payload = receipt.to_payload()
+    return _write_annotated_tag_json(
+        repo_root,
+        _batch_tag_name(receipt.batch_id),
+        _require_str(payload, "commit"),
+        payload,
+    )
+
+
 def read_tag(repo_root: Path, tag_name: str) -> dict[str, Any]:
     root = _normalize_repo_root(repo_root)
     return _read_tag_json(root, tag_name)
@@ -457,6 +551,11 @@ def find_latest_upload_tag(repo_root: Path, family: str | None = None) -> Upload
 def read_upload_tag(repo_root: Path, tag_name: str) -> UploadReceipt:
     root = _normalize_repo_root(repo_root)
     return UploadReceipt.from_payload(_read_tag_json(root, tag_name), tag_name=tag_name)
+
+
+def read_batch_tag(repo_root: Path, tag_name: str) -> BatchReceipt:
+    root = _normalize_repo_root(repo_root)
+    return BatchReceipt.from_payload(_read_tag_json(root, tag_name), tag_name=tag_name)
 
 
 def file_content_hash(path: Path) -> str:
@@ -549,6 +648,10 @@ def _submit_tag_name(receipt_id: str) -> str:
 
 def _failed_tag_name(receipt_id: str) -> str:
     return f"failed/{_sanitize_ref_component(receipt_id)}"
+
+
+def _batch_tag_name(batch_id: str) -> str:
+    return f"batch/{_sanitize_ref_component(batch_id)}"
 
 
 def _state_tag_name(prefix: str, slug: str, created_at: str) -> str:
@@ -690,6 +793,15 @@ def _optional_str(payload: dict[str, Any], key: str) -> str | None:
     if not isinstance(value, str) or not value:
         raise ReceiptError(f"receipt field '{key}' must be a string when present")
     return value
+
+
+def _optional_str_list(payload: dict[str, Any], key: str) -> list[str] | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise ReceiptError(f"receipt field '{key}' must be a list of strings when present")
+    return list(value)
 
 
 def _require_int(payload: dict[str, Any], key: str) -> int:

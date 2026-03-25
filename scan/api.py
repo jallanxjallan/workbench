@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Iterable
 
 from .command import rg_build_command
 from .config import DEFAULT_EXCLUDE_DIRS, DEFAULT_EXTENSIONS
+from .errors import RipgrepError
 from .normalize import (
     _normalize_candidate_files,
     _normalize_exclude,
@@ -69,3 +71,37 @@ def rg_search(
         exclude_dirs=[],
     )
     return list(_iter_rg_records(cmd=cmd, pattern=pattern))
+
+
+def resolve_slug_to_filepath(
+    slug: str,
+    root: Path,
+    *,
+    exclude_dirs: list[str] | None = None,
+) -> Path:
+    """Resolve a slug to exactly one markdown filepath within ``root``."""
+    normalized_root = _normalize_root(root)
+    pattern = rf"^slug:\s*{re.escape(slug)}\s*$"
+    records = rg_search(
+        pattern=pattern,
+        root=normalized_root,
+        exclude_dirs=exclude_dirs,
+    )
+
+    unique_paths: list[Path] = []
+    seen: set[Path] = set()
+    for record in records:
+        candidate = record.get("path")
+        if not isinstance(candidate, Path):
+            raise RipgrepError("invalid ripgrep match record: missing path")
+        normalized = candidate.expanduser().resolve()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_paths.append(normalized)
+
+    if len(unique_paths) != 1:
+        raise ValueError(
+            f"slug must resolve to exactly one filepath: {slug} ({len(unique_paths)} matches)"
+        )
+    return unique_paths[0]

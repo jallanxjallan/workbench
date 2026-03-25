@@ -21,6 +21,7 @@ app = typer.Typer(
 )
 
 
+
 def _dispatch(command_name: str, argv: list[str] | None = None) -> int:
     module = load_command_module(command_name)
     command_main = getattr(module, "main", None)
@@ -37,10 +38,17 @@ def _dispatch(command_name: str, argv: list[str] | None = None) -> int:
     return int(result)
 
 
+
 def _run_passthrough(command_name: str, ctx: typer.Context) -> None:
     code = _dispatch(command_name, list(ctx.args))
     if code != 0:
         raise typer.Exit(code=code)
+
+
+@app.command("confirm-upload", context_settings=_PASSTHROUGH_SETTINGS)
+def confirm_upload_command(ctx: typer.Context) -> None:
+    _run_passthrough("confirm-upload", ctx)
+
 
 @app.command("create-vault", context_settings=_PASSTHROUGH_SETTINGS)
 def create_vault_command(ctx: typer.Context) -> None:
@@ -65,6 +73,7 @@ def writeback_command(ctx: typer.Context) -> None:
 @app.command("writenew", context_settings=_PASSTHROUGH_SETTINGS)
 def writenew_command(ctx: typer.Context) -> None:
     _run_passthrough("writenew", ctx)
+
 
 
 def main(argv: list[str] | None = None) -> int:

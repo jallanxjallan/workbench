@@ -1,9 +1,7 @@
 """Vault and path validation helpers."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
-
 
 
 class PathError(RuntimeError):
@@ -11,7 +9,11 @@ class PathError(RuntimeError):
 
 
 class VaultRuntimeError(RuntimeError):
-    """Raised when vault registry data cannot be resolved."""
+    """Raised when runtime vault discovery fails."""
+
+
+class VaultValidationError(RuntimeError):
+    pass
 
 
 def normalize_vault_name(vault_name: str) -> str:
@@ -22,9 +24,6 @@ def normalize_vault_name(vault_name: str) -> str:
     if "/" in normalized or "\\" in normalized:
         raise ValueError("ERROR: Vault name must not contain '/'.")
     return normalized
-
-class VaultValidationError(RuntimeError):
-    pass
 
 
 def has_obsidian_dir(path: Path) -> bool:
@@ -41,4 +40,24 @@ def validate_vault(path: Path) -> Path:
     if not has_obsidian_dir(root):
         raise VaultValidationError(f"Not a valid vault: {root}")
 
+    return root
+
+
+def find_vault_root(start: Path | None = None) -> Path | None:
+    current = Path.cwd() if start is None else Path(start)
+    current = current.expanduser().resolve()
+    if current.exists() and current.is_file():
+        current = current.parent
+
+    for candidate in (current, *current.parents):
+        if has_obsidian_dir(candidate):
+            return candidate
+    return None
+
+
+def require_vault_root(start: Path | None = None) -> Path:
+    root = find_vault_root(start)
+    if root is None:
+        origin = (Path.cwd() if start is None else Path(start)).expanduser().resolve()
+        raise VaultRuntimeError(f"no vault root found from {origin}")
     return root

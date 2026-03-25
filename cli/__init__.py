@@ -7,6 +7,7 @@ from types import ModuleType
 
 
 COMMAND_MODULES: dict[str, str] = {
+    "confirm-upload": "cli.confirm_upload",
     "create-vault": "cli.create_vault",
     "slug_filepaths": "cli.slug_filepaths",
     "stream": "cli.stream",
@@ -17,8 +18,10 @@ COMMAND_MODULES: dict[str, str] = {
 }
 
 
+
 def discover_commands() -> dict[str, str]:
     return dict(COMMAND_MODULES)
+
 
 
 def load_command_module(command_name: str) -> ModuleType:
