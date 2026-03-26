@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -8,6 +9,18 @@ from typing import Any, TextIO
 import yaml
 
 from transport import read_all_records
+
+
+DEFAULT_TEMPLATE_PATH = Path(
+    "/home/jeremy/Workspace/Tools/pandoc/templates/content.markdown"
+)
+
+_TEMPLATE_FIELD_RE = re.compile(
+    r"\$(?:if|for)\(([A-Za-z][A-Za-z0-9_.-]*)\)\$"
+    r"|\$([A-Za-z][A-Za-z0-9_.-]*)\$"
+)
+
+_MISSING = object()
 
 
 class WriteNewError(Exception):
@@ -47,6 +60,19 @@ def _resolve_target_dir(
     return target
 
 
+def _resolve_template_path(template_path: str | Path | None = None) -> Path:
+    path = Path(template_path).expanduser() if template_path is not None else DEFAULT_TEMPLATE_PATH
+    path = path.resolve()
+
+    if not path.exists():
+        raise WriteNewError(f"Template does not exist: {path}")
+
+    if not path.is_file():
+        raise WriteNewError(f"Template path is not a file: {path}")
+
+    return path
+
+
 def _slug_from_record(record: dict[str, Any]) -> str:
     input_record = _require_dict(record.get("input_record"), field_name="input_record")
     return _require_nonempty_string(input_record.get("slug"), field_name="input_record.slug")
@@ -73,26 +99,108 @@ def _content_from_record(record: dict[str, Any]) -> str:
     return _require_nonempty_string(record.get("content"), field_name="content")
 
 
-def _metadata_from_record(record: dict[str, Any]) -> dict[str, Any]:
+def _template_fields(template_path: Path) -> set[str]:
+    text = template_path.read_text(encoding="utf-8")
+    fields: set[str] = set()
+
+    for conditional_name, plain_name in _TEMPLATE_FIELD_RE.findall(text):
+        name = conditional_name or plain_name
+        if not name:
+            continue
+        fields.add(name)
+
+    return fields
+
+
+def _lookup_nested(mapping: dict[str, Any], dotted_key: str) -> Any:
+    current: Any = mapping
+
+    for part in dotted_key.split("."):
+        if not isinstance(current, dict):
+            return _MISSING
+        if part not in current:
+            return _MISSING
+        current = current[part]
+
+    return current
+
+
+def _store_nested(mapping: dict[str, Any], dotted_key: str, value: Any) -> None:
+    parts = dotted_key.split(".")
+    current = mapping
+
+    for part in parts[:-1]:
+        existing = current.get(part)
+
+        if existing is None:
+            child: dict[str, Any] = {}
+            current[part] = child
+            current = child
+            continue
+
+        if not isinstance(existing, dict):
+            child = {}
+            current[part] = child
+            current = child
+            continue
+
+        current = existing
+
+    current[parts[-1]] = value
+
+
+def _metadata_from_record(
+    record: dict[str, Any],
+    *,
+    template_path: Path,
+) -> dict[str, Any]:
     input_record = _require_dict(record.get("input_record"), field_name="input_record")
     if not input_record:
         raise WriteNewError("input_record must be non-empty.")
-    return input_record
+
+    allowed_fields = _template_fields(template_path)
+    if not allowed_fields:
+        return {}
+
+    filtered: dict[str, Any] = {}
+
+    for field_name in sorted(allowed_fields, key=lambda value: (value.count("."), value)):
+        value = _lookup_nested(input_record, field_name)
+        if value is _MISSING:
+            continue
+        _store_nested(filtered, field_name, value)
+
+    return filtered
+
+
+_FILENAME_WORD_RE = re.compile(r"[\s_-]+")
+
+
+def _title_case_stem(stem: str) -> str:
+    words = [word for word in _FILENAME_WORD_RE.split(stem.strip()) if word]
+    if not words:
+        return stem.strip()
+    return " ".join(word[:1].upper() + word[1:] for word in words)
 
 
 def _normalize_filename(filename_hint: str) -> str:
-    filename = Path(filename_hint).name.strip()
+    leaf = Path(filename_hint).name.strip()
 
-    if not filename:
+    if not leaf:
         raise WriteNewError("Filename hint resolves to an empty filename.")
 
-    if filename in {".", ".."}:
+    if leaf in {".", ".."}:
         raise WriteNewError(f"Invalid filename hint: {filename_hint}")
 
-    if not filename.endswith(".md"):
-        filename = f"{filename}.md"
+    path = Path(leaf)
+    stem = path.stem.strip()
+    suffix = path.suffix or ".md"
 
-    return filename
+    if not stem:
+        raise WriteNewError(f"Invalid filename hint: {filename_hint}")
+
+    titled_stem = _title_case_stem(stem)
+    return f"{titled_stem}{suffix}"
 
 
 def _destination_for_record(record: dict[str, Any], *, target_dir: Path) -> Path:
@@ -115,6 +223,7 @@ def _render_with_pandoc(
     content: str,
     metadata: dict[str, Any],
     destination: Path,
+    template_path: Path,
     pandoc_bin: str = "pandoc",
 ) -> None:
     with tempfile.NamedTemporaryFile(
@@ -140,6 +249,8 @@ def _render_with_pandoc(
                 "--to",
                 "markdown",
                 "--standalone",
+                "--template",
+                str(template_path),
                 "--metadata-file",
                 str(metadata_path),
                 "--output",
@@ -169,19 +280,22 @@ def writenew_record(
     record: dict[str, Any],
     *,
     target_dir: Path,
+    template_path: Path | None = None,
     pandoc_bin: str = "pandoc",
 ) -> Path:
     if not isinstance(record, dict):
         raise WriteNewError("Record must be a dict.")
 
+    resolved_template_path = _resolve_template_path(template_path)
     destination = _destination_for_record(record, target_dir=target_dir)
     content = _content_from_record(record)
-    metadata = _metadata_from_record(record)
+    metadata = _metadata_from_record(record, template_path=resolved_template_path)
 
     _render_with_pandoc(
         content=content,
         metadata=metadata,
         destination=destination,
+        template_path=resolved_template_path,
         pandoc_bin=pandoc_bin,
     )
     return destination
@@ -207,6 +321,7 @@ def run_writenew(
     *,
     cwd: Path | None = None,
     target_dir: str | Path | None = None,
+    template_path: str | Path | None = None,
     overrides: dict[str, object] | None = None,
     pandoc_bin: str = "pandoc",
 ) -> None:
@@ -214,6 +329,7 @@ def run_writenew(
         raise WriteNewError("--set overrides are not supported by writenew")
 
     resolved_target_dir = _resolve_target_dir(cwd=cwd, target_dir=target_dir)
+    resolved_template_path = _resolve_template_path(template_path)
 
     try:
         records = read_all_records(input_stream)
@@ -225,6 +341,7 @@ def run_writenew(
             writenew_record(
                 record,
                 target_dir=resolved_target_dir,
+                template_path=resolved_template_path,
                 pandoc_bin=pandoc_bin,
             )
         except WriteNewError as exc:
@@ -236,12 +353,14 @@ def writenew_stream(
     *,
     cwd: Path | None = None,
     target_dir: str | Path | None = None,
+    template_path: str | Path | None = None,
     overrides: dict[str, object] | None = None,
 ) -> None:
     run_writenew(
         input_stream,
         cwd=cwd,
         target_dir=target_dir,
+        template_path=template_path,
         overrides=overrides,
     )
 
@@ -252,6 +371,7 @@ def prepare_writenew_stream(
     *,
     cwd: Path | None = None,
     target_dir: str | Path | None = None,
+    template_path: str | Path | None = None,
     overrides: dict[str, object] | None = None,
 ) -> None:
     del output_stream
@@ -259,5 +379,6 @@ def prepare_writenew_stream(
         input_stream,
         cwd=cwd,
         target_dir=target_dir,
+        template_path=template_path,
         overrides=overrides,
     )

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import json
+from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
-# Placeholder imports for Codex to reconcile against the real tree.
-from repo import file_is_dirty
-from resolve import resolve_slug_to_filepath
+import repo
+from scan import resolve_slug_to_filepath
+from transport import read_all_records, write_records
+from vault.validate import require_vault_root
 
 
 class WriteBackError(Exception):
@@ -45,7 +46,16 @@ def _resolve_existing_file(path_value: str | Path) -> Path:
     return path
 
 
-def prepare_writeback_record(record: dict[str, Any]) -> dict[str, Any]:
+def _resolve_vault_root(vault_root: str | Path | None) -> Path:
+    origin = Path.cwd() if vault_root is None else Path(vault_root)
+    return require_vault_root(origin)
+
+
+def prepare_writeback_record(
+    record: dict[str, Any],
+    *,
+    vault_root: str | Path | None = None,
+) -> dict[str, Any]:
     """
     Prepare one NDJSON record for writeback.
 
@@ -61,10 +71,11 @@ def prepare_writeback_record(record: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise WriteBackError("Record must be a dict.")
 
+    root = _resolve_vault_root(vault_root)
     slug = _slug_from_record(record)
-    destination = _resolve_existing_file(resolve_slug_to_filepath(slug))
+    destination = _resolve_existing_file(resolve_slug_to_filepath(slug, root))
 
-    if file_is_dirty(destination):
+    if repo.is_file_dirty(root, destination):
         raise WriteBackError(f"Writeback target is dirty: {destination}")
 
     prepared = dict(record)
@@ -76,7 +87,11 @@ def prepare_writeback_record(record: dict[str, Any]) -> dict[str, Any]:
     return prepared
 
 
-def prepare_writeback_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def prepare_writeback_records(
+    records: list[dict[str, Any]],
+    *,
+    vault_root: str | Path | None = None,
+) -> list[dict[str, Any]]:
     """
     Prepare multiple NDJSON records for writeback.
 
@@ -86,7 +101,12 @@ def prepare_writeback_records(records: list[dict[str, Any]]) -> list[dict[str, A
 
     for index, record in enumerate(records, start=1):
         try:
-            prepared.append(prepare_writeback_record(record))
+            prepared.append(
+                prepare_writeback_record(
+                    record,
+                    vault_root=vault_root,
+                )
+            )
         except WriteBackError as exc:
             raise WriteBackError(f"Record {index}: {exc}") from exc
 
@@ -99,46 +119,45 @@ def read_ndjson(stream: str) -> list[dict[str, Any]]:
 
     Blank lines are ignored.
     """
-    records: list[dict[str, Any]] = []
-
-    for line_number, line in enumerate(stream.splitlines(), start=1):
-        stripped = line.strip()
-        if not stripped:
-            continue
-
-        try:
-            record = json.loads(stripped)
-        except json.JSONDecodeError as exc:
-            raise WriteBackError(
-                f"Invalid NDJSON at line {line_number}: {exc.msg}"
-            ) from exc
-
-        if not isinstance(record, dict):
-            raise WriteBackError(
-                f"NDJSON line {line_number} must decode to an object."
-            )
-
-        records.append(record)
-
-    return records
+    try:
+        return read_all_records(StringIO(stream))
+    except ValueError as exc:
+        raise WriteBackError(str(exc)) from exc
 
 
 def write_ndjson(records: list[dict[str, Any]]) -> str:
     """
     Serialize prepared records back to NDJSON.
     """
-    return "\n".join(
-        json.dumps(record, ensure_ascii=False, separators=(",", ":"))
-        for record in records
-    )
+    output = StringIO()
+    write_records(output, records)
+    return output.getvalue()
 
 
-def prepare_writeback_ndjson(stream: str) -> str:
+def prepare_writeback_ndjson(
+    stream: str,
+    *,
+    vault_root: str | Path | None = None,
+) -> str:
     """
     Read NDJSON, prepare every record for writeback, and emit NDJSON.
 
     This is the main module-level entry point for a future CLI wrapper.
     """
     records = read_ndjson(stream)
-    prepared = prepare_writeback_records(records)
+    prepared = prepare_writeback_records(records, vault_root=vault_root)
     return write_ndjson(prepared)
+
+
+def prepare_writeback_stream(
+    input_stream: TextIO,
+    output_stream: TextIO,
+    *,
+    vault_root: str | Path | None = None,
+) -> None:
+    output_stream.write(
+        prepare_writeback_ndjson(
+            input_stream.read(),
+            vault_root=vault_root,
+        )
+    )
