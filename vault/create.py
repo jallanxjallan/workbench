@@ -5,11 +5,13 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-import repo  # Codex can resolve the exact local import
-
-from config.roots import OBSIDIAN_CONTROL_ROOT, OBSIDIAN_CORE_ROOT
+from config.manifest import load_config
+import repo
 from vault.validate import has_obsidian_dir
 
+
+MANIFEST_KEY_CONTROL_ROOT = "vault_control_root"
+MANIFEST_KEY_VAULT_TEMPLATE_ROOT = "vault_template_root"
 
 STATUS_CREATED = "created"
 STATUS_INITIALIZED = "initialized"
@@ -26,14 +28,16 @@ class CreateVaultResult:
     control_link_created: bool
 
 
-def _validate_required_directory(path: Path) -> None:
-    if not path.exists() or not path.is_dir():
-        raise CreateVaultError(f"Required directory is missing: {path}")
+def _manifest_path(config: object, key: str) -> Path:
+    value = config.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise CreateVaultError(f"manifest is missing required path config: {key}")
 
+    path = Path(value)
+    if not path.is_absolute():
+        raise CreateVaultError(f"manifest path must be absolute for {key}: {path}")
 
-def _validate_preconditions() -> None:
-    _validate_required_directory(OBSIDIAN_CORE_ROOT)
-    _validate_required_directory(OBSIDIAN_CONTROL_ROOT)
+    return path
 
 
 def _resolve_target(path: str | Path | None = None, *, cwd: Path | None = None) -> Path:
@@ -47,16 +51,12 @@ def _resolve_target(path: str | Path | None = None, *, cwd: Path | None = None) 
     return candidate.resolve()
 
 
-def _copy_core_tree(vault_path: Path) -> None:
-    core_root = OBSIDIAN_CORE_ROOT.expanduser().resolve()
-    if not core_root.exists() or not core_root.is_dir():
-        raise CreateVaultError(f"Required core directory is missing: {core_root}")
-
-    for source in sorted(core_root.iterdir()):
+def _copy_template_tree(template_root: Path, vault_path: Path) -> None:
+    for source in sorted(template_root.iterdir()):
         destination = vault_path / source.name
 
         if destination.exists() or destination.is_symlink():
-            raise CreateVaultError(f"Core copy would overwrite existing path: {destination}")
+            raise CreateVaultError(f"Vault template copy would overwrite existing path: {destination}")
 
         if source.is_dir():
             shutil.copytree(source, destination, symlinks=True)
@@ -67,9 +67,7 @@ def _copy_core_tree(vault_path: Path) -> None:
 def _ensure_gitignore(vault_path: Path) -> None:
     gitignore_path = vault_path / ".gitignore"
     if gitignore_path.exists() and gitignore_path.is_dir():
-        raise CreateVaultError(
-            f"Unsafe path exists and is a directory: {gitignore_path}"
-        )
+        raise CreateVaultError(f"Unsafe path exists and is a directory: {gitignore_path}")
 
     try:
         repo.write_gitignore(vault_path, repo.DEFAULT_GITIGNORE_TEXT)
@@ -77,15 +75,13 @@ def _ensure_gitignore(vault_path: Path) -> None:
         raise CreateVaultError(f"Failed to create .gitignore: {exc}") from exc
 
 
-def _ensure_control_symlink(vault_path: Path) -> bool:
+def _ensure_control_symlink(vault_path: Path, control_root: Path) -> bool:
     link_path = vault_path / "_control"
-    control_target = OBSIDIAN_CONTROL_ROOT.resolve()
+    control_target = control_root.resolve()
 
     if link_path.exists() or link_path.is_symlink():
         if not link_path.is_symlink():
-            raise CreateVaultError(
-                f"Unsafe existing _control path (not symlink): {link_path}"
-            )
+            raise CreateVaultError(f"Unsafe existing _control path (not symlink): {link_path}")
 
         resolved = link_path.resolve(strict=False)
         if resolved != control_target:
@@ -104,8 +100,17 @@ def create_vault(
     *,
     cwd: Path | None = None,
 ) -> CreateVaultResult:
-    _validate_preconditions()
+    config = load_config()
+
+    control_root = _manifest_path(config, MANIFEST_KEY_CONTROL_ROOT)
+    template_root = _manifest_path(config, MANIFEST_KEY_VAULT_TEMPLATE_ROOT)
     target = _resolve_target(path, cwd=cwd)
+
+    if not control_root.is_dir():
+        raise CreateVaultError(f"Required directory is missing: {control_root}")
+
+    if not template_root.is_dir():
+        raise CreateVaultError(f"Required directory is missing: {template_root}")
 
     if target.exists() and not target.is_dir():
         raise CreateVaultError(f"Vault path exists and is not a directory: {target}")
@@ -119,9 +124,9 @@ def create_vault(
         raise CreateVaultError(f"Vault already exists: {target}")
 
     try:
-        _copy_core_tree(target)
+        _copy_template_tree(template_root, target)
         _ensure_gitignore(target)
-        control_link_created = _ensure_control_symlink(target)
+        control_link_created = _ensure_control_symlink(target, control_root)
     except Exception as exc:
         if created_dir and target.exists() and not has_obsidian_dir(target):
             shutil.rmtree(target, ignore_errors=True)
