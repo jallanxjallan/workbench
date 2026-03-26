@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
 
-import yaml
+from intake.writenew import (
+    WriteNewError,
+    parse_top_level_overrides,
+    prepare_writenew_stream,
+)
 
-from _depreciated.document_files import has_piped_stdin
-from write.common import WriteError
-from write.create import run
-
-DEFAULT_TARGET_SUBDIR = "_ingest"
-DEFAULT_TEMPLATE_ID = "content"
-DEFAULT_KIND = "passage"
+def _has_piped_stdin() -> bool:
+    try:
+        return not sys.stdin.isatty()
+    except OSError:
+        return True
 
 
 def parser() -> argparse.ArgumentParser:
@@ -36,46 +37,25 @@ def parser() -> argparse.ArgumentParser:
     )
     return command_parser
 
-
-def default_target_dir(cwd: Path | None = None) -> Path:
-    base = cwd or Path.cwd()
-    return base / DEFAULT_TARGET_SUBDIR
-
-
-def parse_overrides(items: list[str]) -> dict[str, object]:
-    parsed: dict[str, object] = {}
-    for item in items:
-        if "=" not in item:
-            raise WriteError(f"invalid --set override (expected KEY=VALUE): {item}")
-        key, raw_value = item.split("=", 1)
-        normalized_key = key.strip()
-        if not normalized_key:
-            raise WriteError(f"invalid --set override (empty key): {item}")
-        try:
-            value = yaml.safe_load(raw_value)
-        except Exception as exc:
-            raise WriteError(f"invalid --set override for {normalized_key}: {exc}") from exc
-        parsed[normalized_key] = value
-    return parsed
-
-
 def main(argv: list[str] | None = None) -> int:
     command_parser = parser()
     args = command_parser.parse_args(argv)
 
-    if not has_piped_stdin(sys.stdin):
+    if not _has_piped_stdin():
         command_parser.print_usage(sys.stderr)
         print("ERROR: expected canonical NDJSON input from stdin", file=sys.stderr)
         return 1
 
     try:
-        run(
-            input_stream=sys.stdin,
+        prepare_writenew_stream(
+            sys.stdin,
+            sys.stdout,
+            cwd=None,
             target_dir=args.target_dir,
-            overrides=parse_overrides(args.overrides),
+            overrides=parse_top_level_overrides(args.overrides),
         )
         return 0
-    except WriteError as exc:
+    except WriteNewError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     except OSError as exc:
