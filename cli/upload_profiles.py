@@ -5,8 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from upload.profiles import UploadProfilesError, upload_profiles
-
+import upload.profiles as source
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -16,12 +15,11 @@ def _parser() -> argparse.ArgumentParser:
     )
 
 
-
 def main(argv: list[str] | None = None) -> int:
     _parser().parse_args(argv)
     try:
-        return upload_profiles()
-    except UploadProfilesError as exc:
+        return int(source.main())
+    except source.UploadProfilesSimpleError as exc:
         print(f"upload-profiles: {exc}", file=sys.stderr)
         return 1
 
