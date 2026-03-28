@@ -11,8 +11,7 @@ COMMAND_MODULES: dict[str, str] = {
     "create-vault": "cli.create_vault",
     "slug_filepaths": "cli.slug_filepaths",
     "stream": "cli.stream",
-    "upload-package": "cli.upload_package",
-    "upload-profiles": "cli.upload_profiles",
+    "upload": "cli.upload",
     "writeback": "cli.writeback",
     "writenew": "cli.writenew",
 }

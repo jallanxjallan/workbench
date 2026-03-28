@@ -21,7 +21,6 @@ app = typer.Typer(
 )
 
 
-
 def _dispatch(command_name: str, argv: list[str] | None = None) -> int:
     module = load_command_module(command_name)
     command_main = getattr(module, "main", None)
@@ -33,10 +32,10 @@ def _dispatch(command_name: str, argv: list[str] | None = None) -> int:
     except SystemExit as exc:
         code = exc.code
         return int(code if isinstance(code, int) else 1)
+
     if result is None:
         return 0
     return int(result)
-
 
 
 def _run_passthrough(command_name: str, ctx: typer.Context) -> None:
@@ -56,13 +55,18 @@ def create_vault_command(ctx: typer.Context) -> None:
 
 
 @app.command("slug_filepaths", context_settings=_PASSTHROUGH_SETTINGS)
-def slugs_to_files_command(ctx: typer.Context) -> None:
+def slug_filepaths_command(ctx: typer.Context) -> None:
     _run_passthrough("slug_filepaths", ctx)
 
 
 @app.command("stream", context_settings=_PASSTHROUGH_SETTINGS)
 def stream_command(ctx: typer.Context) -> None:
     _run_passthrough("stream", ctx)
+
+
+@app.command("upload", context_settings=_PASSTHROUGH_SETTINGS)
+def upload_command(ctx: typer.Context) -> None:
+    _run_passthrough("upload", ctx)
 
 
 @app.command("writeback", context_settings=_PASSTHROUGH_SETTINGS)
@@ -73,7 +77,6 @@ def writeback_command(ctx: typer.Context) -> None:
 @app.command("writenew", context_settings=_PASSTHROUGH_SETTINGS)
 def writenew_command(ctx: typer.Context) -> None:
     _run_passthrough("writenew", ctx)
-
 
 
 def main(argv: list[str] | None = None) -> int:
