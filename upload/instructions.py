@@ -22,13 +22,37 @@ def discover_instruction_paths(cwd: Path | None = None) -> list[Path]:
     current_cwd = (Path.cwd() if cwd is None else Path(cwd)).expanduser().resolve()
     vault_root = validate_vault(current_cwd)
 
-    matches = rg_search(
+    records = rg_search(
         pattern=INSTRUCTION_SLUG_PATTERN,
         root=vault_root,
         extensions=MARKDOWN_EXTENSIONS,
         exclude_dirs=SCAN_EXCLUDE_DIRS,
     )
-    return _paths_from_matches(matches, vault_root)
+
+    paths: list[Path] = []
+    seen: set[Path] = set()
+
+    for record in records:
+        candidate = record.get("path")
+        if not isinstance(candidate, Path):
+            raise UploadInstructionsError("scan returned a match without a path")
+
+        normalized = candidate.expanduser().resolve()
+        if normalized in seen:
+            continue
+
+        try:
+            normalized.relative_to(vault_root)
+        except ValueError:
+            continue
+
+        if not normalized.is_file():
+            continue
+
+        seen.add(normalized)
+        paths.append(normalized)
+
+    return sorted(paths)
 
 
 def iter_instruction_jobs(cwd: Path | None = None) -> list[PandocJob]:
@@ -63,36 +87,6 @@ def main() -> int:
         return 1
 
     return 0
-
-
-def _paths_from_matches(
-    matches: list[dict[str, object]],
-    vault_root: Path,
-) -> list[Path]:
-    resolved: list[Path] = []
-    seen: set[Path] = set()
-
-    for match in matches:
-        raw_path = match.get("path")
-        if not isinstance(raw_path, Path):
-            raise UploadInstructionsError("scan returned a match without a path")
-
-        normalized = raw_path.expanduser().resolve()
-        if normalized in seen:
-            continue
-
-        try:
-            normalized.relative_to(vault_root)
-        except ValueError:
-            continue
-
-        if not normalized.is_file():
-            continue
-
-        seen.add(normalized)
-        resolved.append(normalized)
-
-    return sorted(resolved)
 
 
 if __name__ == "__main__":
