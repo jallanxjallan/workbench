@@ -1,20 +1,35 @@
 from __future__ import annotations
 
-import sys
-
 import typer
 
+from upload.batches import UploadBatchesSimpleError
 from upload.instructions import UploadInstructionsError
-from upload.package import UploadPackageSimpleError
+from upload.packages import UploadPackageSimpleError
 from upload.profiles import UploadProfilesSimpleError
+from upload.prompts import UploadPromptsError
+
+import upload.batches as batches_source
 import upload.instructions as instructions_source
-import upload.package as package_source
+import upload.packages as package_source
 import upload.profiles as profiles_source
+import upload.prompts as prompts_source
 
 app = typer.Typer(
-    help="Compile instructions, profiles, or packages to NDJSON on stdout.",
+    help="Compile batches, instructions, profiles, prompts, or packages to NDJSON on stdout.",
     no_args_is_help=True,
 )
+
+
+@app.command("batches")
+def upload_batches_command() -> None:
+    try:
+        raise typer.Exit(int(batches_source.main()))
+    except UploadBatchesSimpleError as exc:
+        typer.echo(f"upload batches: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    except Exception as exc:
+        typer.echo(f"upload batches: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 @app.command("instructions")
@@ -41,6 +56,18 @@ def upload_profiles_command() -> None:
         raise typer.Exit(1) from exc
 
 
+@app.command("prompts")
+def upload_prompts_command() -> None:
+    try:
+        raise typer.Exit(int(prompts_source.main()))
+    except UploadPromptsError as exc:
+        typer.echo(f"upload prompts: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    except Exception as exc:
+        typer.echo(f"upload prompts: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
 @app.command("packages")
 def upload_packages_command() -> None:
     try:
@@ -51,7 +78,7 @@ def upload_packages_command() -> None:
     except Exception as exc:
         typer.echo(f"upload packages: {exc}", err=True)
         raise typer.Exit(1) from exc
-    
+
 
 def main(argv: list[str] | None = None) -> int:
     args = [] if argv is None else list(argv)
@@ -64,4 +91,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    app()
+    raise SystemExit(main())

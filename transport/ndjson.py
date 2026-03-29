@@ -49,3 +49,13 @@ def write_record(stream: TextIO, record: dict) -> None:
 def write_records(stream: TextIO, records: Iterable[dict]) -> None:
     for record in records:
         write_record(stream, record)
+
+
+def stream_markdown_content(input_stream: TextIO, output_stream: TextIO) -> None:
+    for record in iter_records(input_stream):
+        content = record.get("content")
+        if not isinstance(content, str) or not content:
+            continue
+
+        output_stream.write(content.rstrip())
+        output_stream.write("\n\n")
