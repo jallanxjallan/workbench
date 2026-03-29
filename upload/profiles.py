@@ -7,76 +7,114 @@ from pathlib import Path
 import yaml
 
 
-class UploadProfilesSimpleError(RuntimeError):
+PROFILE_TYPE = "profile"
+DEFAULT_MANIFEST = "profiles_manifest.json"
+
+
+class UploadProfilesError(RuntimeError):
     pass
+
+
+def load_json(path: Path) -> dict:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise UploadProfilesError(f"cannot read {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise UploadProfilesError(f"invalid JSON in {path}: {exc}") from exc
+
+    if not isinstance(payload, dict):
+        raise UploadProfilesError(f"manifest must be a JSON object: {path}")
+
+    return payload
 
 
 def load_yaml(path: Path) -> dict:
     try:
         payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise UploadProfilesSimpleError(f"cannot read {path}: {exc}") from exc
+        raise UploadProfilesError(f"cannot read {path}: {exc}") from exc
     except yaml.YAMLError as exc:
-        raise UploadProfilesSimpleError(f"invalid YAML in {path}: {exc}") from exc
+        raise UploadProfilesError(f"invalid YAML in {path}: {exc}") from exc
 
     if payload is None:
         payload = {}
 
     if not isinstance(payload, dict):
-        raise UploadProfilesSimpleError(f"profile must be a YAML mapping: {path}")
-
-    if "slug" in payload:
-        raise UploadProfilesSimpleError(
-            f"profile must not contain in-file slug; filename stem is authoritative: {path}"
-        )
+        raise UploadProfilesError(f"profile must be a YAML mapping: {path}")
 
     return payload
 
 
-def iter_profile_paths(root: Path) -> list[Path]:
-    return sorted(
-        path
-        for path in root.iterdir()
-        if path.is_file()
-        and path.suffix.lower() == ".yaml"
-        and path.stem.startswith("prf.")
-    )
+def load_manifest(path: Path) -> list[dict]:
+    raw = load_json(path)
+    entries = raw.get("profiles")
+
+    if not isinstance(entries, list) or not entries:
+        raise UploadProfilesError(f"manifest missing non-empty 'profiles' list: {path}")
+
+    normalized: list[dict] = []
+    seen: set[str] = set()
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise UploadProfilesError(f"manifest entries must be objects: {path}")
+
+        slug = entry.get("slug")
+        record_type = entry.get("type")
+        relpath = entry.get("path")
+
+        if not isinstance(slug, str) or not slug.strip():
+            raise UploadProfilesError(f"manifest entry missing slug: {path}")
+        slug = slug.strip()
+
+        if slug in seen:
+            raise UploadProfilesError(f"duplicate profile slug in manifest: {slug}")
+        seen.add(slug)
+
+        if not isinstance(record_type, str) or record_type.strip() != PROFILE_TYPE:
+            raise UploadProfilesError(
+                f"manifest entry has invalid type for {slug}: {record_type!r}"
+            )
+
+        if not isinstance(relpath, str) or not relpath.strip():
+            raise UploadProfilesError(f"manifest entry missing path for {slug}")
+
+        source_path = (path.parent / relpath.strip()).resolve()
+        if not source_path.is_file():
+            raise UploadProfilesError(f"profile source file not found for {slug}: {source_path}")
+
+        normalized.append(
+            {
+                "type": PROFILE_TYPE,
+                "slug": slug,
+                "path": source_path,
+            }
+        )
+
+    return normalized
 
 
-def compile_record(path: Path) -> dict:
-    slug = path.stem.strip()
-    if not slug:
-        raise UploadProfilesSimpleError(f"empty slug stem in filename: {path}")
-
-    payload = load_yaml(path)
+def compile_record(entry: dict) -> dict:
+    payload = load_yaml(entry["path"])
 
     return {
-        "slug": slug,
+        "type": entry["type"],
+        "slug": entry["slug"],
         "payload": payload,
     }
 
 
-def emit_records(paths: list[Path]) -> None:
-    seen: set[str] = set()
-
-    for path in paths:
-        slug = path.stem.strip()
-        if slug in seen:
-            raise UploadProfilesSimpleError(f"duplicate slug from filename: {slug}")
-        seen.add(slug)
-
-        record = compile_record(path)
+def emit_records(entries: list[dict]) -> None:
+    for entry in entries:
+        record = compile_record(entry)
         sys.stdout.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def main() -> int:
-    cwd = Path.cwd()
-    paths = iter_profile_paths(cwd)
-
-    if not paths:
-        raise UploadProfilesSimpleError(f"no prf.*.yaml files found in {cwd}")
-
-    emit_records(paths)
+    manifest_path = Path.cwd() / DEFAULT_MANIFEST
+    entries = load_manifest(manifest_path)
+    emit_records(entries)
     return 0
 
 
@@ -84,5 +122,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:
-        print(f"upload-profiles-simple: {exc}", file=sys.stderr)
+        print(f"upload-profiles: {exc}", file=sys.stderr)
         raise SystemExit(1)

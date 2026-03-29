@@ -5,7 +5,7 @@ import typer
 from upload.batches import UploadBatchesSimpleError
 from upload.instructions import UploadInstructionsError
 from upload.packages import UploadPackageSimpleError
-from upload.profiles import UploadProfilesSimpleError
+from upload.profiles import UploadProfilesError
 from upload.prompts import UploadPromptsError
 
 import upload.batches as batches_source
@@ -48,7 +48,7 @@ def upload_instructions_command() -> None:
 def upload_profiles_command() -> None:
     try:
         raise typer.Exit(int(profiles_source.main()))
-    except UploadProfilesSimpleError as exc:
+    except UploadProfilesError as exc:
         typer.echo(f"upload profiles: {exc}", err=True)
         raise typer.Exit(1) from exc
     except Exception as exc:

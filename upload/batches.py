@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Iterator, TextIO
 
 from scan import rg_search
+from upload.envelope import wrap_uploaded_record
 from vault.validate import validate_vault
 
 BATCH_SLUG_PATTERN = r'^\s*"batch_slug"\s*:\s*"[^"]+"\s*,?\s*$'
@@ -113,10 +114,11 @@ def load_batch_record(path: Path) -> dict[str, object]:
     if not isinstance(batch_slug, str) or not batch_slug:
         raise UploadBatchesSimpleError(f"Batch file missing batch_slug: {path}")
 
-    return {
-        "slug": batch_slug,
-        "payload": payload,
-    }
+    return wrap_uploaded_record(
+        entity_type="batch",
+        slug=batch_slug,
+        payload=payload,
+    )
 
 
 if __name__ == "__main__":

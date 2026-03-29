@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Iterator, TextIO
 
 from scan import rg_search
+from upload.envelope import wrap_uploaded_record
 from vault.validate import validate_vault
 
 PACKAGE_SLUG_PATTERN = r'^\s*"package_slug"\s*:\s*"pkg\.[^"]+"\s*,?\s*$'
@@ -113,10 +114,11 @@ def load_package_record(path: Path) -> dict[str, object]:
     if not isinstance(package_slug, str) or not package_slug:
         raise UploadPackageSimpleError(f"Package file missing package_slug: {path}")
 
-    return {
-        "slug": package_slug,
-        "payload": payload,
-    }
+    return wrap_uploaded_record(
+        entity_type="package",
+        slug=package_slug,
+        payload=payload,
+    )
 
 
 if __name__ == "__main__":
