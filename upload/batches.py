@@ -111,14 +111,24 @@ def load_batch_record(path: Path) -> dict[str, object]:
         )
 
     batch_slug = payload.get("batch_slug")
-    if not isinstance(batch_slug, str) or not batch_slug:
+    if not isinstance(batch_slug, str) or not batch_slug.strip():
         raise UploadBatchesSimpleError(f"Batch file missing batch_slug: {path}")
 
-    return wrap_uploaded_record(
-        entity_type="batch",
-        slug=batch_slug,
-        payload=payload,
-    )
+    prompts = payload.get("prompts")
+    if not isinstance(prompts, list):
+        raise UploadBatchesSimpleError(f"Batch file prompts must be a list: {path}")
+
+    for slug in prompts:
+        if not isinstance(slug, str) or not slug.strip():
+            raise UploadBatchesSimpleError(
+                f"Batch file prompts must be a list of non-empty strings: {path}"
+            )
+
+    return {
+        "type": "batch",
+        "slug": batch_slug.strip(),
+        "prompts": [slug.strip() for slug in prompts],
+    }
 
 
 if __name__ == "__main__":
