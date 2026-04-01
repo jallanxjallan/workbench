@@ -5,6 +5,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from contracts.ingest import (
+    INGEST_BATCH_ID_KEY,
+    INGEST_ERROR_KEY,
+    INGEST_RECORD_COUNT_KEY,
+    INGEST_RESULT_OPERATION,
+    INGEST_RESULT_OPERATION_KEY,
+    INGEST_STATUS_FAILED,
+    INGEST_STATUS_KEY,
+    INGEST_STATUS_OK,
+)
 import repo
 from transport import dumps_record
 from upload.confirm import ConfirmUploadError, confirm_upload
@@ -67,10 +77,10 @@ class ConfirmUploadTests(unittest.TestCase):
         tag_name = confirm_upload(
             self._stream(
                 {
-                    "_op": "asc.ingest.result",
-                    "status": "ok",
-                    "batch_id": "content.topic.xyz98765",
-                    "record_count": 2,
+                    INGEST_RESULT_OPERATION_KEY: INGEST_RESULT_OPERATION,
+                    INGEST_STATUS_KEY: INGEST_STATUS_OK,
+                    INGEST_BATCH_ID_KEY: "content.topic.xyz98765",
+                    INGEST_RECORD_COUNT_KEY: 2,
                 }
             ),
             cwd=self.vault,
@@ -85,10 +95,10 @@ class ConfirmUploadTests(unittest.TestCase):
         tag_name = confirm_upload(
             self._stream(
                 {
-                    "_op": "asc.ingest.result",
-                    "status": "failed",
-                    "error": "duplicate slug pss.foo.bar",
-                    "record_count": 2,
+                    INGEST_RESULT_OPERATION_KEY: INGEST_RESULT_OPERATION,
+                    INGEST_STATUS_KEY: INGEST_STATUS_FAILED,
+                    INGEST_ERROR_KEY: "duplicate slug pss.foo.bar",
+                    INGEST_RECORD_COUNT_KEY: 2,
                 }
             ),
             cwd=self.vault,
@@ -105,10 +115,10 @@ class ConfirmUploadTests(unittest.TestCase):
             confirm_upload(
                 self._stream(
                     {
-                        "_op": "asc.ingest.result",
-                        "status": "ok",
-                        "batch_id": "content.topic.xyz98765",
-                        "record_count": 2,
+                        INGEST_RESULT_OPERATION_KEY: INGEST_RESULT_OPERATION,
+                        INGEST_STATUS_KEY: INGEST_STATUS_OK,
+                        INGEST_BATCH_ID_KEY: "content.topic.xyz98765",
+                        INGEST_RECORD_COUNT_KEY: 2,
                     }
                 ),
                 cwd=nested,

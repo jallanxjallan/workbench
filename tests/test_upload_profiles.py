@@ -6,8 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from contracts.uploads import successful_upload_tag
 import repo
-from repo.repo import _run_git
 from transport import loads_record
 from upload.profiles import (
     UploadProfilesError,
@@ -36,7 +36,7 @@ class UploadProfilesTests(unittest.TestCase):
         return path
 
     def _tag_successful_upload(self, name: str) -> None:
-        _run_git(["tag", "-a", name, "-m", name], cwd=self.profiles_root)
+        repo.discover_repo(self.profiles_root).create_annotated_tag(name, message=name)
 
     def test_iter_upload_profile_records_emits_all_profiles_before_first_tag(self) -> None:
         first = self._write_profile("a.yaml", "prf.a")
@@ -51,7 +51,7 @@ class UploadProfilesTests(unittest.TestCase):
     def test_iter_upload_profile_records_skips_clean_profiles_after_successful_tag(self) -> None:
         self._write_profile("a.yaml", "prf.a")
         repo.ensure_snapshot_commit(self.profiles_root, "initial snapshot")
-        self._tag_successful_upload("successful_upload/profiles/prf")
+        self._tag_successful_upload(successful_upload_tag("profiles", "prf"))
 
         records = iter_upload_profile_records(root=self.profiles_root)
 
@@ -61,7 +61,7 @@ class UploadProfilesTests(unittest.TestCase):
         changed = self._write_profile("a.yaml", "prf.a")
         self._write_profile("b.yml", "prf.b")
         repo.ensure_snapshot_commit(self.profiles_root, "initial snapshot")
-        self._tag_successful_upload("successful_upload/profiles/prf")
+        self._tag_successful_upload(successful_upload_tag("profiles", "prf"))
 
         changed.write_text("slug: prf.a\nupdated: true\n", encoding="utf-8")
         untracked = self._write_profile("c.yaml", "prf.c")

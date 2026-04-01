@@ -7,8 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from contracts.uploads import successful_upload_tag
 import repo
-from repo.repo import _run_git
 from transport import loads_record
 from upload.package import (
     UploadPackageError,
@@ -34,7 +34,7 @@ class UploadPackageTests(unittest.TestCase):
         self.package_path.write_text(json.dumps(payload), encoding="utf-8")
 
     def _tag_successful_upload(self, name: str) -> None:
-        _run_git(["tag", "-a", name, "-m", name], cwd=self.repo_root)
+        repo.discover_repo(self.repo_root).create_annotated_tag(name, message=name)
 
     def test_iter_upload_package_records_emits_current_package_record(self) -> None:
         self._write_package({"slug": "pkg.alpha", "steps": []})
@@ -50,7 +50,9 @@ class UploadPackageTests(unittest.TestCase):
     def test_iter_upload_package_records_skips_clean_package_after_successful_tag(self) -> None:
         self._write_package({"slug": "pkg.alpha", "steps": []})
         repo.ensure_snapshot_commit(self.repo_root, "initial snapshot")
-        self._tag_successful_upload("successful_upload/packages/pkg.alpha")
+        self._tag_successful_upload(
+            successful_upload_tag("packages", "pkg.alpha")
+        )
 
         records = iter_upload_package_records(self.package_path)
 
@@ -59,7 +61,9 @@ class UploadPackageTests(unittest.TestCase):
     def test_iter_upload_package_records_includes_dirty_package_after_successful_tag(self) -> None:
         self._write_package({"slug": "pkg.alpha", "steps": []})
         repo.ensure_snapshot_commit(self.repo_root, "initial snapshot")
-        self._tag_successful_upload("successful_upload/packages/pkg.alpha")
+        self._tag_successful_upload(
+            successful_upload_tag("packages", "pkg.alpha")
+        )
         self._write_package({"slug": "pkg.alpha", "steps": [{"name": "changed"}]})
 
         records = [loads_record(line) for line in iter_upload_package_records(self.package_path)]

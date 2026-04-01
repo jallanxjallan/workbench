@@ -7,6 +7,7 @@ from transport.ndjson import (
     iter_records,
     loads_record,
     read_all_records,
+    stream_markdown_content,
     write_record,
     write_records,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "read_text",
     "require_single_final_trailer",
     "split_final_trailer",
+    "stream_markdown_content",
     "write_record",
     "write_records",
     "write_text",

@@ -6,7 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from upload.prompts import BatchDispatchError, dispatch_batch, emit_paths
+from transport import emit_paths
+from upload.dispatch import BatchDispatchError, dispatch_batch
 
 
 
@@ -28,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"slug_filepaths: {exc}", file=sys.stderr)
         return 1
 
-    emit_paths(result.paths)
+    emit_paths(result.paths, sys.stdout)
     return 0
 
 

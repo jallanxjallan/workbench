@@ -3,36 +3,41 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import sys
 
-from _depreciated.document_files import has_piped_stdin
-from write.common import WriteError
-from write.overwrite import writeback
+from intake.writeback import WriteBackError, prepare_writeback_stream
+
+
+def _has_piped_stdin() -> bool:
+    try:
+        return not sys.stdin.isatty()
+    except OSError:
+        return True
 
 
 def parser() -> argparse.ArgumentParser:
     return argparse.ArgumentParser(
         prog="writeback",
-        description="Overwrite existing markdown files resolved from input_record.metadata.slug.",
+        description="Prepare writeback targets resolved from input_record.slug.",
     )
-
-
-def run(*, input_stream) -> None:
-    writeback(input_stream=input_stream)
-
 
 def main(argv: list[str] | None = None) -> int:
     command_parser = parser()
     command_parser.parse_args(argv)
-    if not has_piped_stdin(sys.stdin):
+    if not _has_piped_stdin():
         command_parser.print_usage(sys.stderr)
         print("ERROR: expected canonical NDJSON input from stdin", file=sys.stderr)
         return 1
 
     try:
-        run(input_stream=sys.stdin)
+        prepare_writeback_stream(
+            sys.stdin,
+            sys.stdout,
+            vault_root=Path.cwd(),
+        )
         return 0
-    except WriteError as exc:
+    except WriteBackError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     except OSError as exc:

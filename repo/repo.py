@@ -420,6 +420,37 @@ class GitRepo:
         )
         return proc.returncode == 0
 
+    def tracked_paths(self, scope: Path) -> list[Path]:
+        """Return tracked paths under `scope` as absolute normalized paths."""
+        rel = str(self.relpath(scope))
+        proc = _run_git(["ls-files", "--", rel], cwd=self._root)
+        return [
+            (self._root / line.strip()).resolve()
+            for line in proc.stdout.splitlines()
+            if line.strip()
+        ]
+
+    def latest_tag_with_prefix(self, prefix: str) -> str | None:
+        """Return the newest tag whose refname begins with `prefix`."""
+        proc = _run_git(
+            [
+                "for-each-ref",
+                "--sort=-taggerdate",
+                "--format=%(refname:strip=2)",
+                f"refs/tags/{prefix}",
+            ],
+            cwd=self._root,
+        )
+        for line in proc.stdout.splitlines():
+            tag_name = line.strip()
+            if tag_name:
+                return tag_name
+        return None
+
+    def create_annotated_tag(self, tag_name: str, *, message: str) -> None:
+        """Create an annotated tag at HEAD."""
+        _run_git(["tag", "-a", tag_name, "-m", message], cwd=self._root)
+
     def is_dirty(
         self,
         path: Path | None = None,

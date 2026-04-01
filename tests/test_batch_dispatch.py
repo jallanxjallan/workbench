@@ -6,9 +6,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from upload.dispatch import BatchDispatchError, dispatch_batch
 import repo
 from scan.api import resolve_slug_to_filepath
-from upload.prompts import BatchDispatchError, dispatch_batch
 from vault.validate import require_vault_root, validate_vault
 
 
@@ -101,7 +101,7 @@ class BatchDispatchTests(unittest.TestCase):
         outside.write_text("outside\n", encoding="utf-8")
         selection = self._write_selection(["pss.one"])
 
-        with patch("upload.prompts.resolve_slug_to_filepath", return_value=outside):
+        with patch("upload.dispatch.resolve_slug_to_filepath", return_value=outside):
             with self.assertRaises(BatchDispatchError):
                 dispatch_batch(selection, cwd=self.vault)
 

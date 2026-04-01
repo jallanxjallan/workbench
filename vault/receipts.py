@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from contracts.ingest import INGEST_BATCH_ID_KEY, INGEST_ERROR_KEY
 import repo
 
 
@@ -36,7 +37,7 @@ def create_batch_receipt(
 ) -> str:
     submit_tag = _require_submit_tag(submit_receipt)
     receipt = repo.BatchReceipt(
-        batch_id=_require_str(trailer, "batch_id"),
+        batch_id=_require_str(trailer, INGEST_BATCH_ID_KEY),
         confirmed_at=_now_utc(),
         submit_receipt=submit_tag,
         commit=submit_receipt.commit,
@@ -63,7 +64,7 @@ def create_failed_receipt(
         created_at=failed_at,
         failed_at=failed_at,
         commit=submit_receipt.commit,
-        error=_require_str(trailer, "error"),
+        error=_require_str(trailer, INGEST_ERROR_KEY),
         record_count=manifest.record_count,
         slugs=list(manifest.ordered_slugs),
         paths_rel=[path.relative_to(vault_root).as_posix() for path in manifest.ordered_filepaths],

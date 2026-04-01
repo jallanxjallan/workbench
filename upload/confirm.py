@@ -3,8 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TextIO
 
+from contracts.ingest import (
+    INGEST_BATCH_ID_KEY,
+    INGEST_ERROR_KEY,
+    INGEST_RECORD_COUNT_KEY,
+    INGEST_RESULT_OPERATION,
+    INGEST_RESULT_OPERATION_KEY,
+    INGEST_STATUS_FAILED,
+    INGEST_STATUS_KEY,
+    INGEST_STATUS_OK,
+    is_ingest_result_trailer,
+)
 import repo
-from transport import is_final_trailer_record, read_all_records, require_single_final_trailer
+from transport import read_all_records, require_single_final_trailer
 from vault.receipts import Manifest, create_batch_receipt, create_failed_receipt, find_matching_submit_receipt
 from vault.validate import validate_vault
 
@@ -26,11 +37,7 @@ def split_payload_and_trailer(records: list[dict]) -> tuple[list[dict], dict]:
     try:
         return require_single_final_trailer(
             records,
-            predicate=lambda record: is_final_trailer_record(
-                record,
-                key="_op",
-                value="asc.ingest.result",
-            ),
+            predicate=is_ingest_result_trailer,
         )
     except ValueError as exc:
         raise ConfirmUploadError(str(exc)) from exc
@@ -38,26 +45,30 @@ def split_payload_and_trailer(records: list[dict]) -> tuple[list[dict], dict]:
 
 
 def validate_trailer(trailer: dict, payload_count: int) -> None:
-    if trailer.get("_op") != "asc.ingest.result":
-        raise ConfirmUploadError("trailer record must have _op='asc.ingest.result'")
-
-    record_count = trailer.get("record_count")
-    if not isinstance(record_count, int):
-        raise ConfirmUploadError("trailer record_count must be an integer")
-    if record_count != payload_count:
+    if trailer.get(INGEST_RESULT_OPERATION_KEY) != INGEST_RESULT_OPERATION:
         raise ConfirmUploadError(
-            f"trailer record_count {record_count} does not match payload count {payload_count}"
+            f"trailer record must have {INGEST_RESULT_OPERATION_KEY}='{INGEST_RESULT_OPERATION}'"
         )
 
-    status = trailer.get("status")
-    if status == "ok":
-        if not isinstance(trailer.get("batch_id"), str) or not trailer["batch_id"]:
-            raise ConfirmUploadError("success trailer is missing batch_id")
+    record_count = trailer.get(INGEST_RECORD_COUNT_KEY)
+    if not isinstance(record_count, int):
+        raise ConfirmUploadError(
+            f"trailer {INGEST_RECORD_COUNT_KEY} must be an integer"
+        )
+    if record_count != payload_count:
+        raise ConfirmUploadError(
+            f"trailer {INGEST_RECORD_COUNT_KEY} {record_count} does not match payload count {payload_count}"
+        )
+
+    status = trailer.get(INGEST_STATUS_KEY)
+    if status == INGEST_STATUS_OK:
+        if not isinstance(trailer.get(INGEST_BATCH_ID_KEY), str) or not trailer[INGEST_BATCH_ID_KEY]:
+            raise ConfirmUploadError(f"success trailer is missing {INGEST_BATCH_ID_KEY}")
         return
 
-    if status == "failed":
-        if not isinstance(trailer.get("error"), str) or not trailer["error"]:
-            raise ConfirmUploadError("failure trailer is missing error")
+    if status == INGEST_STATUS_FAILED:
+        if not isinstance(trailer.get(INGEST_ERROR_KEY), str) or not trailer[INGEST_ERROR_KEY]:
+            raise ConfirmUploadError(f"failure trailer is missing {INGEST_ERROR_KEY}")
         return
 
     raise ConfirmUploadError(f"unsupported ingest result status: {status!r}")
@@ -117,7 +128,7 @@ def extract_ordered_manifest(payload_records: list[dict], vault_root: Path) -> M
 
 def confirm_upload_result(manifest: Manifest, trailer: dict, vault_root: Path) -> str:
     submit_receipt = find_matching_submit_receipt(manifest, vault_root)
-    if trailer["status"] == "ok":
+    if trailer[INGEST_STATUS_KEY] == INGEST_STATUS_OK:
         return create_batch_receipt(submit_receipt, trailer, manifest, vault_root)
     return create_failed_receipt(submit_receipt, trailer, manifest, vault_root)
 
