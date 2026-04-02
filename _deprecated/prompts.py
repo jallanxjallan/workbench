@@ -6,26 +6,26 @@ import sys
 
 from transport.pandoc import PandocError, PandocJob, run_pandoc_jobs_serial
 from scan import rg_search
-from upload.envelope import wrap_uploaded_record
+from _deprecated.envelope import wrap_uploaded_record
 from vault.validate import validate_vault
 
 
-PANDOC_DEFAULTS = "upload_instructions"
+PANDOC_DEFAULTS = "upload_prompts"
 MARKDOWN_EXTENSIONS = ["md", "markdown"]
 SCAN_EXCLUDE_DIRS = [".git", "_compiled", "node_modules", "__pycache__"]
-INSTRUCTION_SLUG_PATTERN = r"^slug:\s*(?:gbl|cxt|spc)\..*$"
+PROMPT_SLUG_PATTERN = r"^slug:\s*pss\..*$"
 
 
-class UploadInstructionsError(RuntimeError):
-    """Raised when upload-instructions cannot compile its file list."""
+class UploadPromptsError(RuntimeError):
+    """Raised when upload-prompts cannot compile its file list."""
 
 
-def discover_instruction_paths(cwd: Path | None = None) -> list[Path]:
+def discover_prompt_paths(cwd: Path | None = None) -> list[Path]:
     current_cwd = (Path.cwd() if cwd is None else Path(cwd)).expanduser().resolve()
     vault_root = validate_vault(current_cwd)
 
     records = rg_search(
-        pattern=INSTRUCTION_SLUG_PATTERN,
+        pattern=PROMPT_SLUG_PATTERN,
         root=vault_root,
         extensions=MARKDOWN_EXTENSIONS,
         exclude_dirs=SCAN_EXCLUDE_DIRS,
@@ -37,7 +37,7 @@ def discover_instruction_paths(cwd: Path | None = None) -> list[Path]:
     for record in records:
         candidate = record.get("path")
         if not isinstance(candidate, Path):
-            raise UploadInstructionsError("scan returned a match without a path")
+            raise UploadPromptsError("scan returned a match without a path")
 
         normalized = candidate.expanduser().resolve()
         if normalized in seen:
@@ -57,8 +57,8 @@ def discover_instruction_paths(cwd: Path | None = None) -> list[Path]:
     return sorted(paths)
 
 
-def iter_instruction_jobs(cwd: Path | None = None) -> list[PandocJob]:
-    paths = discover_instruction_paths(cwd)
+def iter_prompt_jobs(cwd: Path | None = None) -> list[PandocJob]:
+    paths = discover_prompt_paths(cwd)
     return [
         PandocJob(
             defaults=PANDOC_DEFAULTS,
@@ -68,18 +68,18 @@ def iter_instruction_jobs(cwd: Path | None = None) -> list[PandocJob]:
     ]
 
 
-def emit_instruction_records(cwd: Path | None = None) -> None:
-    jobs = iter_instruction_jobs(cwd)
+def emit_prompt_records(cwd: Path | None = None) -> None:
+    jobs = iter_prompt_jobs(cwd)
 
     for result in run_pandoc_jobs_serial(jobs):
         if result.stdout:
-            wrapped_output = _wrap_instruction_output(result.stdout)
+            wrapped_output = _wrap_prompt_output(result.stdout)
             sys.stdout.write(wrapped_output)
             if not wrapped_output.endswith("\n"):
                 sys.stdout.write("\n")
 
 
-def _wrap_instruction_output(raw_output: str) -> str:
+def _wrap_prompt_output(raw_output: str) -> str:
     lines = raw_output.splitlines()
     wrapped_lines: list[str] = []
 
@@ -89,24 +89,20 @@ def _wrap_instruction_output(raw_output: str) -> str:
 
         payload = json.loads(line)
         if not isinstance(payload, dict):
-            raise UploadInstructionsError("instruction upload produced a non-object payload")
+            raise UploadPromptsError("prompt upload produced a non-object payload")
 
         input_record = payload.get("input_record")
         if not isinstance(input_record, dict):
-            raise UploadInstructionsError(
-                "instruction upload produced a payload without input_record"
-            )
+            raise UploadPromptsError("prompt upload produced a payload without input_record")
 
         slug = input_record.get("slug")
         if not isinstance(slug, str) or not slug:
-            raise UploadInstructionsError(
-                "instruction upload produced a payload without input_record.slug"
-            )
+            raise UploadPromptsError("prompt upload produced a payload without input_record.slug")
 
         wrapped_lines.append(
             json.dumps(
                 wrap_uploaded_record(
-                    entity_type="instruction",
+                    entity_type="prompt",
                     slug=slug,
                     payload=payload,
                 ),
@@ -119,12 +115,12 @@ def _wrap_instruction_output(raw_output: str) -> str:
 
 def main() -> int:
     try:
-        emit_instruction_records()
+        emit_prompt_records()
     except PandocError as exc:
-        print(f"upload-instructions: {exc}", file=sys.stderr)
+        print(f"upload-prompts: {exc}", file=sys.stderr)
         return 1
     except Exception as exc:
-        print(f"upload-instructions: {exc}", file=sys.stderr)
+        print(f"upload-prompts: {exc}", file=sys.stderr)
         return 1
 
     return 0

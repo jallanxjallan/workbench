@@ -8,7 +8,6 @@ import yaml
 
 
 PROFILE_TYPE = "profile"
-DEFAULT_MANIFEST = "profiles_manifest.json"
 
 
 class UploadProfilesError(RuntimeError):
@@ -111,16 +110,19 @@ def emit_records(entries: list[dict]) -> None:
         sys.stdout.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-def main() -> int:
-    manifest_path = Path.cwd() / DEFAULT_MANIFEST
-    entries = load_manifest(manifest_path)
+def main(manifest_path: Path) -> int:
+    entries = load_manifest(manifest_path.resolve())
     emit_records(entries)
     return 0
 
 
 if __name__ == "__main__":
     try:
-        raise SystemExit(main())
+        if len(sys.argv) != 2:
+            print("usage: control.py <manifest.json>", file=sys.stderr)
+            raise SystemExit(2)
+
+        raise SystemExit(main(Path(sys.argv[1])))
     except Exception as exc:
         print(f"upload-profiles: {exc}", file=sys.stderr)
         raise SystemExit(1)
