@@ -13,3 +13,7 @@ dist/
 .ruff_cache/
 .mypy_cache/
 
+# legacy artifacts
+_deprecated
+
+
