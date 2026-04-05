@@ -9,7 +9,7 @@ class NdjsonEmitError(RuntimeError):
     pass
 
 
-REQUIRED_FIELDS = ("type", "kind", "identity", "payload")
+REQUIRED_FIELDS = ("type", "kind", "slug", "payload")
 
 
 def emit_record(record: dict[str, Any]) -> None:
@@ -29,13 +29,13 @@ def validate_record(record: dict[str, Any]) -> dict[str, Any]:
 
     record_type = require_text(record["type"], field_name="type")
     kind = require_text(record["kind"], field_name="kind")
-    identity = require_text(record["identity"], field_name="identity")
+    slug = require_text(record["slug"], field_name="slug")
     payload = require_object(record["payload"], field_name="payload")
 
     validated = dict(record)
     validated["type"] = record_type
     validated["kind"] = kind
-    validated["identity"] = identity
+    validated["slug"] = slug
     validated["payload"] = payload
     return validated
 
