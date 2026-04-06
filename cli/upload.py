@@ -4,7 +4,7 @@ from pathlib import Path
 
 import typer
 
-import upload.control as control_source
+
 import upload.document as document_source
 import upload.manifest as manifest_source
 
@@ -36,13 +36,6 @@ def upload_manifest_command(
     if code:
         raise typer.Exit(code)
 
-
-@app.command("control")
-def upload_control_command(
-) -> None:
-    code = int(control_source.main())
-    if code:
-        raise typer.Exit(code)
 
 
 def main(argv: list[str] | None = None) -> int:
