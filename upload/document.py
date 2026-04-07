@@ -1,39 +1,44 @@
 from __future__ import annotations
 
-import json
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TextIO
+from typing import Literal, TextIO
 
 from scan import rg_search
 from transport.pandoc import PandocError, PandocJob, run_pandoc_jobs_serial
-from upload.ndjson import NdjsonEmitError, validate_record
-
-from upload.prefixes import (
-    DOCUMENT_PREFIXES,
-    PrefixMapError,
-    require_target,
-    pandoc_defaults_for_slug,
-)
+from upload.prefixes import PrefixMapError, kind_for_slug, require_target
 from vault.validate import validate_vault
 
 
 SCAN_EXCLUDE_DIRS = [".git", "_compiled", "node_modules", "__pycache__"]
 DOCUMENT_EXTENSIONS = ["md", "markdown"]
+DocumentTarget = Literal["prompt", "instruction"]
 
 SLUG_SCAN_PATTERN = r"slug\s*:"
-SLUG_VALUE_PATTERN = r"[a-z]{3}\.[a-z]+(?:-[a-z]+)*\.[a-z0-9]{5,8}"
-SLUG_IN_TEXT_RE = re.compile(
-    rf'^\s*slug\s*:\s*"?(?P<slug>{SLUG_VALUE_PATTERN})"?\s*$'
-)
 FULL_SLUG_RE = re.compile(
     r"^(?P<prefix>[a-z]{3})\.(?P<hint>[a-z]+(?:-[a-z]+)*)\.(?P<identity>[a-z0-9]{5,8})$"
 )
 
+PROMPT_PREFIXES = ("pss", "img", "scn")
+INSTRUCTION_PREFIXES = ("gbl", "cxt", "spc")
+
+PREFIXES_BY_TARGET: dict[DocumentTarget, tuple[str, ...]] = {
+    "prompt": PROMPT_PREFIXES,
+    "instruction": INSTRUCTION_PREFIXES,
+}
+
+PANDOC_DEFAULTS_BY_TARGET: dict[DocumentTarget, str] = {
+    "prompt": "upload_prompts",
+    "instruction": "upload_instructions",
+}
+
 
 class MarkdownHelperError(RuntimeError):
+    pass
+
+
+class UploadError(RuntimeError):
     pass
 
 
@@ -43,82 +48,89 @@ class FoundDocument:
     path: Path
 
 
-class UploadError(RuntimeError):
-    pass
+def prefixes_for_target(target: DocumentTarget) -> tuple[str, ...]:
+    return PREFIXES_BY_TARGET[target]
 
 
-def build_ndjson_line(path: Path, *, slug: str) -> str:
+def slug_line_regex_for_target(target: DocumentTarget) -> re.Pattern[str]:
+    prefixes = prefixes_for_target(target)
+    prefix_pattern = "|".join(re.escape(prefix) for prefix in sorted(prefixes))
+    slug_value_pattern = (
+        rf"(?:{prefix_pattern})"
+        rf"\.[a-z]+(?:-[a-z]+)*"
+        rf"\.[a-z0-9]{{5,8}}"
+    )
+    return re.compile(
+        rf'^\s*slug\s*:\s*"?(?P<slug>{slug_value_pattern})"?\s*$'
+    )
+
+
+def build_pandoc_job(path: Path, *, target: DocumentTarget) -> PandocJob:
+    return PandocJob(
+        defaults=PANDOC_DEFAULTS_BY_TARGET[target],
+        source_path=path,
+    )
+
+
+def emit_pandoc_stdout(
+    path: Path,
+    *,
+    target: DocumentTarget,
+    output: TextIO,
+) -> None:
+    job = build_pandoc_job(path, target=target)
+
     try:
-        defaults = pandoc_defaults_for_slug(slug)
-    except PrefixMapError as exc:
-        raise MarkdownHelperError(str(exc)) from exc
-
-    try:
-        results = list(
-            run_pandoc_jobs_serial(
-                [
-                    PandocJob(
-                        defaults=defaults,
-                        source_path=path,
-                    )
-                ]
-            )
-        )
+        results = run_pandoc_jobs_serial([job])
     except PandocError as exc:
         raise MarkdownHelperError(f"pandoc failed: {exc}") from exc
 
-    if len(results) != 1:
-        raise MarkdownHelperError("unexpected pandoc result count")
+    emitted_any = False
 
-    lines = [line for line in results[0].stdout.splitlines() if line.strip()]
-    if len(lines) != 1:
-        raise MarkdownHelperError("pandoc must emit exactly one NDJSON line")
+    for result in results:
+        stdout = result.stdout
+        if not stdout.strip():
+            raise MarkdownHelperError("pandoc emitted no NDJSON output")
 
-    raw_line = lines[0]
+        output.write(stdout)
+        if not stdout.endswith("\n"):
+            output.write("\n")
 
-    try:
-        parsed = json.loads(raw_line)
-    except json.JSONDecodeError as exc:
-        raise MarkdownHelperError(f"pandoc emitted invalid JSON: {exc}") from exc
+        emitted_any = True
 
-    try:
-        validate_record(parsed)
-    except NdjsonEmitError as exc:
-        raise MarkdownHelperError(f"pandoc emitted invalid upload record: {exc}") from exc
-
-    return raw_line
+    if not emitted_any:
+        raise MarkdownHelperError("pandoc returned no result")
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = list(argv or [])
-    if len(args) > 1:
-        print("upload: accepts at most one optional root path", file=sys.stderr)
-        return 1
-
-    root = Path(args[0]).expanduser().resolve() if args else Path.cwd().resolve()
-
-    try:
-        run(root=root, output=sys.stdout, err=sys.stderr)
-    except (UploadError, PrefixMapError) as exc:
-        print(f"upload: {exc}", file=sys.stderr)
-        return 1
-
-    return 0
+def run_prompt(*, root: Path, output: TextIO, err: TextIO) -> None:
+    _run_target(root=root, target="prompt", output=output, err=err)
 
 
-def run(*, root: Path, output: TextIO, err: TextIO) -> None:
+def run_instruction(*, root: Path, output: TextIO, err: TextIO) -> None:
+    _run_target(root=root, target="instruction", output=output, err=err)
+
+
+def _run_target(
+    *,
+    root: Path,
+    target: DocumentTarget,
+    output: TextIO,
+    err: TextIO,
+) -> None:
     vault_root = validate_vault(root)
-    documents = discover_documents(vault_root)
+    documents = discover_documents(vault_root, target=target)
 
     if not documents:
-        raise UploadError(f"no uploadable prompt/instruction files found under: {vault_root}")
+        raise UploadError(
+            f"no uploadable {target} files found under: {vault_root}"
+        )
 
     emitted = 0
     failed = 0
 
     for found in documents:
         try:
-            raw_line = build_ndjson_line(found.path, slug=found.slug)
+            emit_pandoc_stdout(found.path, target=target, output=output)
         except MarkdownHelperError as exc:
             failed += 1
             print(
@@ -127,20 +139,35 @@ def run(*, root: Path, output: TextIO, err: TextIO) -> None:
             )
             continue
 
-        output.write(raw_line)
-        output.write("\n")
         emitted += 1
 
     print(
-        f"upload: emitted {emitted} record(s); failed {failed} document(s)",
+        f"upload: emitted {emitted} {target} record(s); "
+        f"failed {failed} document(s)",
         file=err,
     )
 
     if emitted == 0:
-        raise UploadError("all discovered documents failed during pandoc/NDJSON emission")
+        raise UploadError(
+            f"all discovered {target} documents failed during pandoc emission"
+        )
 
 
-def discover_documents(root: Path) -> list[FoundDocument]:
+def discover_prompt_documents(root: Path) -> list[FoundDocument]:
+    return discover_documents(root, target="prompt")
+
+
+def discover_instruction_documents(root: Path) -> list[FoundDocument]:
+    return discover_documents(root, target="instruction")
+
+
+def discover_documents(
+    root: Path,
+    *,
+    target: DocumentTarget,
+) -> list[FoundDocument]:
+    slug_line_re = slug_line_regex_for_target(target)
+
     records = rg_search(
         pattern=SLUG_SCAN_PATTERN,
         root=root,
@@ -160,7 +187,7 @@ def discover_documents(root: Path) -> list[FoundDocument]:
         if not isinstance(text, str):
             continue
 
-        match = SLUG_IN_TEXT_RE.search(text)
+        match = slug_line_re.search(text)
         if match is None:
             continue
 
@@ -170,7 +197,7 @@ def discover_documents(root: Path) -> list[FoundDocument]:
         if not path.is_file():
             continue
 
-        validate_document_slug(slug)
+        validate_document_slug(slug, target=target)
 
         existing_slug = by_path.get(path)
         if existing_slug is not None and existing_slug != slug:
@@ -189,17 +216,30 @@ def discover_documents(root: Path) -> list[FoundDocument]:
     ]
 
 
-def validate_document_slug(slug: str) -> None:
+def validate_document_slug(slug: str, *, target: DocumentTarget) -> None:
     match = FULL_SLUG_RE.fullmatch(slug)
     if match is None:
         raise UploadError(f"invalid slug shape: {slug}")
 
     prefix = match.group("prefix")
-    if prefix not in DOCUMENT_PREFIXES:
-        raise UploadError(f"document uploader does not accept slug prefix: {slug}")
+    if prefix not in prefixes_for_target(target):
+        raise UploadError(
+            f"{target} uploader does not accept slug prefix: {slug}"
+        )
 
-    require_target(slug, target="document")
+    identity = match.group("identity")
+    if not any(ch.isdigit() for ch in identity):
+        raise UploadError(
+            f"slug identity must contain at least one digit: {slug}"
+        )
 
+    try:
+        require_target(slug, target="document")
+        kind = kind_for_slug(slug)
+    except PrefixMapError as exc:
+        raise UploadError(str(exc)) from exc
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+    if kind != target:
+        raise UploadError(
+            f"document kind mismatch for {slug}: expected {target!r}, got {kind!r}"
+        )

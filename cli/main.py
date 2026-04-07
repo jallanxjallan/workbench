@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 
 import typer
 
-from cli import load_command_module
+from .create_vault import main as create_vault_main
+from .stream import main as stream_main
+from .upload import main as upload_main
+from .writeback import main as writeback_main
+from .writenew import main as writenew_main
 
+
+CommandMain = Callable[[list[str] | None], int | None]
 
 _PASSTHROUGH_SETTINGS = {
     "allow_extra_args": True,
@@ -21,12 +28,7 @@ app = typer.Typer(
 )
 
 
-def _dispatch(command_name: str, argv: list[str] | None = None) -> int:
-    module = load_command_module(command_name)
-    command_main = getattr(module, "main", None)
-    if not callable(command_main):
-        raise RuntimeError(f"command module missing main(argv): {module.__name__}")
-
+def _dispatch(command_main: CommandMain, argv: list[str] | None = None) -> int:
     try:
         result = command_main(argv)
     except SystemExit as exc:
@@ -38,45 +40,35 @@ def _dispatch(command_name: str, argv: list[str] | None = None) -> int:
     return int(result)
 
 
-def _run_passthrough(command_name: str, ctx: typer.Context) -> None:
-    code = _dispatch(command_name, list(ctx.args))
+def _run_passthrough(command_main: CommandMain, ctx: typer.Context) -> None:
+    code = _dispatch(command_main, list(ctx.args))
     if code != 0:
         raise typer.Exit(code=code)
 
 
-@app.command("confirm-upload", context_settings=_PASSTHROUGH_SETTINGS)
-def confirm_upload_command(ctx: typer.Context) -> None:
-    _run_passthrough("confirm-upload", ctx)
-
-
 @app.command("create-vault", context_settings=_PASSTHROUGH_SETTINGS)
 def create_vault_command(ctx: typer.Context) -> None:
-    _run_passthrough("create-vault", ctx)
-
-
-@app.command("slug_filepaths", context_settings=_PASSTHROUGH_SETTINGS)
-def slug_filepaths_command(ctx: typer.Context) -> None:
-    _run_passthrough("slug_filepaths", ctx)
+    _run_passthrough(create_vault_main, ctx)
 
 
 @app.command("stream", context_settings=_PASSTHROUGH_SETTINGS)
 def stream_command(ctx: typer.Context) -> None:
-    _run_passthrough("stream", ctx)
+    _run_passthrough(stream_main, ctx)
 
 
 @app.command("upload", context_settings=_PASSTHROUGH_SETTINGS)
 def upload_command(ctx: typer.Context) -> None:
-    _run_passthrough("upload", ctx)
+    _run_passthrough(upload_main, ctx)
 
 
 @app.command("writeback", context_settings=_PASSTHROUGH_SETTINGS)
 def writeback_command(ctx: typer.Context) -> None:
-    _run_passthrough("writeback", ctx)
+    _run_passthrough(writeback_main, ctx)
 
 
 @app.command("writenew", context_settings=_PASSTHROUGH_SETTINGS)
 def writenew_command(ctx: typer.Context) -> None:
-    _run_passthrough("writenew", ctx)
+    _run_passthrough(writenew_main, ctx)
 
 
 def main(argv: list[str] | None = None) -> int:

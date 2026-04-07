@@ -1,52 +1,24 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
-import typer
-
-
-import upload.document as document_source
-import upload.manifest as manifest_source
-
-app = typer.Typer(
-    help="Compile document, manifest, or control records to NDJSON on stdout.",
-    no_args_is_help=True,
-)
-
-
-@app.command("document")
-def upload_document_command() -> None:
-    code = int(document_source.main())
-    if code:
-        raise typer.Exit(code)
-
-
-@app.command("manifest")
-def upload_manifest_command(
-    manifest: Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        help="Path to the JSON or YAML manifest file.",
-    ),
-) -> None:
-    code = int(manifest_source.main([str(manifest)]))
-    if code:
-        raise typer.Exit(code)
-
+from upload.uploader import run_all
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = [] if argv is None else list(argv)
-    try:
-        app(args=args, prog_name="wkb upload")
-        return 0
-    except SystemExit as exc:
-        code = exc.code
-        return int(code if isinstance(code, int) else 1)
+    argv = argv or []
 
+    if argv:
+        print(
+            f"upload: bare upload command does not accept arguments: {' '.join(argv)}",
+            file=sys.stderr,
+        )
+        return 2
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+    run_all(
+        root=Path.cwd(),
+        output=sys.stdout,
+        err=sys.stderr,
+    )
+    return 0
